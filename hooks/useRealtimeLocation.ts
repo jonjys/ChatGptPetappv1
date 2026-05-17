@@ -1,0 +1,1 @@
+export function useRealtimeLocation(){return null}

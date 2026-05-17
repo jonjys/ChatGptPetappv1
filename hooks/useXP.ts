@@ -1,0 +1,1 @@
+export function useXP(){return {xp:0}}
