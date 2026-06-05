@@ -4,20 +4,24 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
     "framer-motion": "^11.0.0",
     "lucide-react": "^0.500.0",
     "mapbox-gl": "^3.0.0",
-    "next": "14.2.5",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
+    "next": "^15.3.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "@supabase/supabase-js": "^2.0.0"
   },
   "devDependencies": {
     "typescript": "^5.5.0",
-    "@types/react": "^18.2.0",
-    "@types/node": "^20.0.0"
+    "@types/react": "^19.0.0",
+    "@types/node": "^20.0.0",
+    "tailwindcss": "^3.4.0",
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0"
   }
 }

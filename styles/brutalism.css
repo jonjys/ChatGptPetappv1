@@ -1,1 +1,87 @@
-/* brutalism */
+/* Neo-Brutalist design tokens and utilities for KARMA */
+
+.card-hover {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.card-hover:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px #0a0a0a;
+}
+
+.card-hover:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px #0a0a0a;
+}
+
+.section-header {
+  border-bottom: 3px solid #0a0a0a;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 2px solid currentColor;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.divider-brutal {
+  height: 3px;
+  background: #0a0a0a;
+  border-radius: 2px;
+}
+
+.input-brutal {
+  border: 3px solid #0a0a0a;
+  border-radius: 14px;
+  background: #fff;
+  padding: 12px 16px;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 500;
+  outline: none;
+  transition: box-shadow 0.15s;
+  width: 100%;
+}
+
+.input-brutal:focus {
+  box-shadow: 4px 4px 0px #c8ff00;
+}
+
+.textarea-brutal {
+  border: 3px solid #0a0a0a;
+  border-radius: 14px;
+  background: #fff;
+  padding: 12px 16px;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 500;
+  outline: none;
+  transition: box-shadow 0.15s;
+  width: 100%;
+  resize: none;
+}
+
+.textarea-brutal:focus {
+  box-shadow: 4px 4px 0px #c8ff00;
+}
+
+.number-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  background: #0a0a0a;
+  color: #fff;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
