@@ -1,11 +1,13 @@
 export type PetClass = "Grinder Beast" | "Influencer Spirit" | "Merchant King";
 export type PetEvolution = "egg" | "baby" | "teen" | "adult" | "legendary";
-export type PetMood = "happy" | "excited" | "neutral" | "hungry" | "sad";
+export type PetMood = "happy" | "excited" | "neutral" | "hungry" | "sad" | "sleeping";
 
-export type PetStats = {
-  action: number;
-  social: number;
-  commerce: number;
+export type PetStats = { action: number; social: number; commerce: number };
+
+export type PetNeeds = {
+  hunger: number;    // 0-100
+  happiness: number; // 0-100
+  energy: number;    // 0-100
 };
 
 export type Pet = {
@@ -18,8 +20,10 @@ export type Pet = {
   class: PetClass;
   stats: PetStats;
   mood: PetMood;
+  needs: PetNeeds;
   lastFed: string;
   streak: number;
   totalBountiesCompleted: number;
   unlockedAbilities: string[];
+  skinId: string;
 };

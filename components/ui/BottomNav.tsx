@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Flame, Target, Plus, Map, User } from "lucide-react";
+import { Flame, PawPrint, Gamepad2, Map, User } from "lucide-react";
 
 const TABS = [
   { href: "/feed", icon: Flame, label: "Feed" },
+  { href: "/pet", icon: PawPrint, label: "Pet" },
+  { href: "/games", icon: Gamepad2, label: "Games", special: true },
   { href: "/map", icon: Map, label: "Map" },
-  { href: "/create", icon: Plus, label: "Create", special: true },
-  { href: "/shop", icon: Target, label: "Bounties" },
   { href: "/profile", icon: User, label: "Me" },
 ];
 

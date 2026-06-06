@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Bell, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import FeedCard from "@/components/feed/FeedCard";
+import StoriesBar from "@/components/feed/StoriesBar";
 import { FEED_POSTS } from "@/lib/mock-data";
 import { useApp } from "@/context/AppContext";
 import { formatXP } from "@/lib/xp-system";
@@ -124,6 +125,11 @@ export default function FeedPage() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Stories */}
+      <div className="px-4 pt-2" style={{ borderBottom: "2px solid #f0ebe0" }}>
+        <StoriesBar />
       </div>
 
       {/* Feed */}
