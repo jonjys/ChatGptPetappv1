@@ -32,6 +32,7 @@ export function getMoodEmoji(mood: PetMood): string {
     neutral: "😐",
     hungry: "😮",
     sad: "😢",
+    sleeping: "😴",
   };
   return map[mood];
 }
