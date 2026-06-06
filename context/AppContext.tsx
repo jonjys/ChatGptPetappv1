@@ -1,15 +1,19 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import type { Pet, PetNeeds } from "@/types/pet";
 import type { User } from "@/types/user";
 import type { GameScores } from "@/types/game";
+import type { WorldId } from "@/types/world";
 import { CURRENT_USER, MY_PET } from "@/lib/mock-data";
+import { WORLD_STORAGE_KEY, getWorld } from "@/lib/worlds";
 
 type AppContextType = {
   user: User;
   pet: Pet;
   gameScores: GameScores;
+  worldId: WorldId;
+  setWorldId: (id: WorldId) => void;
   // XP & Karma
   addXP: (amount: number) => void;
   addKarma: (amount: number) => void;
@@ -42,6 +46,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [gameScores, setGameScores] = useState<GameScores>({
     runner: 0, slots: 0, memory: 0, battle: 0, blitz: 0,
   });
+  const [worldId, setWorldIdState] = useState<WorldId>("city");
+
+  useEffect(() => {
+    const saved = localStorage.getItem(WORLD_STORAGE_KEY) as WorldId | null;
+    if (saved) setWorldIdState(saved);
+  }, []);
+
+  const setWorldId = useCallback((id: WorldId) => {
+    localStorage.setItem(WORLD_STORAGE_KEY, id);
+    setWorldIdState(id);
+  }, []);
 
   const petMoodComputed = deriveMood(pet.needs);
 
@@ -118,7 +133,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      user, pet, gameScores,
+      user, pet, gameScores, worldId, setWorldId,
       addXP, addKarma, spendKarma,
       feedPet, playWithPet, restPet, healPet,
       updateScore, petMoodComputed,

@@ -6,6 +6,7 @@ import "@/styles/animations.css";
 import { AppProvider } from "@/context/AppContext";
 import BottomNav from "@/components/ui/BottomNav";
 import FloatingPet from "@/components/pet/FloatingPet";
+import WorldGate from "@/components/onboarding/WorldGate";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -24,9 +25,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={spaceGrotesk.variable}>
       <body>
         <AppProvider>
-          <main className="page-wrapper">{children}</main>
-          <FloatingPet />
-          <BottomNav />
+          <WorldGate>
+            <main className="page-wrapper">{children}</main>
+            <FloatingPet />
+            <BottomNav />
+          </WorldGate>
         </AppProvider>
       </body>
     </html>

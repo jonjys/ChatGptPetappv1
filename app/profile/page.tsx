@@ -1,12 +1,13 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Settings, Trophy, Zap, Flame } from "lucide-react";
+import { Settings, Trophy, Zap, Flame, Globe } from "lucide-react";
 import XPBar from "@/components/ui/XPBar";
 import { useApp } from "@/context/AppContext";
 import { xpProgress, xpToNextLevel } from "@/lib/xp-system";
 import { LEADERBOARD } from "@/lib/mock-data";
 import { getPetClassColor } from "@/lib/pet-evolution";
+import { WORLDS, WORLD_STORAGE_KEY } from "@/lib/worlds";
 
 const CLASS_DESCRIPTION: Record<string, string> = {
   "Grinder Beast": "You dominate through action. Relentless hustle, maximum output.",
@@ -15,10 +16,11 @@ const CLASS_DESCRIPTION: Record<string, string> = {
 };
 
 export default function ProfilePage() {
-  const { user } = useApp();
+  const { user, worldId, setWorldId } = useApp();
   const progress = xpProgress(user.xp);
   const xpToNext = xpToNextLevel(user.xp);
   const classColor = getPetClassColor(user.petClass);
+  const currentWorld = WORLDS.find(w => w.id === worldId);
 
   return (
     <div style={{ background: "var(--bg)", minHeight: "100dvh" }}>
@@ -239,6 +241,42 @@ export default function ProfilePage() {
                     {entry.karma.toLocaleString()} ⚡
                   </div>
                 </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* World selector */}
+        <div className="neo-card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Globe size={16} color="#00e5ff" />
+            <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.05em" }}>
+              DIN VÄRLD
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {WORLDS.map(w => {
+              const active = w.id === worldId;
+              return (
+                <button
+                  key={w.id}
+                  onClick={() => setWorldId(w.id)}
+                  style={{
+                    background: active ? `${w.accent}18` : "#faf7f2",
+                    border: `2.5px solid ${active ? w.accent : "#e8e3d8"}`,
+                    borderRadius: 12,
+                    padding: "10px 8px",
+                    cursor: "pointer",
+                    textAlign: "center",
+                    boxShadow: active ? `0 0 12px ${w.glowColor}` : "none",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  <div style={{ fontSize: "1.4rem", marginBottom: 3 }}>{w.emoji}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: active ? w.accent : "#555", letterSpacing: "0.04em" }}>
+                    {w.name}
+                  </div>
+                </button>
               );
             })}
           </div>
