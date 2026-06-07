@@ -9,6 +9,7 @@ import PetNeedsBar from "@/components/pet/PetNeeds";
 import XPBar from "@/components/ui/XPBar";
 import { xpProgress, xpToNextLevel } from "@/lib/xp-system";
 import { getPetEmoji, getMoodEmoji, getPetClassColor, getEvolutionLabel } from "@/lib/pet-evolution";
+import { WORLDS } from "@/lib/worlds";
 
 const SPEECH: Record<string, string[]> = {
   excited: ["Let's go!! I'm READY!", "MAXIMUM POWER! 🔥", "I feel unstoppable today!"],
@@ -31,7 +32,7 @@ const CLASS_GRADIENT: Record<string, string> = {
 };
 
 export default function PetPage() {
-  const { pet, petMoodComputed, feedPet, playWithPet, restPet, user, addXP } = useApp();
+  const { pet, petMoodComputed, feedPet, playWithPet, restPet, user, addXP, worldId } = useApp();
   const [toast, setToast] = useState<string | null>(null);
   const [tab, setTab] = useState<"vitals" | "history" | "room">("vitals");
   const [petAction, setPetAction] = useState<string | null>(null);
@@ -42,6 +43,7 @@ export default function PetPage() {
   const moodEmoji = getMoodEmoji(petMoodComputed);
   const classColor = getPetClassColor(pet.class);
   const evolLabel = getEvolutionLabel(pet.evolution);
+  const world = WORLDS.find(w => w.id === worldId) ?? WORLDS[2];
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(null), 2200); }
 
@@ -289,41 +291,85 @@ export default function PetPage() {
 
           {tab === "room" && (
             <div>
-              {/* Pet room visual */}
-              <div style={{ height: 180, background: "linear-gradient(180deg, #c8f4ff 0%, #e8f8ff 60%, #8BC34A 60%, #6a9e2f 100%)", border: "2px solid #0a0a0a", borderRadius: 14, position: "relative", overflow: "hidden", marginBottom: 12 }}>
-                {/* Sky */}
-                <div style={{ position: "absolute", top: 12, left: 20, fontSize: "1.2rem", opacity: 0.7 }}>☀️</div>
-                <div style={{ position: "absolute", top: 8, left: "40%", fontSize: "1.4rem", opacity: 0.5 }}>☁️</div>
-                <div style={{ position: "absolute", top: 20, right: 24, fontSize: "0.9rem", opacity: 0.4 }}>☁️</div>
-                {/* Items */}
-                <div style={{ position: "absolute", bottom: 28, left: 16, fontSize: "1.8rem" }}>🌲</div>
-                <div style={{ position: "absolute", bottom: 28, right: 16, fontSize: "1.5rem" }}>🌸</div>
-                <div style={{ position: "absolute", bottom: 30, left: "35%", fontSize: "1.2rem" }}>🍄</div>
-                {/* Pet */}
-                <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 2.5, repeat: Infinity }}
-                  style={{ position: "absolute", bottom: 42, left: "50%", transform: "translateX(-50%)", fontSize: "3.2rem" }}>
-                  {petEmoji}
-                </motion.div>
-                {/* Ground */}
-                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 40, background: "#6a9e2f", borderTop: "2px solid #4a7e1f" }} />
+              {/* World badge */}
+              <div className="flex items-center gap-2 mb-3">
+                <span style={{ fontSize: "1.1rem" }}>{world.emoji}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: world.accent, letterSpacing: "0.06em" }}>
+                  {world.name} WORLD
+                </span>
+                <span style={{ fontSize: 11, color: "#888" }}>· {world.tagline}</span>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {[
-                  { emoji: "🌲", name: "Forest Trees", locked: false },
-                  { emoji: "🏠", name: "Cozy Home", locked: true },
-                  { emoji: "🌊", name: "Waterfall", locked: true },
-                  { emoji: "🏰", name: "Castle", locked: true },
-                ].map(item => (
-                  <div key={item.name} className="flex items-center gap-2 p-2.5" style={{ background: item.locked ? "#f5f0e8" : "#f0fff0", border: `2px solid ${item.locked ? "#ccc" : "#4caf50"}`, borderRadius: 10, opacity: item.locked ? 0.6 : 1 }}>
-                    <span style={{ fontSize: "1.3rem" }}>{item.emoji}</span>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 700 }}>{item.name}</div>
-                      <div style={{ fontSize: 10, color: item.locked ? "#aaa" : "#4caf50" }}>{item.locked ? "🔒 In Shop" : "✓ Active"}</div>
-                    </div>
-                    {item.locked && <ChevronRight size={14} color="#aaa" style={{ marginLeft: "auto" }} />}
+              {/* World-aware pet room */}
+              <div style={{
+                height: 190,
+                background: world.petRoomBg,
+                border: `2.5px solid ${world.accent}`,
+                borderRadius: 16,
+                position: "relative",
+                overflow: "hidden",
+                marginBottom: 12,
+                boxShadow: `0 0 20px ${world.glowColor}`,
+              }}>
+                {/* Ambient items from world config */}
+                {world.petRoomEmojis.slice(0, 3).map((emoji, i) => (
+                  <div key={i} style={{
+                    position: "absolute",
+                    top: 8 + i * 14,
+                    left: [16, "38%", undefined][i] as string | number,
+                    right: i === 2 ? 20 : undefined,
+                    fontSize: ["1.3rem", "1.1rem", "0.9rem"][i],
+                    opacity: 0.6 - i * 0.1,
+                  }}>
+                    {emoji}
                   </div>
                 ))}
+                {/* Ground items */}
+                {world.petRoomEmojis.slice(3).map((emoji, i) => (
+                  <div key={i} style={{
+                    position: "absolute",
+                    bottom: 30,
+                    left: i === 0 ? 14 : i === 1 ? "33%" : undefined,
+                    right: i === 2 ? 14 : undefined,
+                    fontSize: ["1.9rem", "1.3rem", "1.6rem"][i],
+                  }}>
+                    {emoji}
+                  </div>
+                ))}
+                {/* Bobbing pet */}
+                <motion.div
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                  style={{ position: "absolute", bottom: 44, left: "50%", transform: "translateX(-50%)", fontSize: "3.2rem", filter: `drop-shadow(0 0 8px ${world.glowColor})` }}
+                >
+                  {petEmoji}
+                </motion.div>
+                {/* Ground strip */}
+                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 38, background: `${world.accent}22`, borderTop: `2px solid ${world.accent}44` }} />
+              </div>
+
+              {/* Habitat items */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {world.petRoomEmojis.map((emoji, i) => {
+                  const locked = i > 1;
+                  return (
+                    <div key={i} className="flex items-center gap-2 p-2.5" style={{
+                      background: locked ? "#f5f0e8" : `${world.accent}12`,
+                      border: `2px solid ${locked ? "#ccc" : world.accent}`,
+                      borderRadius: 10,
+                      opacity: locked ? 0.55 : 1,
+                    }}>
+                      <span style={{ fontSize: "1.3rem" }}>{emoji}</span>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700 }}>{world.name} Item {i + 1}</div>
+                        <div style={{ fontSize: 10, color: locked ? "#aaa" : world.accent, fontWeight: 600 }}>
+                          {locked ? "🔒 Unlock in Shop" : "✓ Active"}
+                        </div>
+                      </div>
+                      {locked && <ChevronRight size={14} color="#aaa" style={{ marginLeft: "auto" }} />}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
