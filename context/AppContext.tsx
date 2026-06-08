@@ -45,6 +45,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [pet, setPet] = useState<Pet>(MY_PET);
   const [gameScores, setGameScores] = useState<GameScores>({
     runner: 0, slots: 0, memory: 0, battle: 0, blitz: 0,
+    fishing: 0, cases: 0, breaker: 0,
   });
   const [worldId, setWorldIdState] = useState<WorldId>("city");
 

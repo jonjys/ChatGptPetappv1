@@ -1,4 +1,4 @@
-export type GameId = "runner" | "slots" | "memory" | "battle" | "blitz";
+export type GameId = "runner" | "slots" | "memory" | "battle" | "blitz" | "fishing" | "cases" | "breaker";
 
 export type GameMeta = {
   id: GameId;
@@ -17,6 +17,9 @@ export type GameScores = {
   memory: number;
   battle: number;
   blitz: number;
+  fishing: number;
+  cases: number;
+  breaker: number;
 };
 
 export type BattleAbility = {
