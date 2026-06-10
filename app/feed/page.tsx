@@ -12,14 +12,29 @@ import { formatXP } from "@/lib/xp-system";
 const FILTERS = ["ALL", "NEARBY", "HOT", "BOUNTIES"] as const;
 type Filter = (typeof FILTERS)[number];
 
+function timeAgo(ts: number) {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+
+const RARITY_COLOR: Record<string, string> = {
+  legendary: "#ffcc00", covert: "#ff3333", restricted: "#ff44cc",
+  classified: "#9933ff", industrial: "#4488ff", common: "#aaaaaa",
+};
+
 export default function FeedPage() {
-  const { user } = useApp();
+  const { user, activities } = useApp();
   const [filter, setFilter] = useState<Filter>("ALL");
   const [notifications] = useState(3);
 
   const posts = filter === "BOUNTIES"
     ? FEED_POSTS.filter((p) => p.type === "bounty_complete" || p.bounty)
     : FEED_POSTS;
+
+  const myActivities = filter === "BOUNTIES" ? [] : activities.slice(0, 8);
 
   return (
     <div style={{ background: "var(--bg)", minHeight: "100dvh" }}>
@@ -134,6 +149,49 @@ export default function FeedPage() {
 
       {/* Feed */}
       <div className="px-4 pt-4 pb-4 space-y-3">
+        {/* My Activity Cards */}
+        {myActivities.length > 0 && (
+          <div style={{ marginBottom: 4 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#888", letterSpacing: "0.12em", marginBottom: 8 }}>YOUR ACTIVITY</div>
+            {myActivities.map((act, i) => {
+              const rarityColor = act.rarity ? (RARITY_COLOR[act.rarity] ?? "#c8ff00") : "#c8ff00";
+              return (
+                <motion.div key={act.id}
+                  initial={{ opacity: 0, x: -16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  style={{
+                    background: "#fff",
+                    border: "2.5px solid #0a0a0a",
+                    borderRadius: 16,
+                    padding: "12px 14px",
+                    marginBottom: 8,
+                    boxShadow: "3px 3px 0px #0a0a0a",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                  }}>
+                  <div style={{
+                    width: 44, height: 44, borderRadius: 12,
+                    background: `${rarityColor}18`, border: `2px solid ${rarityColor}`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "1.4rem", flexShrink: 0,
+                  }}>{act.emoji}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#0a0a0a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{act.title}</div>
+                    {act.detail && <div style={{ fontSize: 11, color: "#888", marginTop: 1 }}>{act.detail}</div>}
+                  </div>
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    {act.karma ? <div style={{ fontSize: 12, fontWeight: 700, color: "#c8ff00", background: "#0a0a0a", borderRadius: 8, padding: "2px 7px" }}>+{act.karma}⚡</div> : null}
+                    <div style={{ fontSize: 10, color: "#aaa", marginTop: 3 }}>{timeAgo(act.timestamp)}</div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Static feed posts */}
         {posts.map((post, i) => (
           <motion.div
             key={post.id}

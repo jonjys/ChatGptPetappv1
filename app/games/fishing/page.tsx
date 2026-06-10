@@ -6,12 +6,18 @@ import DeepCatch from "@/components/games/DeepCatch";
 import { useApp } from "@/context/AppContext";
 
 export default function FishingPage() {
-  const { addKarma, addXP, updateScore, gameScores } = useApp();
+  const { addKarma, addXP, updateScore, gameScores, addActivity } = useApp();
 
-  function handleCatch(karma: number, xp: number) {
-    addKarma(karma);
+  function handleCatch(karma: number, xp: number, fishName: string, rarity: string) {
+    addKarma(karma, "Deep Catch");
     addXP(xp);
     updateScore("fishing", (gameScores.fishing ?? 0) + 1);
+    addActivity({
+      emoji: rarity === "legendary" ? "🏆" : "🎣",
+      title: `Caught a ${rarity === "legendary" ? "LEGENDARY " : ""}${fishName}!`,
+      detail: "Deep Catch",
+      karma, xp, source: "fishing", rarity,
+    });
   }
 
   return (

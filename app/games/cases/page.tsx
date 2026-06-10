@@ -6,7 +6,7 @@ import CaseOpening from "@/components/games/CaseOpening";
 import { useApp } from "@/context/AppContext";
 
 export default function CasesPage() {
-  const { user, spendKarma, addKarma, addXP } = useApp();
+  const { user, spendKarma, addKarma, addXP, addActivity } = useApp();
 
   return (
     <div style={{ background: "#0a0a0a", minHeight: "100dvh", color: "#fff" }}>
@@ -27,7 +27,11 @@ export default function CasesPage() {
         <CaseOpening
           karma={user.karma}
           onSpend={spendKarma}
-          onWin={(karma, xp) => { addKarma(karma); addXP(xp); }}
+          onWin={(karma, xp, itemName, rarity) => {
+            addKarma(karma, "Case Opening");
+            addXP(xp);
+            addActivity({ emoji: rarity === "legendary" ? "👑" : rarity === "covert" ? "⭐" : "📦", title: `Unboxed ${itemName}`, detail: `${rarity.toUpperCase()} · Case Opening`, karma, xp, source: "cases", rarity });
+          }}
         />
       </div>
     </div>

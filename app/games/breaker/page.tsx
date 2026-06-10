@@ -6,13 +6,14 @@ import DNABreaker from "@/components/games/DNABreaker";
 import { useApp } from "@/context/AppContext";
 
 export default function BreakerPage() {
-  const { addKarma, addXP, updateScore, gameScores } = useApp();
+  const { addKarma, addXP, updateScore, gameScores, addActivity } = useApp();
 
   function handleEnd(score: number, coins: number) {
     const karma = Math.floor(score / 10) + coins * 5;
-    addKarma(karma);
+    addKarma(karma, "DNA Breaker");
     addXP(Math.floor(score / 20) + coins * 3);
     updateScore("breaker", score);
+    addActivity({ emoji: "🧬", title: `DNA Breaker — Score ${score}`, detail: `${coins} DNA collected · ${karma} karma earned`, karma, source: "breaker" });
   }
 
   return (

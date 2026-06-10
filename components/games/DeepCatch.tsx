@@ -36,7 +36,7 @@ type GS = {
 };
 
 type Props = {
-  onCatch: (karma: number, xp: number) => void;
+  onCatch: (karma: number, xp: number, fishName: string, rarity: string) => void;
 };
 
 export default function DeepCatch({ onCatch }: Props) {
@@ -278,7 +278,7 @@ export default function DeepCatch({ onCatch }: Props) {
       const newScore = score + 1;
       setScore(newScore);
       setBest(b => Math.max(b, newScore));
-      onCatch(fish.type.karma, fish.type.xp);
+      onCatch(fish.type.karma, fish.type.xp, fish.type.name, fish.type.rarity);
       gs.fish.splice(gs.fish.indexOf(fish), 1);
     } else {
       setCaughtFish(null);

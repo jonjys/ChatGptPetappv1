@@ -69,7 +69,7 @@ function buildReel(winner: CaseItem): CaseItem[] {
   return reel;
 }
 
-type Props = { karma: number; onSpend: (amount: number) => boolean; onWin: (karma: number, xp: number) => void };
+type Props = { karma: number; onSpend: (amount: number) => boolean; onWin: (karma: number, xp: number, itemName: string, rarity: Rarity) => void };
 
 export default function CaseOpening({ karma, onSpend, onWin }: Props) {
   const [selectedCase, setSelectedCase] = useState(0);
@@ -107,7 +107,7 @@ export default function CaseOpening({ karma, onSpend, onWin }: Props) {
       const rarityXP: Record<Rarity, number> = {
         consumer: 5, industrial: 20, classified: 50, restricted: 100, covert: 200, legendary: 500
       };
-      onWin(rarityKarma[w.rarity], rarityXP[w.rarity]);
+      onWin(rarityKarma[w.rarity], rarityXP[w.rarity], w.name, w.rarity);
       setPhase("reveal");
     }, 4200);
   }, [selectedCase, onSpend, onWin]);

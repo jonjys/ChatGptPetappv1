@@ -8,16 +8,17 @@ import { useApp } from "@/context/AppContext";
 import { getPetEmoji } from "@/lib/pet-evolution";
 
 export default function RunnerPage() {
-  const { pet, addKarma, addXP, updateScore, gameScores } = useApp();
+  const { pet, addKarma, addXP, updateScore, gameScores, addActivity } = useApp();
   const [lastResult, setLastResult] = useState<{ score: number; gems: number } | null>(null);
   const petEmoji = getPetEmoji(pet.evolution, pet.class);
 
   function handleEnd(score: number, gems: number) {
-    const karmaEarned = gems * 5 + Math.floor(score / 20);
-    addKarma(karmaEarned);
+    const karma = gems * 5 + Math.floor(score / 20);
+    addKarma(karma, "Karma Runner");
     addXP(Math.floor(score / 10));
     updateScore("runner", score);
     setLastResult({ score, gems });
+    if (score > 0) addActivity({ emoji: "🏃", title: `Karma Runner — ${score} pts`, detail: `${gems} gems · +${karma} karma`, karma, source: "runner" });
   }
 
   return (
