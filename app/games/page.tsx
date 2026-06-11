@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useApp } from "@/context/AppContext";
+import { getDailyQuests } from "@/lib/quests";
 
 type Game = { id: string; href: string; emoji: string; name: string; tagline: string; reward: string; accent: string; bg: string; tag?: string };
 
@@ -18,7 +19,9 @@ const GAMES: Game[] = [
 ];
 
 export default function GamesPage() {
-  const { user, gameScores } = useApp();
+  const { user, gameScores, questProgress, questClaimed } = useApp();
+  const dailyQuests = getDailyQuests();
+  const questsDone = dailyQuests.filter(q => questClaimed.includes(q.id)).length;
 
   return (
     <div style={{ background: "#0a0a0a", minHeight: "100dvh", color: "#fff" }}>
@@ -36,6 +39,33 @@ export default function GamesPage() {
       </div>
 
       <div className="px-4 pt-4 pb-24 space-y-3">
+        {/* Daily Quests link card */}
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+          <Link href="/quests" style={{ textDecoration: "none" }}>
+            <div style={{
+              background: "linear-gradient(135deg, #0d1a00, #1a2a00)",
+              border: "2px solid #c8ff0066", borderRadius: 20, padding: "14px 16px",
+              display: "flex", alignItems: "center", gap: 14,
+              boxShadow: "0 0 20px #c8ff0011",
+            }}>
+              <div style={{ width: 52, height: 52, borderRadius: 14, background: "#c8ff0018", border: "2px solid #c8ff0055", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.6rem", flexShrink: 0 }}>📋</div>
+              <div style={{ flex: 1 }}>
+                <div className="flex items-center gap-2">
+                  <span style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>DAILY QUESTS</span>
+                  {questsDone < dailyQuests.length && <span style={{ fontSize: 9, fontWeight: 700, background: "#ff2d8d", color: "#fff", padding: "2px 6px", borderRadius: 4 }}>NEW</span>}
+                </div>
+                <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>Complete quests for huge karma bonuses</div>
+                <div style={{ fontSize: 11, color: "#c8ff00", fontWeight: 700, marginTop: 4 }}>
+                  {questsDone}/{dailyQuests.length} done today · Bonus: +1000 ⚡
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flexShrink: 0 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: "#c8ff0022", border: "1.5px solid #c8ff0044", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.9rem" }}>→</div>
+              </div>
+            </div>
+          </Link>
+        </motion.div>
+
         {GAMES.map((g, i) => {
           const score = gameScores[g.id as keyof typeof gameScores] ?? 0;
           return (

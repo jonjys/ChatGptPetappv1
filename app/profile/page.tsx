@@ -1,13 +1,14 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Settings, Trophy, Zap, Flame, Globe } from "lucide-react";
+import { Settings, Trophy, Zap, Flame, Globe, Star } from "lucide-react";
 import XPBar from "@/components/ui/XPBar";
 import { useApp } from "@/context/AppContext";
-import { xpProgress, xpToNextLevel } from "@/lib/xp-system";
+import { xpProgress, xpToNextLevel, calculateLevel } from "@/lib/xp-system";
 import { LEADERBOARD } from "@/lib/mock-data";
 import { getPetClassColor } from "@/lib/pet-evolution";
 import { WORLDS, WORLD_STORAGE_KEY } from "@/lib/worlds";
+import { ACHIEVEMENTS } from "@/lib/achievements";
 
 const CLASS_DESCRIPTION: Record<string, string> = {
   "Grinder Beast": "You dominate through action. Relentless hustle, maximum output.",
@@ -16,9 +17,10 @@ const CLASS_DESCRIPTION: Record<string, string> = {
 };
 
 export default function ProfilePage() {
-  const { user, worldId, setWorldId } = useApp();
+  const { user, worldId, setWorldId, streak, achievements } = useApp();
   const progress = xpProgress(user.xp);
   const xpToNext = xpToNextLevel(user.xp);
+  const level = calculateLevel(user.xp);
   const classColor = getPetClassColor(user.petClass);
   const currentWorld = WORLDS.find(w => w.id === worldId);
 
@@ -116,9 +118,9 @@ export default function ProfilePage() {
         {/* Stats grid */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: "KARMA", value: user.karma.toLocaleString(), icon: "⚡", color: "#c8ff00" },
-            { label: "BOUNTIES", value: user.bountiesCompleted, icon: "🎯", color: "#ff6b35" },
-            { label: "STREAK", value: `${user.streak}d`, icon: "🔥", color: "#ff2d8d" },
+            { label: "KARMA",  value: user.karma.toLocaleString(), icon: "⚡", color: "#c8ff00" },
+            { label: "LEVEL",  value: `LV ${level}`,               icon: "🌟", color: "#ffcc00" },
+            { label: "STREAK", value: `${streak}d 🔥`,             icon: "🔥", color: "#ff2d8d" },
           ].map(({ label, value, icon, color }) => (
             <motion.div
               key={label}
@@ -241,6 +243,44 @@ export default function ProfilePage() {
                     {entry.karma.toLocaleString()} ⚡
                   </div>
                 </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Achievements wall */}
+        <div className="neo-card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Star size={16} color="#ffcc00" fill="#ffcc00" />
+            <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.05em" }}>
+              ACHIEVEMENTS ({achievements.length}/{ACHIEVEMENTS.length})
+            </span>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {ACHIEVEMENTS.map((ach, i) => {
+              const unlocked = achievements.includes(ach.id);
+              return (
+                <motion.div key={ach.id}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: i * 0.03 }}
+                  title={`${ach.name}: ${ach.description}`}
+                  style={{
+                    background: unlocked ? "#ffcc0018" : "#f5f0e8",
+                    border: `2px solid ${unlocked ? "#ffcc00" : "#e8e3d8"}`,
+                    borderRadius: 12, padding: "10px 4px",
+                    textAlign: "center", opacity: unlocked ? 1 : 0.35,
+                    boxShadow: unlocked ? "0 0 10px #ffcc0033" : "none",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  <div style={{ fontSize: "1.5rem", marginBottom: 3, filter: unlocked ? "none" : "grayscale(1)" }}>
+                    {unlocked ? ach.emoji : "🔒"}
+                  </div>
+                  <div style={{ fontSize: 8, fontWeight: 700, color: unlocked ? "#ffcc00" : "#aaa", lineHeight: 1.2, wordBreak: "break-word" }}>
+                    {ach.name}
+                  </div>
+                </motion.div>
               );
             })}
           </div>
