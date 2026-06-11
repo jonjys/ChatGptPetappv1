@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { Flame, Gamepad2, ShoppingBag, ChevronRight } from "lucide-react";
+import { Flame, Gamepad2, ChevronRight } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import PetNeedsBar from "@/components/pet/PetNeeds";
 import XPBar from "@/components/ui/XPBar";
@@ -32,10 +32,11 @@ const CLASS_GRADIENT: Record<string, string> = {
 };
 
 export default function PetPage() {
-  const { pet, petMoodComputed, feedPet, playWithPet, restPet, user, addXP, worldId } = useApp();
+  const { pet, petMoodComputed, feedPet, playWithPet, restPet, user, addXP, worldId, streak } = useApp();
   const [toast, setToast] = useState<string | null>(null);
   const [tab, setTab] = useState<"vitals" | "history" | "room">("vitals");
   const [petAction, setPetAction] = useState<string | null>(null);
+  const [speechIdx, setSpeechIdx] = useState(0);
 
   const progress = xpProgress(pet.xp);
   const xpToNext = xpToNextLevel(pet.xp);
@@ -44,6 +45,15 @@ export default function PetPage() {
   const classColor = getPetClassColor(pet.class);
   const evolLabel = getEvolutionLabel(pet.evolution);
   const world = WORLDS.find(w => w.id === worldId) ?? WORLDS[2];
+
+  // Rotate speech bubbles every 6s
+  useEffect(() => {
+    const t = setInterval(() => setSpeechIdx(i => i + 1), 6000);
+    return () => clearInterval(t);
+  }, []);
+
+  const speechLines = SPEECH[petMoodComputed] ?? SPEECH.neutral;
+  const currentSpeech = speechLines[speechIdx % speechLines.length];
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(null), 2200); }
 
@@ -126,16 +136,48 @@ export default function PetPage() {
             </div>
           </div>
 
-          {/* Pet avatar */}
-          <div className="flex justify-center my-4" style={{ position: "relative" }}>
+          {/* Pet avatar with glow ring + orbit */}
+          <div className="flex justify-center my-4" style={{ position: "relative", height: 160 }}>
+            {/* World glow pulse ring */}
+            <motion.div
+              animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.2, 0.4] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+              style={{
+                position: "absolute", top: "50%", left: "50%",
+                transform: "translate(-50%, -50%)",
+                width: 160, height: 160, borderRadius: "50%",
+                background: `radial-gradient(circle, ${world.glowColor}55 0%, transparent 70%)`,
+                pointerEvents: "none",
+              }}
+            />
+            {/* Critical ring */}
+            {isCritical && (
+              <motion.div
+                animate={{ scale: [1, 1.3, 1], opacity: [0.8, 0, 0.8] }}
+                transition={{ duration: 1.2, repeat: Infinity }}
+                style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: 148, height: 148, borderRadius: "50%", border: "3px solid #ff2d2d", pointerEvents: "none" }}
+              />
+            )}
+            {/* Orbiting items */}
+            {["⭐", "💎", "✨"].map((emoji, i) => (
+              <motion.div key={emoji}
+                animate={{ rotate: 360 }}
+                transition={{ duration: 8 + i * 2, repeat: Infinity, ease: "linear" }}
+                style={{ position: "absolute", top: "50%", left: "50%", width: 0, height: 0, pointerEvents: "none" }}
+              >
+                <div style={{ position: "absolute", top: -(68 + i * 4), left: -8, fontSize: "0.75rem", opacity: 0.5 }}>{emoji}</div>
+              </motion.div>
+            ))}
+
             <motion.div
               animate={
-                petAction === "eating" ? { scale: [1, 1.2, 0.9, 1.1, 1], rotate: [0, -5, 5, 0] } :
-                petAction === "playing" ? { y: [0, -20, 0, -15, 0], rotate: [0, 10, -10, 0] } :
-                petAction === "sleeping" ? { rotate: [0, 5, 5] } :
+                petAction === "eating"   ? { scale: [1, 1.2, 0.9, 1.1, 1], rotate: [0, -5, 5, 0] } :
+                petAction === "playing"  ? { y: [0, -22, 0, -14, 0], rotate: [0, 12, -12, 0] } :
+                petAction === "sleeping" ? { rotate: [0, 6, 6] } :
+                petMoodComputed === "excited" ? { y: [0, -14, 0], scale: [1, 1.05, 1], rotate: [0, -3, 3, 0] } :
                 { y: [0, -10, 0], rotate: [0, -2, 2, 0] }
               }
-              transition={petAction ? { duration: 0.9 } : { duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              transition={petAction ? { duration: 0.9 } : { duration: petMoodComputed === "excited" ? 1.8 : 3, repeat: Infinity, ease: "easeInOut" }}
               style={{
                 width: 130, height: 130,
                 background: "#fff",
@@ -143,7 +185,9 @@ export default function PetPage() {
                 borderRadius: "50%",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: "4.5rem",
-                boxShadow: `6px 6px 0px ${classColor}`,
+                boxShadow: `6px 6px 0px ${classColor}, 0 0 20px ${world.glowColor}`,
+                position: "absolute", top: "50%", left: "50%",
+                transform: "translate(-50%, -50%)",
               }}
             >
               {petEmoji}
@@ -153,7 +197,7 @@ export default function PetPage() {
             <motion.div
               initial={{ opacity: 0, scale: 0.8, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              key={petMoodComputed}
+              key={`${petMoodComputed}-${speechIdx}`}
               style={{
                 position: "absolute", top: -10, right: -8,
                 background: "#fff",
@@ -166,7 +210,7 @@ export default function PetPage() {
                 lineHeight: 1.3,
               }}
             >
-              {randomSpeech(petMoodComputed)}
+              {currentSpeech}
             </motion.div>
           </div>
 

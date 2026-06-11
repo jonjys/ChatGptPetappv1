@@ -9,9 +9,9 @@ type Game = { id: string; href: string; emoji: string; name: string; tagline: st
 
 const GAMES: Game[] = [
   { id: "fishing", href: "/games/fishing", emoji: "🎣", name: "DEEP CATCH", tagline: "Tap timing · catch rare fish", reward: "15–300 ⚡ per catch", accent: "#4488ff", bg: "#010d1a", tag: "NEW" },
-  { id: "cases",   href: "/games/cases",   emoji: "📦", name: "CASE OPENING", tagline: "CSGO-style unboxing · roulette reel", reward: "10–800 ⚡ per case", accent: "#ffcc00", bg: "#0a0a00", tag: "NEW" },
+  { id: "cases",   href: "/games/cases",   emoji: "🏴‍☠️", name: "SHADOW VAULT", tagline: "Unbox rare artifacts · Roll the vault", reward: "10–800 ⚡ per vault", accent: "#cc44ff", bg: "#080010", tag: "NEW" },
   { id: "breaker", href: "/games/breaker", emoji: "🧬", name: "DNA BREAKER", tagline: "Breakout · Collect DNA · Fusion Strike", reward: "Score → karma", accent: "#cc55ff", bg: "#050510", tag: "NEW" },
-  { id: "runner",  href: "/games/runner",  emoji: "🏃", name: "KARMA RUNNER", tagline: "Endless runner · dodge & collect gems", reward: "Up to 200 ⚡", accent: "#c8ff00", bg: "#0a0a0a" },
+  { id: "runner",  href: "/games/runner",  emoji: "🏃", name: "KARMA RUNNER", tagline: "Double-jump · Shield · Magnet · Combos", reward: "Up to 300 ⚡", accent: "#c8ff00", bg: "#060f06" },
   { id: "slots",   href: "/games/slots",   emoji: "🎰", name: "KARMA SLOTS", tagline: "Spin to win big karma", reward: "Jackpot: 500 ⚡ · 25/spin", accent: "#ffaa00", bg: "#1a0d00" },
   { id: "memory",  href: "/games/memory",  emoji: "🧠", name: "MEMORY PALACE", tagline: "Match all pairs before time runs out", reward: "Up to 150 ⚡", accent: "#ff44cc", bg: "#1a0015" },
   { id: "battle",  href: "/games/battle",  emoji: "⚔️", name: "PET BATTLE", tagline: "Turn-based combat vs real pets", reward: "Win: 100+ ⚡", accent: "#ff6b35", bg: "#150a00" },

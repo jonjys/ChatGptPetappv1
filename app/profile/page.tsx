@@ -17,7 +17,7 @@ const CLASS_DESCRIPTION: Record<string, string> = {
 };
 
 export default function ProfilePage() {
-  const { user, worldId, setWorldId, streak, achievements } = useApp();
+  const { user, worldId, setWorldId, streak, achievements, showToast } = useApp();
   const progress = xpProgress(user.xp);
   const xpToNext = xpToNextLevel(user.xp);
   const level = calculateLevel(user.xp);
@@ -35,16 +35,12 @@ export default function ProfilePage() {
           PROFILE
         </h1>
         <button
+          onClick={() => showToast("Settings coming soon! 🛠️", undefined, "#4488ff", "⚙️")}
           style={{
-            width: 40,
-            height: 40,
-            background: "#fff",
-            border: "2.5px solid #0a0a0a",
-            borderRadius: 12,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: "3px 3px 0px #0a0a0a",
+            width: 40, height: 40, background: "#fff",
+            border: "2.5px solid #0a0a0a", borderRadius: 12,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "3px 3px 0px #0a0a0a", cursor: "pointer",
           }}
         >
           <Settings size={18} />
