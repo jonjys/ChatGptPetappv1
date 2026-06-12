@@ -2,32 +2,157 @@
 
 import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { BattleEnemy, BattleAbility } from "@/types/game";
+import type { BattleAbility } from "@/types/game";
 import type { Pet } from "@/types/pet";
 import { BATTLE_ENEMIES } from "@/lib/mock-data";
 
-/* ─── Player abilities ────────────────────────────────────────────────── */
-const PLAYER_ABILITIES: Record<string, BattleAbility[]> = {
+/* ─── New Types ───────────────────────────────────────────────────────────── */
+type StatusEffectType = "BURN" | "FREEZE" | "SHOCK" | "REGEN" | "SHIELD_BUFF";
+
+interface StatusEffect {
+  type: StatusEffectType;
+  turnsLeft: number;
+}
+
+interface Equipment {
+  id: string;
+  name: string;
+  emoji: string;
+  description: string;
+  effect: "damage_bonus" | "shield_buff" | "regen" | "sniper" | "max_hp";
+  value?: number;
+}
+
+interface BossPhase {
+  phase: 1 | 2 | 3;
+  hpThreshold: number;
+  label: string;
+  color: string;
+}
+
+/* ─── Extended BattleEnemy with boss flag ──────────────────────────────── */
+interface ExtendedEnemy {
+  id: string;
+  name: string;
+  emoji: string;
+  petEmoji: string;
+  level: number;
+  hp: number;
+  petClass: "Grinder Beast" | "Influencer Spirit" | "Merchant King";
+  abilities: ExtendedAbility[];
+  isBoss?: boolean;
+  bossPhase2Abilities?: ExtendedAbility[];
+  bossPhase3Abilities?: ExtendedAbility[];
+  karmaReward?: number;
+}
+
+interface ExtendedAbility extends BattleAbility {
+  statusEffect?: StatusEffectType;
+  statusTarget?: "self" | "enemy";
+  scalingDmg?: boolean; // scales with enemy max HP
+}
+
+/* ─── Environments ────────────────────────────────────────────────────────── */
+interface Environment {
+  id: string;
+  name: string;
+  emoji: string;
+  description: string;
+  bgAccent: string;
+  effect: "burn_bonus" | "freeze_extend" | "shock_start" | "regen_bonus";
+}
+
+const ENVIRONMENTS: Environment[] = [
+  { id: "desert", name: "Desert", emoji: "☀️", description: "+3 burn damage", bgAccent: "#3a1500", effect: "burn_bonus" },
+  { id: "tundra", name: "Tundra", emoji: "❄️", description: "Freeze lasts 2 turns", bgAccent: "#001a2a", effect: "freeze_extend" },
+  { id: "storm", name: "Storm", emoji: "⚡", description: "Shock applied at battle start", bgAccent: "#1a0a2a", effect: "shock_start" },
+  { id: "forest", name: "Forest", emoji: "🌿", description: "Regen heals +3 HP/turn", bgAccent: "#001a00", effect: "regen_bonus" },
+];
+
+/* ─── Equipment catalog ───────────────────────────────────────────────────── */
+const EQUIPMENT_OPTIONS: Equipment[] = [
+  { id: "blade", name: "Sharp Blade", emoji: "⚔️", description: "+5 to all damage", effect: "damage_bonus", value: 5 },
+  { id: "shield", name: "Iron Shield", emoji: "🛡️", description: "Start with SHIELD_BUFF", effect: "shield_buff" },
+  { id: "medkit", name: "Medkit", emoji: "💉", description: "Start with REGEN (3 turns)", effect: "regen" },
+  { id: "scope", name: "Sniper Scope", emoji: "🎯", description: "25% chance for double damage", effect: "sniper" },
+  { id: "stimpack", name: "Stimpack", emoji: "💊", description: "+20 max HP", effect: "max_hp", value: 20 },
+];
+
+/* ─── Status effect metadata ──────────────────────────────────────────────── */
+const STATUS_META: Record<StatusEffectType, { emoji: string; color: string; label: string }> = {
+  BURN: { emoji: "🔥", color: "#ff6b35", label: "BURN" },
+  FREEZE: { emoji: "❄️", color: "#00e5ff", label: "FREEZE" },
+  SHOCK: { emoji: "⚡", color: "#ffde00", label: "SHOCK" },
+  REGEN: { emoji: "💚", color: "#4caf50", label: "REGEN" },
+  SHIELD_BUFF: { emoji: "🛡️", color: "#8b5cf6", label: "SHIELD" },
+};
+
+/* ─── Player abilities (6 each, 3 shown at a time) ────────────────────────── */
+const PLAYER_ABILITIES: Record<string, ExtendedAbility[]> = {
   "Grinder Beast": [
     { name: "Iron Will", emoji: "🛡️", damage: [14, 24], effect: "heal 10" },
     { name: "Grind Force", emoji: "⚒️", damage: [20, 32] },
     { name: "Titan Smash", emoji: "💥", damage: [26, 38] },
+    { name: "Rage Strike", emoji: "😡", damage: [30, 45], statusEffect: "BURN", statusTarget: "enemy" },
+    { name: "Fortress", emoji: "🏰", damage: [5, 8], statusEffect: "SHIELD_BUFF", statusTarget: "self" },
+    { name: "Earthquake", emoji: "🌍", damage: [15, 25], statusEffect: "SHOCK", statusTarget: "enemy" },
   ],
   "Influencer Spirit": [
     { name: "Charm Wave", emoji: "💫", damage: [12, 20], effect: "heal 12" },
     { name: "Social Burst", emoji: "📣", damage: [18, 28] },
     { name: "Star Power", emoji: "⭐", damage: [24, 36] },
+    { name: "Viral Storm", emoji: "🌪️", damage: [22, 32], statusEffect: "SHOCK", statusTarget: "enemy" },
+    { name: "Self Care", emoji: "🧘", damage: [8, 12], statusEffect: "REGEN", statusTarget: "self" },
+    { name: "Mind Break", emoji: "🧠", damage: [18, 28], statusEffect: "FREEZE", statusTarget: "enemy" },
   ],
   "Merchant King": [
     { name: "Trade Slash", emoji: "⚔️", damage: [16, 26] },
     { name: "Gold Strike", emoji: "💰", damage: [20, 30] },
     { name: "Market Crash", emoji: "📉", damage: [28, 40] },
+    { name: "Poison Blade", emoji: "🗡️", damage: [12, 18], statusEffect: "BURN", statusTarget: "enemy" },
+    { name: "Buy Time", emoji: "⏳", damage: [5, 10], statusEffect: "FREEZE", statusTarget: "enemy" },
+    { name: "Debt Collector", emoji: "💸", damage: [1, 1], scalingDmg: true },
   ],
 };
 
-/* ─── Types ───────────────────────────────────────────────────────────── */
-type Phase = "select_enemy" | "battle" | "result";
+/* ─── Boss enemy ──────────────────────────────────────────────────────────── */
+const BOSS_ENEMY: ExtendedEnemy = {
+  id: "boss",
+  name: "SHADOW KING",
+  emoji: "👑",
+  petEmoji: "🐉",
+  level: 50,
+  hp: 300,
+  petClass: "Grinder Beast",
+  karmaReward: 500,
+  isBoss: true,
+  abilities: [
+    { name: "Shadow Strike", emoji: "🌑", damage: [18, 28] },
+    { name: "Void Slash", emoji: "🌀", damage: [22, 35] },
+    { name: "Dark Pulse", emoji: "💀", damage: [15, 25] },
+  ],
+  bossPhase2Abilities: [
+    { name: "Inferno Strike", emoji: "🔥", damage: [20, 30], statusEffect: "BURN", statusTarget: "enemy" },
+    { name: "Scorch Wave", emoji: "♨️", damage: [18, 28], statusEffect: "BURN", statusTarget: "enemy" },
+    { name: "Ember Fist", emoji: "🌋", damage: [24, 36], statusEffect: "BURN", statusTarget: "enemy" },
+  ],
+  bossPhase3Abilities: [
+    { name: "Frenzy Bite", emoji: "😤", damage: [12, 20] },
+    { name: "Chaos Slash", emoji: "⚡", damage: [10, 18] },
+    { name: "Panic Strike", emoji: "😱", damage: [14, 22] },
+  ],
+};
+
+/* ─── Regular enemies ─────────────────────────────────────────────────────── */
+const ALL_ENEMIES: ExtendedEnemy[] = BATTLE_ENEMIES.map((e) => ({
+  ...e,
+  abilities: e.abilities as ExtendedAbility[],
+}));
+
+/* ─── Phases & misc types ─────────────────────────────────────────────────── */
+type Phase = "select_enemy" | "loadout" | "battle" | "result" | "round_result";
 type TurnPhase = "player" | "enemy" | "animating";
+type GameMode = "normal" | "best_of_3";
 
 interface DmgNumState {
   id: number;
@@ -43,7 +168,7 @@ interface Projectile {
   fromPlayer: boolean;
 }
 
-/* ─── Helpers ─────────────────────────────────────────────────────────── */
+/* ─── Helpers ─────────────────────────────────────────────────────────────── */
 function rnd(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -72,7 +197,42 @@ const CLASS_BADGE_COLOR: Record<string, string> = {
   "Merchant King": "#c8ff00",
 };
 
-/* ─── Sub-components ──────────────────────────────────────────────────── */
+function getBossPhase(hp: number): 1 | 2 | 3 {
+  if (hp <= 100) return 3;
+  if (hp <= 200) return 2;
+  return 1;
+}
+
+function applyStatusEffect(
+  effect: StatusEffect,
+  currentHP: number,
+  maxHP: number,
+  envEffect: string | null
+): { newHP: number; logLine: string | null; consumed: boolean } {
+  let newHP = currentHP;
+  let logLine: string | null = null;
+  let consumed = false;
+
+  switch (effect.type) {
+    case "BURN": {
+      const burnDmg = 8 + (envEffect === "burn_bonus" ? 3 : 0);
+      newHP = Math.max(0, currentHP - burnDmg);
+      logLine = `🔥 BURN -${burnDmg} HP`;
+      break;
+    }
+    case "REGEN": {
+      const regenAmt = 6 + (envEffect === "regen_bonus" ? 3 : 0);
+      newHP = Math.min(maxHP, currentHP + regenAmt);
+      logLine = `💚 REGEN +${regenAmt} HP`;
+      break;
+    }
+    default:
+      break;
+  }
+  return { newHP, logLine, consumed };
+}
+
+/* ─── Sub-components ──────────────────────────────────────────────────────── */
 
 function DmgNum({ value, x, y, color }: { value: number; x: number; y: number; color: string }) {
   return (
@@ -158,12 +318,123 @@ function SegmentedHPBar({
   );
 }
 
-/* ─── Main component ──────────────────────────────────────────────────── */
+function BossHPBar({ current, max }: { current: number; max: number }) {
+  const phase = getBossPhase(current);
+  const colors: Record<number, string> = { 1: "#c8ff00", 2: "#ff9800", 3: "#ff2d2d" };
+  const color = colors[phase];
+  const pct = Math.max(0, (current / max) * 100);
+
+  return (
+    <div style={{ position: "relative", width: "100%" }}>
+      {/* Background track */}
+      <div
+        style={{
+          height: 18,
+          background: "#1a0000",
+          borderRadius: 6,
+          border: "2px solid #ff2d2d44",
+          overflow: "hidden",
+          position: "relative",
+        }}
+      >
+        <motion.div
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 0.4 }}
+          style={{
+            height: "100%",
+            background: color,
+            boxShadow: `0 0 10px ${color}88`,
+            borderRadius: 4,
+          }}
+        />
+        {/* Phase markers */}
+        <div
+          style={{
+            position: "absolute",
+            left: `${(200 / 300) * 100}%`,
+            top: 0,
+            bottom: 0,
+            width: 2,
+            background: "#fff8",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            left: `${(100 / 300) * 100}%`,
+            top: 0,
+            bottom: 0,
+            width: 2,
+            background: "#fff8",
+          }}
+        />
+      </div>
+      {/* Phase labels */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginTop: 2,
+          fontSize: 8,
+          color: "#666",
+          fontWeight: 700,
+        }}
+      >
+        <span style={{ color: phase === 1 ? "#c8ff00" : "#444" }}>PHASE 1</span>
+        <span style={{ color: phase === 2 ? "#ff9800" : "#444" }}>PHASE 2</span>
+        <span style={{ color: phase === 3 ? "#ff2d2d" : "#444" }}>PHASE 3</span>
+      </div>
+    </div>
+  );
+}
+
+function StatusBadges({ effects }: { effects: StatusEffect[] }) {
+  if (effects.length === 0) return null;
+  return (
+    <div style={{ display: "flex", gap: 3, flexWrap: "wrap", justifyContent: "center", marginTop: 3 }}>
+      {effects.map((eff, i) => {
+        const meta = STATUS_META[eff.type];
+        return (
+          <motion.div
+            key={`${eff.type}-${i}`}
+            animate={{ scale: [1, 1.08, 1] }}
+            transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+            style={{
+              background: `${meta.color}22`,
+              border: `1px solid ${meta.color}88`,
+              borderRadius: 5,
+              padding: "1px 5px",
+              fontSize: 9,
+              fontWeight: 700,
+              color: meta.color,
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
+            }}
+          >
+            {meta.emoji} {eff.turnsLeft}
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─── Main component ──────────────────────────────────────────────────────── */
 type Props = { pet: Pet; onEnd: (won: boolean, karma: number) => void };
 
 export default function PetBattle({ pet, onEnd }: Props) {
   const [phase, setPhase] = useState<Phase>("select_enemy");
-  const [enemy, setEnemy] = useState<BattleEnemy | null>(null);
+  const [selectedEnemy, setSelectedEnemy] = useState<ExtendedEnemy | null>(null);
+  const [gameMode, setGameMode] = useState<GameMode>("normal");
+  const [environment, setEnvironment] = useState<Environment | null>(null);
+
+  // Loadout
+  const [pendingEnemy, setPendingEnemy] = useState<ExtendedEnemy | null>(null);
+  const [equipment, setEquipment] = useState<Equipment | null>(null);
+
+  // Battle state
+  const [playerMaxHP, setPlayerMaxHP] = useState(100);
   const [playerHP, setPlayerHP] = useState(100);
   const [enemyHP, setEnemyHP] = useState(100);
   const [turnPhase, setTurnPhase] = useState<TurnPhase>("player");
@@ -175,9 +446,22 @@ export default function PetBattle({ pet, onEnd }: Props) {
   const [healNums, setHealNums] = useState<{ id: number; value: number; x: number; y: number }[]>([]);
   const [projectiles, setProjectiles] = useState<Projectile[]>([]);
   const [playerBuff, setPlayerBuff] = useState<string | null>(null);
-  const dmgIdRef = useRef(0);
+  const [abilityPage, setAbilityPage] = useState(0); // 0 = first 3, 1 = second 3
 
-  const playerAbilities = PLAYER_ABILITIES[pet.class] ?? PLAYER_ABILITIES["Grinder Beast"];
+  // Status effects
+  const [playerEffects, setPlayerEffects] = useState<StatusEffect[]>([]);
+  const [enemyEffects, setEnemyEffects] = useState<StatusEffect[]>([]);
+
+  // Best of 3
+  const [roundWins, setRoundWins] = useState<(boolean | null)[]>([null, null, null]);
+  const [currentRound, setCurrentRound] = useState(1);
+  const [roundResultMsg, setRoundResultMsg] = useState("");
+
+  const dmgIdRef = useRef(0);
+  const enemy = selectedEnemy;
+
+  const allPlayerAbilities = PLAYER_ABILITIES[pet.class] ?? PLAYER_ABILITIES["Grinder Beast"];
+  const visibleAbilities = allPlayerAbilities.slice(abilityPage * 3, abilityPage * 3 + 3);
 
   const petAvatarEmoji =
     pet.evolution === "legendary"
@@ -206,35 +490,219 @@ export default function PetBattle({ pet, onEnd }: Props) {
     setTimeout(() => setProjectiles((prev) => prev.filter((p) => p.id !== id)), 700);
   }
 
-  function selectEnemy(e: BattleEnemy) {
-    setEnemy(e);
-    setPlayerHP(100);
+  function addStatusToPlayer(type: StatusEffectType, turns: number) {
+    const duration = type === "FREEZE" && environment?.effect === "freeze_extend" ? turns + 1 : turns;
+    setPlayerEffects((prev) => {
+      const existing = prev.findIndex((e) => e.type === type);
+      if (existing >= 0) {
+        const updated = [...prev];
+        updated[existing] = { type, turnsLeft: duration };
+        return updated;
+      }
+      return [...prev, { type, turnsLeft: duration }];
+    });
+  }
+
+  function addStatusToEnemy(type: StatusEffectType, turns: number) {
+    const duration = type === "FREEZE" && environment?.effect === "freeze_extend" ? turns + 1 : turns;
+    setEnemyEffects((prev) => {
+      const existing = prev.findIndex((e) => e.type === type);
+      if (existing >= 0) {
+        const updated = [...prev];
+        updated[existing] = { type, turnsLeft: duration };
+        return updated;
+      }
+      return [...prev, { type, turnsLeft: duration }];
+    });
+  }
+
+  function tickEffects(
+    effects: StatusEffect[],
+    currentHP: number,
+    maxHP: number,
+    envEffect: string | null
+  ): { newHP: number; newEffects: StatusEffect[]; logLines: string[] } {
+    let newHP = currentHP;
+    const logLines: string[] = [];
+    const newEffects: StatusEffect[] = [];
+
+    for (const eff of effects) {
+      const result = applyStatusEffect(eff, newHP, maxHP, envEffect);
+      newHP = result.newHP;
+      if (result.logLine) logLines.push(result.logLine);
+      const newTurns = eff.turnsLeft - 1;
+      if (newTurns > 0) {
+        newEffects.push({ ...eff, turnsLeft: newTurns });
+      }
+    }
+
+    return { newHP, newEffects, logLines };
+  }
+
+  function startBattle(e: ExtendedEnemy, eq: Equipment | null, env: Environment) {
+    const maxHP = eq?.effect === "max_hp" ? 100 + (eq.value ?? 20) : 100;
+    setPlayerMaxHP(maxHP);
+    setPlayerHP(maxHP);
     setEnemyHP(e.hp);
-    setLog([`⚔️ Battle start! ${pet.name} vs ${e.petEmoji} ${e.name}'s pet!`]);
+    setSelectedEnemy(e);
+    setEnvironment(env);
+    setLog([`⚔️ Battle start! ${pet.name} vs ${e.petEmoji} ${e.name}${e.isBoss ? " [BOSS]" : "'s pet"}!`, `🌍 ${env.emoji} ${env.name} environment — ${env.description}`]);
     setPhase("battle");
     setTurnPhase("player");
     setCombo(0);
     setPlayerBuff(null);
+    setAbilityPage(0);
+    setDmgNums([]);
+    setHealNums([]);
+    setProjectiles([]);
+
+    // Apply equipment effects
+    const initPlayerEffects: StatusEffect[] = [];
+    if (eq?.effect === "shield_buff") initPlayerEffects.push({ type: "SHIELD_BUFF", turnsLeft: 1 });
+    if (eq?.effect === "regen") initPlayerEffects.push({ type: "REGEN", turnsLeft: 3 });
+    setPlayerEffects(initPlayerEffects);
+
+    // Apply environment shock
+    const initEnemyEffects: StatusEffect[] = [];
+    if (env.effect === "shock_start") initEnemyEffects.push({ type: "SHOCK", turnsLeft: 1 });
+    setEnemyEffects(initEnemyEffects);
+  }
+
+  function selectEnemyForLoadout(e: ExtendedEnemy) {
+    const env = ENVIRONMENTS[Math.floor(Math.random() * ENVIRONMENTS.length)];
+    setPendingEnemy(e);
+    setEnvironment(env);
+    setEquipment(null);
+    setPhase("loadout");
+  }
+
+  function confirmLoadout() {
+    if (!pendingEnemy || !environment) return;
+    startBattle(pendingEnemy, equipment, environment);
+  }
+
+  function endRound(playerWon: boolean) {
+    const roundIndex = currentRound - 1;
+    const newWins = [...roundWins];
+    newWins[roundIndex] = playerWon;
+    setRoundWins(newWins);
+
+    if (gameMode === "normal") {
+      setPhase("result");
+      const karmaBase = enemy?.isBoss
+        ? (enemy.karmaReward ?? 500)
+        : playerWon ? 100 + combo * 10 : 20;
+      onEnd(playerWon, karmaBase);
+      return;
+    }
+
+    // Best of 3
+    const playerRoundWins = newWins.filter((w) => w === true).length;
+    const enemyRoundWins = newWins.filter((w) => w === false).length;
+
+    setRoundResultMsg(playerWon ? `🏆 Round ${currentRound} — YOU WIN!` : `💀 Round ${currentRound} — ENEMY WINS!`);
+    setPhase("round_result");
+
+    if (playerRoundWins >= 2 || enemyRoundWins >= 2 || currentRound >= 3) {
+      setTimeout(() => {
+        setPhase("result");
+        const finalWon = playerRoundWins >= 2;
+        const karmaBase = finalWon ? 150 + combo * 10 : 30;
+        onEnd(finalWon, karmaBase);
+      }, 2000);
+    } else {
+      setTimeout(() => {
+        const nextRound = currentRound + 1;
+        setCurrentRound(nextRound);
+        if (pendingEnemy && environment) {
+          startBattle(pendingEnemy ?? selectedEnemy!, equipment, environment);
+        } else if (selectedEnemy && environment) {
+          startBattle(selectedEnemy, equipment, environment);
+        }
+      }, 2000);
+    }
   }
 
   const useAbility = useCallback(
-    (ability: BattleAbility) => {
+    (ability: ExtendedAbility) => {
       if (turnPhase !== "player" || !enemy) return;
+
+      // Check freeze
+      const frozenEffect = playerEffects.find((e) => e.type === "FREEZE");
+      if (frozenEffect) {
+        setPlayerEffects((prev) => prev.filter((e) => e.type !== "FREEZE"));
+        setLog((l) => [`❄️ FREEZE — ${pet.name} is frozen! Turn skipped.`, ...l.slice(0, 5)]);
+        // Still do enemy turn
+        setTurnPhase("animating");
+        setTimeout(() => doEnemyTurn(playerHP, enemyHP, combo), 600);
+        return;
+      }
+
+      // Check shock (50% miss)
+      const shockEffect = playerEffects.find((e) => e.type === "SHOCK");
+      if (shockEffect && Math.random() < 0.5) {
+        const newPlayerEffects = playerEffects.map((e) =>
+          e.type === "SHOCK" ? { ...e, turnsLeft: e.turnsLeft - 1 } : e
+        ).filter((e) => e.turnsLeft > 0);
+        setPlayerEffects(newPlayerEffects);
+        setLog((l) => [`⚡ SHOCK — ${pet.name} missed the attack!`, ...l.slice(0, 5)]);
+        setTurnPhase("animating");
+        setTimeout(() => doEnemyTurn(playerHP, enemyHP, combo), 600);
+        return;
+      }
+
       setTurnPhase("animating");
 
-      const dmg = rnd(...ability.damage);
+      // Tick player effects at start of turn
+      const envEffect = environment?.effect ?? null;
+      const { newHP: tickedPlayerHP, newEffects: tickedPlayerEffects, logLines: playerTickLogs } = tickEffects(
+        playerEffects, playerHP, playerMaxHP, envEffect
+      );
+      setPlayerHP(tickedPlayerHP);
+      setPlayerEffects(tickedPlayerEffects);
+      if (playerTickLogs.length > 0) {
+        setLog((l) => [...playerTickLogs.map((ll) => `${pet.name}: ${ll}`), ...l.slice(0, 5 - playerTickLogs.length)]);
+      }
+
+      if (tickedPlayerHP <= 0) {
+        setTimeout(() => endRound(false), 600);
+        return;
+      }
+
+      // Calculate damage
+      let dmg = rnd(...ability.damage);
+
+      // Debt Collector: 15% of enemy max HP
+      if (ability.scalingDmg) {
+        dmg = Math.floor(enemy.hp * 0.15);
+      }
+
+      // Equipment bonuses
+      if (equipment?.effect === "damage_bonus") dmg += equipment.value ?? 0;
+      if (equipment?.effect === "sniper" && Math.random() < 0.25) {
+        dmg *= 2;
+        setLog((l) => [`🎯 SNIPER — Double damage!`, ...l.slice(0, 5)]);
+      }
+
       const heal = ability.effect?.startsWith("heal")
         ? parseInt(ability.effect.split(" ")[1])
         : 0;
 
-      // Fire projectile from player to enemy
+      // Check SHIELD_BUFF on enemy
+      const enemyShielded = enemyEffects.find((e) => e.type === "SHIELD_BUFF");
+      let finalDmg = dmg;
+      if (enemyShielded) {
+        finalDmg = 0;
+        setEnemyEffects((prev) => prev.filter((e) => e.type !== "SHIELD_BUFF"));
+        setLog((l) => [`🛡️ ${enemy.name}'s SHIELD blocked the attack!`, ...l.slice(0, 5)]);
+      }
+
       fireProjectile(ability.emoji, true);
 
       setTimeout(() => {
         setShakeEnemy(true);
         setTimeout(() => setShakeEnemy(false), 400);
-        // Damage number on enemy side (right)
-        spawnDmg(dmg, 180, 20, "#ff2d2d");
+        if (finalDmg > 0) spawnDmg(finalDmg, 180, 20, "#ff2d2d");
 
         if (heal) {
           spawnHeal(heal, 30, 20);
@@ -242,76 +710,205 @@ export default function PetBattle({ pet, onEnd }: Props) {
           setTimeout(() => setPlayerBuff(null), 1500);
         }
 
-        const newEnemyHP = Math.max(0, enemyHP - dmg);
-        const newPlayerHP = Math.min(100, playerHP + heal);
+        const newEnemyHP = Math.max(0, enemyHP - finalDmg);
+        const newPlayerHP = Math.min(playerMaxHP, tickedPlayerHP + heal);
         const newCombo = combo + 1;
 
         setEnemyHP(newEnemyHP);
         setPlayerHP(newPlayerHP);
         setCombo(newCombo);
 
+        // Apply status effects from ability
+        if (ability.statusEffect) {
+          if (ability.statusTarget === "enemy") {
+            const turns = ability.statusEffect === "BURN" ? 3 : ability.statusEffect === "REGEN" ? 3 : 1;
+            addStatusToEnemy(ability.statusEffect, turns);
+          } else {
+            const turns = ability.statusEffect === "BURN" ? 3 : ability.statusEffect === "REGEN" ? 3 : 1;
+            addStatusToPlayer(ability.statusEffect, turns);
+          }
+        }
+
+        // Tick enemy effects
+        const { newHP: tickedEnemyHP, newEffects: tickedEnemyEffects, logLines: enemyTickLogs } = tickEffects(
+          enemyEffects, newEnemyHP, enemy.hp, envEffect
+        );
+        setEnemyHP(tickedEnemyHP);
+        setEnemyEffects(tickedEnemyEffects);
+
         const comboBadge = newCombo >= 3 ? ` 🔥 COMBO ×${newCombo}!` : "";
+        const statusTag = ability.statusEffect ? ` · ${STATUS_META[ability.statusEffect].emoji} ${ability.statusEffect}` : "";
         setLog((l) => [
-          `${ability.emoji} ${pet.name} used ${ability.name}! ${dmg} dmg${heal ? ` · +${heal} HP` : ""}${comboBadge}`,
-          ...l.slice(0, 5),
+          `${ability.emoji} ${pet.name} used ${ability.name}! ${finalDmg} dmg${heal ? ` · +${heal} HP` : ""}${statusTag}${comboBadge}`,
+          ...enemyTickLogs.map((ll) => `${enemy.name}: ${ll}`),
+          ...l.slice(0, Math.max(0, 5 - 1 - enemyTickLogs.length)),
         ]);
 
-        if (newEnemyHP <= 0) {
-          setTimeout(() => {
-            setPhase("result");
-            onEnd(true, 100 + newCombo * 10);
-          }, 800);
+        if (tickedEnemyHP <= 0) {
+          setTimeout(() => endRound(true), 800);
           return;
         }
 
-        // Enemy turn
-        setTimeout(() => {
-          const ea = enemy.abilities[Math.floor(Math.random() * enemy.abilities.length)];
-          const edm = rnd(...ea.damage);
-          const eheal = ea.effect?.startsWith("heal")
-            ? parseInt(ea.effect.split(" ")[1])
-            : 0;
-
-          // Fire projectile from enemy to player
-          fireProjectile(ea.emoji, false);
-
+        // Boss phase 3: attack twice
+        const bossCurrentPhase = enemy.isBoss ? getBossPhase(tickedEnemyHP) : null;
+        if (bossCurrentPhase === 3) {
           setTimeout(() => {
-            setShakePlayer(true);
-            setTimeout(() => setShakePlayer(false), 400);
-            spawnDmg(edm, 30, 60, "#ff9800");
-
-            const finalPlayerHP = Math.max(0, newPlayerHP - edm);
-            setPlayerHP(Math.max(0, newPlayerHP - edm));
-            if (eheal) setEnemyHP((h) => Math.min(enemy.hp, h + eheal));
-
-            setLog((l) => [
-              `${ea.emoji} ${enemy.name}'s pet used ${ea.name}! ${edm} dmg${
-                eheal ? ` · healed ${eheal}` : ""
-              }`,
-              ...l.slice(0, 5),
-            ]);
-            setCombo(0);
-
-            if (finalPlayerHP <= 0) {
-              setTimeout(() => {
-                setPhase("result");
-                onEnd(false, 20);
-              }, 600);
-            } else {
-              setTurnPhase("player");
-            }
-          }, 350);
-        }, 900);
+            doEnemyTurn(newPlayerHP, tickedEnemyHP, newCombo, () => {
+              setTimeout(() => doEnemyTurn(newPlayerHP, tickedEnemyHP, 0), 900);
+            });
+          }, 900);
+        } else {
+          setTimeout(() => doEnemyTurn(newPlayerHP, tickedEnemyHP, newCombo), 900);
+        }
       }, 300);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [turnPhase, enemy, enemyHP, playerHP, combo, pet, onEnd]
+    [turnPhase, enemy, enemyHP, playerHP, combo, pet, onEnd, playerEffects, enemyEffects, equipment, environment, playerMaxHP]
   );
 
-  /* ── Enemy select screen ────────────────────────────────────────────── */
+  function doEnemyTurn(
+    currentPlayerHP: number,
+    currentEnemyHP: number,
+    currentCombo: number,
+    onDone?: () => void
+  ) {
+    if (!enemy) return;
+
+    // Tick enemy effects (for FREEZE check)
+    const frozenEffect = enemyEffects.find((e) => e.type === "FREEZE");
+    if (frozenEffect) {
+      setEnemyEffects((prev) => prev.filter((e) => e.type !== "FREEZE"));
+      setLog((l) => [`❄️ FREEZE — ${enemy.name}'s pet is frozen! Attack skipped.`, ...l.slice(0, 5)]);
+      setTurnPhase("player");
+      onDone?.();
+      return;
+    }
+
+    // Choose enemy ability based on boss phase
+    let abilityPool: ExtendedAbility[];
+    if (enemy.isBoss) {
+      const bossPhase = getBossPhase(currentEnemyHP);
+      if (bossPhase === 3 && enemy.bossPhase3Abilities) {
+        abilityPool = enemy.bossPhase3Abilities;
+      } else if (bossPhase === 2 && enemy.bossPhase2Abilities) {
+        abilityPool = enemy.bossPhase2Abilities;
+      } else {
+        abilityPool = enemy.abilities;
+      }
+    } else {
+      abilityPool = enemy.abilities as ExtendedAbility[];
+    }
+
+    // Shock check
+    const shockEffect = enemyEffects.find((e) => e.type === "SHOCK");
+    if (shockEffect && Math.random() < 0.5) {
+      setEnemyEffects((prev) =>
+        prev.map((e) => (e.type === "SHOCK" ? { ...e, turnsLeft: e.turnsLeft - 1 } : e))
+          .filter((e) => e.turnsLeft > 0)
+      );
+      setLog((l) => [`⚡ SHOCK — ${enemy.name}'s pet missed!`, ...l.slice(0, 5)]);
+      setTurnPhase("player");
+      onDone?.();
+      return;
+    }
+
+    const ea = abilityPool[Math.floor(Math.random() * abilityPool.length)] as ExtendedAbility;
+    let edm = rnd(...ea.damage);
+    const eheal = ea.effect?.startsWith("heal") ? parseInt(ea.effect.split(" ")[1]) : 0;
+
+    // Boss phase 3: weaker attacks
+    if (enemy.isBoss && getBossPhase(currentEnemyHP) === 3) {
+      edm = Math.floor(edm * 0.65);
+    }
+
+    // Check player SHIELD_BUFF
+    const playerShielded = playerEffects.find((e) => e.type === "SHIELD_BUFF");
+    let finalEDmg = edm;
+    if (playerShielded) {
+      finalEDmg = 0;
+      setPlayerEffects((prev) => prev.filter((e) => e.type !== "SHIELD_BUFF"));
+      setLog((l) => [`🛡️ Your SHIELD blocked the enemy attack!`, ...l.slice(0, 5)]);
+    }
+
+    fireProjectile(ea.emoji, false);
+
+    setTimeout(() => {
+      setShakePlayer(true);
+      setTimeout(() => setShakePlayer(false), 400);
+      if (finalEDmg > 0) spawnDmg(finalEDmg, 30, 60, "#ff9800");
+
+      // Tick player effects
+      const envEffect = environment?.effect ?? null;
+      const { newHP: tickedPlayerHP, newEffects: newPlayerEffects, logLines: playerTickLogs } = tickEffects(
+        playerEffects.filter((e) => e.type !== "SHIELD_BUFF"),
+        Math.max(0, currentPlayerHP - finalEDmg),
+        playerMaxHP,
+        envEffect
+      );
+
+      setPlayerHP(tickedPlayerHP);
+      setPlayerEffects(newPlayerEffects);
+
+      if (eheal) setEnemyHP((h) => Math.min(enemy.hp, h + eheal));
+
+      const statusTag = ea.statusEffect ? ` · applies ${STATUS_META[ea.statusEffect].emoji} ${ea.statusEffect}` : "";
+      setLog((l) => [
+        `${ea.emoji} ${enemy.name}'s pet used ${ea.name}! ${finalEDmg} dmg${eheal ? ` · healed ${eheal}` : ""}${statusTag}`,
+        ...playerTickLogs.map((ll) => `${pet.name}: ${ll}`),
+        ...l.slice(0, Math.max(0, 5 - 1 - playerTickLogs.length)),
+      ]);
+
+      // Apply status from enemy ability
+      if (ea.statusEffect) {
+        if (ea.statusTarget === "self") {
+          const turns = ea.statusEffect === "REGEN" ? 3 : 1;
+          addStatusToEnemy(ea.statusEffect, turns);
+        } else {
+          const turns = ea.statusEffect === "BURN" ? 3 : ea.statusEffect === "REGEN" ? 3 : 1;
+          addStatusToPlayer(ea.statusEffect, turns);
+        }
+      }
+
+      setCombo(0);
+
+      if (tickedPlayerHP <= 0) {
+        setTimeout(() => endRound(false), 600);
+        onDone?.();
+      } else {
+        setTurnPhase("player");
+        onDone?.();
+      }
+    }, 350);
+  }
+
+  /* ── Enemy select screen ────────────────────────────────────────────────── */
   if (phase === "select_enemy") {
     return (
       <div>
+        {/* Mode selector */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+          {(["normal", "best_of_3"] as GameMode[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => setGameMode(m)}
+              style={{
+                flex: 1,
+                padding: "8px 6px",
+                background: gameMode === m ? "#ff6b3522" : "#111",
+                border: `2px solid ${gameMode === m ? "#ff6b35" : "#222"}`,
+                borderRadius: 10,
+                color: gameMode === m ? "#ff6b35" : "#555",
+                fontSize: 10,
+                fontWeight: 800,
+                cursor: "pointer",
+                letterSpacing: 1,
+              }}
+            >
+              {m === "normal" ? "⚔️ NORMAL" : "🏆 BEST OF 3"}
+            </button>
+          ))}
+        </div>
+
         <div
           style={{
             color: "#ff6b35",
@@ -336,7 +933,7 @@ export default function PetBattle({ pet, onEnd }: Props) {
           CHOOSE YOUR CHALLENGE WISELY
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {BATTLE_ENEMIES.map((e) => {
+          {ALL_ENEMIES.map((e) => {
             const stars = difficultyStars(e.level);
             const label = difficultyLabel(e.level);
             const dColor = difficultyColor(e.level);
@@ -346,14 +943,13 @@ export default function PetBattle({ pet, onEnd }: Props) {
                 key={e.id}
                 whileHover={{ scale: 1.01, borderColor: "#ff6b35" }}
                 whileTap={{ scale: 0.97 }}
-                onClick={() => selectEnemy(e)}
+                onClick={() => selectEnemyForLoadout(e)}
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: 12,
                   padding: "12px 14px",
-                  background:
-                    "linear-gradient(135deg, #150a00 0%, #1f0d00 100%)",
+                  background: "linear-gradient(135deg, #150a00 0%, #1f0d00 100%)",
                   border: "2px solid #2a1200",
                   borderRadius: 14,
                   cursor: "pointer",
@@ -362,7 +958,6 @@ export default function PetBattle({ pet, onEnd }: Props) {
                   overflow: "hidden",
                 }}
               >
-                {/* Glow accent */}
                 <div
                   style={{
                     position: "absolute",
@@ -371,7 +966,6 @@ export default function PetBattle({ pet, onEnd }: Props) {
                     pointerEvents: "none",
                   }}
                 />
-                {/* Pet avatar circle */}
                 <div
                   style={{
                     width: 52,
@@ -426,7 +1020,6 @@ export default function PetBattle({ pet, onEnd }: Props) {
                 </div>
 
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  {/* Stars */}
                   <div style={{ marginBottom: 3 }}>
                     {Array.from({ length: 3 }).map((_, si) => (
                       <span
@@ -460,21 +1053,253 @@ export default function PetBattle({ pet, onEnd }: Props) {
               </motion.button>
             );
           })}
+
+          {/* Boss section */}
+          <div
+            style={{
+              color: "#ff2d2d",
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: 3,
+              marginTop: 10,
+              marginBottom: 6,
+              textShadow: "0 0 10px #ff2d2d88",
+            }}
+          >
+            ☠️ BOSS BATTLE
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => selectEnemyForLoadout(BOSS_ENEMY)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "14px 14px",
+              background: "linear-gradient(135deg, #1a0000 0%, #2a0505 100%)",
+              border: "2px solid #ff2d2d66",
+              borderRadius: 14,
+              cursor: "pointer",
+              textAlign: "left",
+              position: "relative",
+              overflow: "hidden",
+              boxShadow: "0 0 20px #ff2d2d22",
+            }}
+          >
+            <motion.div
+              animate={{ boxShadow: ["0 0 10px #ff2d2d44", "0 0 25px #ff2d2d88", "0 0 10px #ff2d2d44"] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              style={{
+                width: 60,
+                height: 60,
+                borderRadius: "50%",
+                background: "#0a0000",
+                border: "2px solid #ff2d2d",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "2.2rem",
+                flexShrink: 0,
+              }}
+            >
+              {BOSS_ENEMY.petEmoji}
+            </motion.div>
+            <div style={{ flex: 1 }}>
+              <div style={{ color: "#ff2d2d", fontWeight: 900, fontSize: 15, letterSpacing: 1, textShadow: "0 0 10px #ff2d2d" }}>
+                {BOSS_ENEMY.name}
+              </div>
+              <div style={{ color: "#888", fontSize: 10, marginTop: 2 }}>
+                3 PHASES · 300 HP · ATTACKS TWICE IN PHASE 3
+              </div>
+              <div style={{ color: "#ff2d2d", fontSize: 10, fontWeight: 700, marginTop: 3 }}>
+                REWARD: 500+ karma {BOSS_ENEMY.emoji}
+              </div>
+            </div>
+            <div style={{ textAlign: "right", flexShrink: 0 }}>
+              <div style={{ fontSize: 16 }}>☠️☠️☠️</div>
+              <div style={{ color: "#ff2d2d", fontSize: 9, fontWeight: 800, letterSpacing: 1, marginTop: 3 }}>
+                BOSS
+              </div>
+              <div style={{ color: "#555", fontSize: 10, fontWeight: 700 }}>300 HP</div>
+            </div>
+          </motion.button>
         </div>
       </div>
     );
   }
 
-  /* ── Result screen ──────────────────────────────────────────────────── */
+  /* ── Loadout screen ─────────────────────────────────────────────────────── */
+  if (phase === "loadout") {
+    return (
+      <div>
+        <div
+          style={{
+            color: "#c8ff00",
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: 3,
+            marginBottom: 4,
+            textShadow: "0 0 12px #c8ff0088",
+          }}
+        >
+          LOADOUT SELECTION
+        </div>
+        {environment && (
+          <div
+            style={{
+              background: "#111",
+              border: "1px solid #333",
+              borderRadius: 10,
+              padding: "8px 12px",
+              marginBottom: 14,
+              fontSize: 11,
+              color: "#aaa",
+            }}
+          >
+            {environment.emoji} <strong style={{ color: "#fff" }}>{environment.name}</strong> — {environment.description}
+          </div>
+        )}
+        <div style={{ fontSize: 10, color: "#888", marginBottom: 10, fontWeight: 600 }}>
+          Choose 1 equipment item (optional):
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
+          {EQUIPMENT_OPTIONS.map((eq) => {
+            const selected = equipment?.id === eq.id;
+            return (
+              <motion.button
+                key={eq.id}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setEquipment(selected ? null : eq)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "10px 12px",
+                  background: selected ? "#c8ff0011" : "#111",
+                  border: `2px solid ${selected ? "#c8ff00" : "#222"}`,
+                  borderRadius: 12,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  boxShadow: selected ? "0 0 10px #c8ff0033" : "none",
+                }}
+              >
+                <div style={{ fontSize: "1.6rem" }}>{eq.emoji}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: selected ? "#c8ff00" : "#fff", fontWeight: 700, fontSize: 12 }}>
+                    {eq.name}
+                  </div>
+                  <div style={{ color: "#888", fontSize: 10 }}>{eq.description}</div>
+                </div>
+                {selected && (
+                  <div style={{ color: "#c8ff00", fontSize: 14, fontWeight: 900 }}>✓</div>
+                )}
+              </motion.button>
+            );
+          })}
+        </div>
+
+        <div style={{ display: "flex", gap: 8 }}>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.96 }}
+            onClick={() => setPhase("select_enemy")}
+            style={{
+              flex: 1,
+              padding: "12px",
+              background: "#111",
+              border: "2px solid #333",
+              borderRadius: 12,
+              color: "#888",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            ← BACK
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.96 }}
+            onClick={confirmLoadout}
+            style={{
+              flex: 2,
+              padding: "12px",
+              background: "#ff6b35",
+              border: "3px solid #0a0a0a",
+              borderRadius: 12,
+              color: "#fff",
+              fontSize: 13,
+              fontWeight: 900,
+              cursor: "pointer",
+              letterSpacing: 2,
+              boxShadow: "0 0 15px #ff6b3544",
+            }}
+          >
+            ⚔️ FIGHT!
+          </motion.button>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Round result screen ───────────────────────────────────────────────── */
+  if (phase === "round_result") {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        style={{
+          textAlign: "center",
+          padding: "32px 20px",
+          background: "#0a0500",
+          border: "2px solid #ff6b35",
+          borderRadius: 16,
+        }}
+      >
+        <div style={{ fontSize: "3rem", marginBottom: 10 }}>
+          {roundResultMsg.startsWith("🏆") ? "🏆" : "💀"}
+        </div>
+        <div style={{ color: "#ff6b35", fontSize: 20, fontWeight: 900, letterSpacing: 2 }}>
+          {roundResultMsg}
+        </div>
+        <div style={{ color: "#555", fontSize: 12, marginTop: 8 }}>
+          Next round starting...
+        </div>
+        <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 16 }}>
+          {roundWins.map((w, i) => (
+            <div
+              key={i}
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: "50%",
+                background: w === true ? "#c8ff00" : w === false ? "#ff2d2d" : "#333",
+                border: `2px solid ${w === true ? "#c8ff00" : w === false ? "#ff2d2d" : "#555"}`,
+              }}
+            />
+          ))}
+        </div>
+      </motion.div>
+    );
+  }
+
+  /* ── Result screen ──────────────────────────────────────────────────────── */
   if (phase === "result") {
     const won = enemyHP <= 0;
+    const playerRoundWins = roundWins.filter((w) => w === true).length;
+    const bo3Won = gameMode === "best_of_3" ? playerRoundWins >= 2 : won;
+    const karmaEarned = enemy?.isBoss
+      ? (enemy.karmaReward ?? 500) + combo * 10
+      : bo3Won ? (gameMode === "best_of_3" ? 150 : 100) + combo * 10 : (gameMode === "best_of_3" ? 30 : 20);
+
     return (
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         style={{ position: "relative" }}
       >
-        {/* Full-screen overlay shimmer */}
         <motion.div
           initial={{ opacity: 0, scale: 0.85 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -482,34 +1307,58 @@ export default function PetBattle({ pet, onEnd }: Props) {
           style={{
             textAlign: "center",
             padding: "32px 20px",
-            background: won
+            background: bo3Won
               ? "linear-gradient(160deg, #0a1a00 0%, #1a2800 50%, #0a1a00 100%)"
               : "linear-gradient(160deg, #1a0000 0%, #2a0505 50%, #1a0000 100%)",
-            border: `3px solid ${won ? "#c8ff00" : "#ff2d2d"}`,
+            border: `3px solid ${bo3Won ? "#c8ff00" : "#ff2d2d"}`,
             borderRadius: 20,
             overflow: "hidden",
             position: "relative",
           }}
         >
-          {/* Background rune glow */}
           <div
             style={{
               position: "absolute",
               inset: 0,
-              background: won
+              background: bo3Won
                 ? "radial-gradient(ellipse at 50% 50%, #c8ff0015 0%, transparent 70%)"
                 : "radial-gradient(ellipse at 50% 50%, #ff2d2d15 0%, transparent 70%)",
               pointerEvents: "none",
             }}
           />
 
-          {/* Trophy / skull */}
+          {/* Best of 3 round indicators */}
+          {gameMode === "best_of_3" && (
+            <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 16 }}>
+              {roundWins.map((w, i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: "50%",
+                    background: w === true ? "#c8ff00" : w === false ? "#ff2d2d" : "#333",
+                    border: `2px solid ${w === true ? "#c8ff00" : w === false ? "#ff2d2d" : "#555"}`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 10,
+                    fontWeight: 900,
+                    color: "#000",
+                  }}
+                >
+                  {w === true ? "W" : w === false ? "L" : ""}
+                </div>
+              ))}
+            </div>
+          )}
+
           <motion.div
             animate={{ scale: [1, 1.12, 0.95, 1.05, 1], rotate: [0, -5, 5, -3, 0] }}
             transition={{ duration: 0.8, delay: 0.2 }}
             style={{ fontSize: "4rem", marginBottom: 10 }}
           >
-            {won ? "🏆" : "💀"}
+            {bo3Won ? (enemy?.isBoss ? "👑" : "🏆") : "💀"}
           </motion.div>
 
           <motion.div
@@ -517,15 +1366,15 @@ export default function PetBattle({ pet, onEnd }: Props) {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3 }}
             style={{
-              color: won ? "#c8ff00" : "#ff2d2d",
+              color: bo3Won ? "#c8ff00" : "#ff2d2d",
               fontSize: 28,
               fontWeight: 900,
               letterSpacing: 3,
-              textShadow: `0 0 24px ${won ? "#c8ff00" : "#ff2d2d"}`,
+              textShadow: `0 0 24px ${bo3Won ? "#c8ff00" : "#ff2d2d"}`,
               marginBottom: 6,
             }}
           >
-            {won ? "VICTORY!" : "DEFEATED!"}
+            {bo3Won ? (enemy?.isBoss ? "BOSS SLAIN!" : "VICTORY!") : "DEFEATED!"}
           </motion.div>
 
           <motion.div
@@ -534,12 +1383,10 @@ export default function PetBattle({ pet, onEnd }: Props) {
             transition={{ delay: 0.45 }}
             style={{ color: "#aaa", fontSize: 14, marginBottom: 6 }}
           >
-            {won
-              ? `+${100 + combo * 10} karma earned!`
-              : "+20 karma for trying"}
+            +{karmaEarned} karma earned!
           </motion.div>
 
-          {combo >= 3 && won && (
+          {combo >= 3 && bo3Won && (
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
@@ -564,24 +1411,30 @@ export default function PetBattle({ pet, onEnd }: Props) {
             transition={{ delay: 0.55 }}
             onClick={() => {
               setPhase("select_enemy");
-              setEnemy(null);
+              setSelectedEnemy(null);
+              setPendingEnemy(null);
               setLog([]);
               setDmgNums([]);
               setHealNums([]);
               setProjectiles([]);
+              setRoundWins([null, null, null]);
+              setCurrentRound(1);
+              setPlayerEffects([]);
+              setEnemyEffects([]);
+              setEquipment(null);
             }}
             style={{
               marginTop: 14,
               padding: "12px 36px",
-              background: won ? "#c8ff00" : "#ff2d2d",
+              background: bo3Won ? "#c8ff00" : "#ff2d2d",
               border: "3px solid #0a0a0a",
               borderRadius: 14,
               fontSize: 14,
               fontWeight: 800,
-              color: won ? "#0a0a0a" : "#fff",
+              color: bo3Won ? "#0a0a0a" : "#fff",
               cursor: "pointer",
               letterSpacing: 2,
-              boxShadow: `4px 4px 0 #0a0a0a, 0 0 20px ${won ? "#c8ff0044" : "#ff2d2d44"}`,
+              boxShadow: `4px 4px 0 #0a0a0a, 0 0 20px ${bo3Won ? "#c8ff0044" : "#ff2d2d44"}`,
             }}
           >
             FIGHT AGAIN
@@ -591,16 +1444,86 @@ export default function PetBattle({ pet, onEnd }: Props) {
     );
   }
 
-  /* ── Battle screen ──────────────────────────────────────────────────── */
-  const playerLow = playerHP < 20;
+  /* ── Battle screen ──────────────────────────────────────────────────────── */
+  const playerLow = playerHP < playerMaxHP * 0.2;
   const enemyLow = enemyHP < (enemy?.hp ?? 100) * 0.2;
+  const bossPhase = enemy?.isBoss ? getBossPhase(enemyHP) : null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      {/* ── Isometric Arena ─────────────────────────────────────────────── */}
+      {/* ── Environment banner ────────────────────────────────────────────── */}
+      {environment && (
+        <div
+          style={{
+            background: environment.bgAccent,
+            border: "1px solid #333",
+            borderRadius: 10,
+            padding: "6px 12px",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 11,
+            color: "#ccc",
+          }}
+        >
+          <span style={{ fontSize: 16 }}>{environment.emoji}</span>
+          <strong style={{ color: "#fff" }}>{environment.name}</strong>
+          <span style={{ color: "#888" }}>— {environment.description}</span>
+          {gameMode === "best_of_3" && (
+            <div style={{ marginLeft: "auto", display: "flex", gap: 5 }}>
+              {roundWins.map((w, i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: "50%",
+                    background: w === true ? "#c8ff00" : w === false ? "#ff2d2d" : "#333",
+                    border: `1px solid ${w === true ? "#c8ff00" : w === false ? "#ff2d2d" : "#555"}`,
+                    fontSize: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#000",
+                    fontWeight: 900,
+                  }}
+                >
+                  {w === true ? "W" : w === false ? "L" : ""}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Boss phase indicator ───────────────────────────────────────────── */}
+      {enemy?.isBoss && bossPhase && (
+        <motion.div
+          key={bossPhase}
+          initial={{ scale: 0.85, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          style={{
+            background: bossPhase === 1 ? "#0a1a00" : bossPhase === 2 ? "#1a0800" : "#1a0000",
+            border: `2px solid ${bossPhase === 1 ? "#c8ff00" : bossPhase === 2 ? "#ff9800" : "#ff2d2d"}`,
+            borderRadius: 10,
+            padding: "6px 12px",
+            textAlign: "center",
+            fontSize: 11,
+            fontWeight: 800,
+            color: bossPhase === 1 ? "#c8ff00" : bossPhase === 2 ? "#ff9800" : "#ff2d2d",
+            letterSpacing: 2,
+          }}
+        >
+          {bossPhase === 1 && "⚔️ BOSS PHASE 1 — Normal Combat"}
+          {bossPhase === 2 && "🔥 BOSS PHASE 2 — All Attacks BURN!"}
+          {bossPhase === 3 && "😤 BOSS PHASE 3 — FRANTIC MODE! Attacks TWICE per turn!"}
+        </motion.div>
+      )}
+
+      {/* ── Isometric Arena ─────────────────────────────────────────────────── */}
       <div
         style={{
-          background: "#0e0600",
+          background: environment ? environment.bgAccent : "#0e0600",
           border: "2px solid #ff6b3544",
           borderRadius: 16,
           padding: "14px 14px 10px",
@@ -623,7 +1546,6 @@ export default function PetBattle({ pet, onEnd }: Props) {
             overflow: "hidden",
           }}
         >
-          {/* Rune glows on floor */}
           {[
             { left: "20%", top: "40%" },
             { left: "50%", top: "60%" },
@@ -699,18 +1621,19 @@ export default function PetBattle({ pet, onEnd }: Props) {
             ))}
           </AnimatePresence>
 
-          {/* Player fighter — larger, bottom-left foreground */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flex: 1 }}>
+          {/* Player fighter */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flex: 1 }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: "#aaa", letterSpacing: 1, textAlign: "center" }}>
               {pet.name}
             </div>
-            {/* HP bar */}
             <div style={{ width: "100%" }}>
-              <SegmentedHPBar current={playerHP} max={100} color="#c8ff00" />
+              <SegmentedHPBar current={playerHP} max={playerMaxHP} color="#c8ff00" />
               <div style={{ color: "#c8ff00", fontSize: 10, fontWeight: 700, textAlign: "center", marginTop: 2 }}>
-                {playerHP}/100
+                {playerHP}/{playerMaxHP}
               </div>
             </div>
+            {/* Status badges */}
+            <StatusBadges effects={playerEffects} />
             {/* Avatar */}
             <motion.div
               animate={
@@ -746,7 +1669,6 @@ export default function PetBattle({ pet, onEnd }: Props) {
             >
               {petAvatarEmoji}
             </motion.div>
-            {/* Buff badge */}
             <AnimatePresence>
               {playerBuff && (
                 <motion.div
@@ -815,25 +1737,32 @@ export default function PetBattle({ pet, onEnd }: Props) {
               style={{
                 width: 1,
                 height: 30,
-                background:
-                  "linear-gradient(to bottom, #ff6b3588, transparent)",
+                background: "linear-gradient(to bottom, #ff6b3588, transparent)",
               }}
             />
           </div>
 
-          {/* Enemy fighter — smaller, top-right background feel */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flex: 1 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#aaa", letterSpacing: 1, textAlign: "center" }}>
-              {enemy?.name}&apos;s pet
+          {/* Enemy fighter */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flex: 1 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: enemy?.isBoss ? "#ff2d2d" : "#aaa", letterSpacing: 1, textAlign: "center" }}>
+              {enemy?.isBoss ? `👑 ${enemy.name}` : `${enemy?.name}'s pet`}
             </div>
-            {/* HP bar */}
+            {/* HP bar — boss gets special bar */}
             <div style={{ width: "100%" }}>
-              <SegmentedHPBar current={enemyHP} max={enemy?.hp ?? 100} color="#ff6b35" />
-              <div style={{ color: "#ff6b35", fontSize: 10, fontWeight: 700, textAlign: "center", marginTop: 2 }}>
-                {enemyHP}/{enemy?.hp}
-              </div>
+              {enemy?.isBoss ? (
+                <BossHPBar current={enemyHP} max={enemy.hp} />
+              ) : (
+                <>
+                  <SegmentedHPBar current={enemyHP} max={enemy?.hp ?? 100} color="#ff6b35" />
+                  <div style={{ color: "#ff6b35", fontSize: 10, fontWeight: 700, textAlign: "center", marginTop: 2 }}>
+                    {enemyHP}/{enemy?.hp}
+                  </div>
+                </>
+              )}
             </div>
-            {/* Avatar — slightly smaller to sell depth */}
+            {/* Status badges */}
+            <StatusBadges effects={enemyEffects} />
+            {/* Avatar */}
             <motion.div
               animate={
                 shakeEnemy
@@ -848,17 +1777,21 @@ export default function PetBattle({ pet, onEnd }: Props) {
                   : { duration: 2.2, repeat: Infinity, ease: "easeInOut" }
               }
               style={{
-                width: 68,
-                height: 68,
+                width: enemy?.isBoss ? 78 : 68,
+                height: enemy?.isBoss ? 78 : 68,
                 borderRadius: "50%",
                 background: "#0a0500",
                 border: `3px solid ${
-                  turnPhase === "enemy" || turnPhase === "animating"
+                  enemy?.isBoss
+                    ? "#ff2d2d"
+                    : turnPhase === "enemy" || turnPhase === "animating"
                     ? "#ff6b35"
                     : "#333"
                 }`,
                 boxShadow:
-                  turnPhase === "enemy" || turnPhase === "animating"
+                  enemy?.isBoss
+                    ? "0 0 20px #ff2d2d88"
+                    : turnPhase === "enemy" || turnPhase === "animating"
                     ? "0 0 18px #ff6b3588, 0 0 4px #ff6b35"
                     : enemyLow
                     ? "0 0 12px #ff2d2d88"
@@ -872,8 +1805,7 @@ export default function PetBattle({ pet, onEnd }: Props) {
             >
               {enemy?.petEmoji}
             </motion.div>
-            {/* Enemy difficulty badge */}
-            {enemy && (
+            {enemy && !enemy.isBoss && (
               <div
                 style={{
                   background: `${difficultyColor(enemy.level)}22`,
@@ -887,6 +1819,22 @@ export default function PetBattle({ pet, onEnd }: Props) {
                 }}
               >
                 LVL {enemy.level}
+              </div>
+            )}
+            {enemy?.isBoss && bossPhase && (
+              <div
+                style={{
+                  background: "#ff2d2d22",
+                  border: "1px solid #ff2d2d55",
+                  borderRadius: 5,
+                  padding: "2px 6px",
+                  fontSize: 9,
+                  fontWeight: 800,
+                  color: "#ff2d2d",
+                  letterSpacing: 0.5,
+                }}
+              >
+                PHASE {bossPhase}
               </div>
             )}
           </div>
@@ -924,24 +1872,55 @@ export default function PetBattle({ pet, onEnd }: Props) {
         </div>
       </div>
 
-      {/* ── Abilities ──────────────────────────────────────────────────── */}
+      {/* ── Abilities ──────────────────────────────────────────────────────── */}
       <div>
         <div
           style={{
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: 2,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
             marginBottom: 8,
-            color: turnPhase === "player" ? "#ff6b35" : "#444",
-            textShadow: turnPhase === "player" ? "0 0 10px #ff6b3566" : "none",
-            transition: "all 0.3s",
           }}
         >
-          {turnPhase === "player" ? "CHOOSE AN ABILITY:" : "ENEMY IS ATTACKING…"}
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: 2,
+              color: turnPhase === "player" ? "#ff6b35" : "#444",
+              textShadow: turnPhase === "player" ? "0 0 10px #ff6b3566" : "none",
+              transition: "all 0.3s",
+            }}
+          >
+            {turnPhase === "player" ? "CHOOSE AN ABILITY:" : "ENEMY IS ATTACKING…"}
+          </div>
+          {/* More button */}
+          {turnPhase === "player" && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setAbilityPage((p) => (p + 1) % 2)}
+              style={{
+                background: "#1a0800",
+                border: "1.5px solid #ff6b35",
+                borderRadius: 8,
+                color: "#ff6b35",
+                fontSize: 9,
+                fontWeight: 800,
+                padding: "4px 10px",
+                cursor: "pointer",
+                letterSpacing: 0.5,
+              }}
+            >
+              {abilityPage === 0 ? "More... ›" : "‹ Back"}
+            </motion.button>
+          )}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-          {playerAbilities.map((a) => {
+          {visibleAbilities.map((a) => {
             const active = turnPhase === "player";
+            const hasStatus = !!a.statusEffect;
+            const statusMeta = hasStatus ? STATUS_META[a.statusEffect!] : null;
             return (
               <motion.button
                 key={a.name}
@@ -969,8 +1948,7 @@ export default function PetBattle({ pet, onEnd }: Props) {
                     style={{
                       position: "absolute",
                       inset: 0,
-                      background:
-                        "radial-gradient(ellipse at 50% 0%, #ff6b350a, transparent 70%)",
+                      background: "radial-gradient(ellipse at 50% 0%, #ff6b350a, transparent 70%)",
                       pointerEvents: "none",
                     }}
                   />
@@ -988,16 +1966,44 @@ export default function PetBattle({ pet, onEnd }: Props) {
                   {a.name}
                 </div>
                 <div style={{ color: active ? "#ff6b35" : "#333", fontSize: 10, marginTop: 1 }}>
-                  {a.damage[0]}–{a.damage[1]} dmg
+                  {a.scalingDmg ? "15% enemy HP" : `${a.damage[0]}–${a.damage[1]} dmg`}
                 </div>
                 {a.effect && (
                   <div style={{ color: active ? "#c8ff00" : "#333", fontSize: 9, marginTop: 1 }}>
                     {a.effect}
                   </div>
                 )}
+                {hasStatus && statusMeta && (
+                  <div
+                    style={{
+                      color: active ? statusMeta.color : "#333",
+                      fontSize: 9,
+                      marginTop: 1,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {statusMeta.emoji} {a.statusEffect} ({a.statusTarget === "self" ? "self" : "foe"})
+                  </div>
+                )}
               </motion.button>
             );
           })}
+        </div>
+
+        {/* Ability page dots */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 8 }}>
+          {[0, 1].map((p) => (
+            <div
+              key={p}
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: abilityPage === p ? "#ff6b35" : "#333",
+                transition: "background 0.2s",
+              }}
+            />
+          ))}
         </div>
       </div>
 
@@ -1021,6 +2027,27 @@ export default function PetBattle({ pet, onEnd }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Equipment reminder */}
+      {equipment && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "6px 10px",
+            background: "#c8ff0011",
+            border: "1px solid #c8ff0033",
+            borderRadius: 10,
+            fontSize: 10,
+            color: "#c8ff0099",
+          }}
+        >
+          <span>{equipment.emoji}</span>
+          <span style={{ fontWeight: 700 }}>{equipment.name}</span>
+          <span>— {equipment.description}</span>
+        </div>
+      )}
     </div>
   );
 }
