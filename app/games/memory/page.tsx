@@ -8,13 +8,12 @@ import { useApp } from "@/context/AppContext";
 export default function MemoryPage() {
   const { addKarma, addXP, updateScore, gameScores } = useApp();
 
-  function handleEnd(matched: number, timeLeft: number) {
-    const perfect = matched === 8;
-    const karma = perfect ? timeLeft * 2 + 50 : matched * 12;
-    const xp = perfect ? timeLeft + 40 : matched * 8;
+  function handleEnd(matched: number, timeLeft: number, level: number) {
+    const karma = matched * 12 + level * 30 + timeLeft * 2;
+    const xp    = matched * 8  + level * 20 + timeLeft;
     addKarma(karma);
     addXP(xp);
-    updateScore("memory", matched * 100 + timeLeft);
+    updateScore("memory", matched * 100 + level * 200 + timeLeft);
   }
 
   return (
@@ -27,7 +26,7 @@ export default function MemoryPage() {
         </Link>
         <div style={{ flex: 1 }}>
           <div style={{ color: "#8b5cf6", fontSize: 16, fontWeight: 700 }}>🧠 MEMORY PALACE</div>
-          <div style={{ color: "#555", fontSize: 11 }}>Match all 8 pairs in 90s</div>
+          <div style={{ color: "#555", fontSize: 11 }}>Progressive rings · how far can you climb?</div>
         </div>
         {gameScores.memory > 0 && (
           <div className="flex items-center gap-1" style={{ color: "#8b5cf6", fontSize: 12, fontWeight: 700 }}>
