@@ -322,7 +322,7 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
         onClick={jump} onTouchStart={e => { e.preventDefault(); jump(); }} />
 
       {phase==="idle" && (
-        <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,0.75)", borderRadius:16, gap:8 }}>
+        <div onClick={jump} style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,0.75)", borderRadius:16, gap:8, cursor:"pointer" }}>
           <div style={{ fontSize:"3.5rem" }}>{petEmoji}</div>
           <div style={{ color:"#c8ff00", fontSize:22, fontWeight:700, letterSpacing:2 }}>KARMA RUNNER</div>
           <div style={{ color:"#aaa", fontSize:13 }}>TAP / SPACE TO START</div>

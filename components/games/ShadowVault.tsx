@@ -258,25 +258,28 @@ export default function ShadowVault({ karma, onSpend, onWin }: Props) {
                 exit={{ scale: 0.5, opacity: 0 }}
                 transition={{ type: "spring", stiffness: 200, damping: 18 }}
                 style={{
-                  background: `${cfg.color}18`, border: `3px solid ${cfg.color}`,
-                  borderRadius: 20, padding: "22px", textAlign: "center", marginBottom: 12,
-                  boxShadow: `0 0 40px ${cfg.glow}, 0 0 80px ${cfg.glow}`,
+                  background: `${cfg.color}18`, border: `2.5px solid ${cfg.color}`,
+                  borderRadius: 16, padding: "12px 16px", textAlign: "center", marginBottom: 10,
+                  boxShadow: `0 0 24px ${cfg.glow}`,
+                  display: "flex", alignItems: "center", gap: 14,
                 }}
               >
                 <motion.div
-                  animate={{ scale: [1, 1.15, 1], rotate: [0, -5, 5, 0] }}
+                  animate={{ scale: [1, 1.12, 1], rotate: [0, -5, 5, 0] }}
                   transition={{ duration: 0.8 }}
-                  style={{ fontSize: "4rem" }}
+                  style={{ fontSize: "2.8rem", flexShrink: 0 }}
                 >{winner.emoji}</motion.div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: cfg.color, marginTop: 10 }}>{winner.name}</div>
-                <div style={{ fontSize: 12, color: cfg.color, opacity: 0.8, letterSpacing: "0.15em", marginTop: 4 }}>{cfg.label}</div>
-                {winner.rarity === "legendary" && (
-                  <motion.div
-                    animate={{ opacity: [0.5, 1, 0.5] }}
-                    transition={{ duration: 1.2, repeat: Infinity }}
-                    style={{ marginTop: 8, fontSize: 11, color: "#ffcc00", fontWeight: 700, letterSpacing: "0.1em" }}
-                  >✨ ARTIFACT CLAIMED ✨</motion.div>
-                )}
+                <div style={{ textAlign: "left", flex: 1 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: cfg.color }}>{winner.name}</div>
+                  <div style={{ fontSize: 11, color: cfg.color, opacity: 0.8, letterSpacing: "0.12em", marginTop: 2 }}>{cfg.label}</div>
+                  {winner.rarity === "legendary" && (
+                    <motion.div
+                      animate={{ opacity: [0.5, 1, 0.5] }}
+                      transition={{ duration: 1.2, repeat: Infinity }}
+                      style={{ marginTop: 4, fontSize: 10, color: "#ffcc00", fontWeight: 700, letterSpacing: "0.1em" }}
+                    >✨ ARTIFACT CLAIMED ✨</motion.div>
+                  )}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>

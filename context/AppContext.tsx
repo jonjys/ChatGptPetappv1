@@ -13,6 +13,7 @@ import { CURRENT_USER, MY_PET } from "@/lib/mock-data";
 import { WORLD_STORAGE_KEY, getWorld } from "@/lib/worlds";
 import { calculateLevel } from "@/lib/xp-system";
 import { ACHIEVEMENTS } from "@/lib/achievements";
+import { type Lang, LANG_STORAGE_KEY } from "@/lib/i18n";
 
 // ─── Toast ───────────────────────────────────────────────────────────────────
 export type KarmaToast = {
@@ -63,6 +64,8 @@ type AppContextType = {
   tickQuest: (key: string, amount?: number) => void;
   claimQuest: (questId: string, karmaReward: number, xpReward: number) => void;
   petMoodComputed: Pet["mood"];
+  lang: Lang;
+  setLang: (l: Lang) => void;
 };
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -226,6 +229,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [questProgress, setQuestProgress] = useState<Record<string, number>>({});
   const [questClaimed, setQuestClaimed]   = useState<string[]>([]);
   const [levelUpOverlay, setLevelUpOverlay] = useState<number | null>(null);
+  const [lang, setLangState] = useState<Lang>("en");
   const toastIdRef = useRef(0);
 
   // ── Hydrate from localStorage ──────────────────────────────────────────────
@@ -244,6 +248,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setActivities(savedActs);
     if (savedWorld) setWorldIdState(savedWorld);
     setAchievements(savedAch);
+    const savedLang = localStorage.getItem(LANG_STORAGE_KEY) as Lang | null;
+    if (savedLang === "sv" || savedLang === "en") setLangState(savedLang);
 
     // Streak tracking
     const today    = new Date().toDateString();
@@ -507,6 +513,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updateScore, addActivity, showToast,
       unlockAchievement, tickQuest, claimQuest,
       petMoodComputed,
+      lang, setLang: (l: Lang) => { setLangState(l); localStorage.setItem(LANG_STORAGE_KEY, l); },
     }}>
       {children}
       <ToastOverlay toasts={toasts} />

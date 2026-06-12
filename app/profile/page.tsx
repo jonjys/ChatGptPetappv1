@@ -1,13 +1,13 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Settings, Trophy, Zap, Flame, Globe, Star } from "lucide-react";
+import { Settings, Trophy, Zap, Flame, Globe, Star, Languages } from "lucide-react";
 import XPBar from "@/components/ui/XPBar";
 import { useApp } from "@/context/AppContext";
 import { xpProgress, xpToNextLevel, calculateLevel } from "@/lib/xp-system";
 import { LEADERBOARD } from "@/lib/mock-data";
 import { getPetClassColor } from "@/lib/pet-evolution";
-import { WORLDS, WORLD_STORAGE_KEY } from "@/lib/worlds";
+import { WORLDS } from "@/lib/worlds";
 import { ACHIEVEMENTS } from "@/lib/achievements";
 
 const CLASS_DESCRIPTION: Record<string, string> = {
@@ -17,7 +17,7 @@ const CLASS_DESCRIPTION: Record<string, string> = {
 };
 
 export default function ProfilePage() {
-  const { user, worldId, setWorldId, streak, achievements, showToast } = useApp();
+  const { user, worldId, setWorldId, streak, achievements, showToast, lang, setLang } = useApp();
   const progress = xpProgress(user.xp);
   const xpToNext = xpToNextLevel(user.xp);
   const level = calculateLevel(user.xp);
@@ -279,6 +279,48 @@ export default function ProfilePage() {
                 </motion.div>
               );
             })}
+          </div>
+        </div>
+
+        {/* Language selector */}
+        <div className="neo-card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Languages size={16} color="#4488ff" />
+            <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.05em" }}>
+              {lang === "sv" ? "SPRÅK" : "LANGUAGE"}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            {(["en", "sv"] as const).map(l => (
+              <motion.button
+                key={l}
+                whileTap={{ scale: 0.93 }}
+                onClick={() => setLang(l)}
+                style={{
+                  flex: 1,
+                  padding: "12px 8px",
+                  background: lang === l ? "#4488ff" : "#faf7f2",
+                  border: `2.5px solid ${lang === l ? "#4488ff" : "#e8e3d8"}`,
+                  borderRadius: 14,
+                  cursor: "pointer",
+                  textAlign: "center",
+                  boxShadow: lang === l ? "3px 3px 0px #0a0a0a, 0 0 14px #4488ff44" : "2px 2px 0px #e8e3d8",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <div style={{ fontSize: "1.6rem", marginBottom: 3 }}>
+                  {l === "en" ? "🇬🇧" : "🇸🇪"}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: lang === l ? "#fff" : "#555" }}>
+                  {l === "en" ? "English" : "Svenska"}
+                </div>
+                {lang === l && (
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.8)", marginTop: 2, fontWeight: 700 }}>
+                    ✓ ACTIVE
+                  </div>
+                )}
+              </motion.button>
+            ))}
           </div>
         </div>
 
