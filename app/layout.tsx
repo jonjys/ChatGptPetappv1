@@ -7,6 +7,7 @@ import { AppProvider } from "@/context/AppContext";
 import BottomNav from "@/components/ui/BottomNav";
 import FloatingPet from "@/components/pet/FloatingPet";
 import WorldGate from "@/components/onboarding/WorldGate";
+import DailyReward from "@/components/ui/DailyReward";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AppProvider>
           <WorldGate>
             <main className="page-wrapper">{children}</main>
+            <DailyReward />
             <FloatingPet />
             <BottomNav />
           </WorldGate>
