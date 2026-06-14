@@ -4,10 +4,10 @@ import { useEffect, useRef, useState, useCallback } from "react";
 
 // ── MEGA UPGRADE: bigger canvas, dynamic sky, parallax city, 6 powerups, 12 obstacles, milestones ──
 
-const GW = 390, GH = 260, GROUND = 200;
+const GW = 390, GH = 420, GROUND = 320;
 const PET_X = 68, PET_H = 44, GRAVITY = 0.72, JUMP_V = -15.5, BASE_SPD = 3.2;
 
-type ObsKind = "normal" | "tornado" | "bomb" | "spiderweb" | "chain_top" | "chain_bot";
+type ObsKind = "normal" | "tornado" | "bomb" | "spiderweb" | "chain_top" | "chain_bot" | "ufo" | "laser";
 type PwupKind = "shield" | "boost" | "magnet" | "star" | "beat" | "warp";
 
 type Obs  = { id: number; x: number; w: number; h: number; emoji: string; yOff: number; kind: ObsKind; vy?: number; timer?: number; exploded?: boolean; paired?: number };
@@ -81,11 +81,12 @@ function spawnPtcls(g: GS, x: number, y: number, emoji: string, count = 5, size 
 }
 
 // ─── City skyline data (back layer) ──────────────────────────────────────────
+// h values multiplied by 1.3 for taller proportions with new GROUND=320
 const CITY_BACK: Array<{x: number; w: number; h: number}> = [
-  {x:0,w:28,h:55},{x:32,w:20,h:38},{x:56,w:35,h:70},{x:95,w:18,h:42},
-  {x:116,w:30,h:60},{x:150,w:22,h:35},{x:176,w:40,h:80},{x:220,w:18,h:45},
-  {x:242,w:28,h:58},{x:274,w:32,h:66},{x:310,w:22,h:50},{x:336,w:30,h:42},
-  {x:370,w:24,h:55},{x:398,w:18,h:38},
+  {x:0,w:28,h:72},{x:32,w:20,h:49},{x:56,w:35,h:91},{x:95,w:18,h:55},
+  {x:116,w:30,h:78},{x:150,w:22,h:46},{x:176,w:40,h:104},{x:220,w:18,h:59},
+  {x:242,w:28,h:75},{x:274,w:32,h:86},{x:310,w:22,h:65},{x:336,w:30,h:55},
+  {x:370,w:24,h:72},{x:398,w:18,h:49},
 ];
 
 // Mid layer tree/lamppost shapes
@@ -239,12 +240,19 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
         }
       }
       ctx.fillStyle = "#1a1a2a";
+      // Neon sign on tall buildings
+      if (b.h > 50 && Math.sin(b.x * 7.3) > 0.5) {
+        ctx.fillStyle = `rgba(200,255,0,${0.6 + 0.3 * Math.sin(g.frame * 0.08 + b.x)})`;
+        ctx.font = "bold 6px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText("KARMA", bx + b.w/2, GROUND - b.h/2);
+      }
     });
 
-    // Mountain silhouette
+    // Mountain silhouette (y-coords scaled by 1.6 for new GROUND=320)
     ctx.fillStyle = "rgba(12,10,22,0.7)";
     ctx.beginPath(); ctx.moveTo(0, GROUND);
-    [[0,165],[40,120],[80,155],[120,108],[170,130],[230,102],[280,138],[320,112],[390,145],[390,GROUND]].forEach(([mx,my]) => ctx.lineTo(mx,my));
+    [[0,264],[40,192],[80,248],[120,173],[170,208],[230,163],[280,221],[320,179],[390,232],[390,GROUND]].forEach(([mx,my]) => ctx.lineTo(mx,my));
     ctx.fill();
 
     // ── Mid layer trees/lamps (parallax ×0.5) ────────────────────────────────
@@ -280,10 +288,40 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     ctx.strokeStyle = "#4caf50"; ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.moveTo(0, GROUND); ctx.lineTo(GW, GROUND); ctx.stroke();
 
+    // Road markings — white dashed lane lines
+    const laneOff = (g.frame * g.speed * 0.9) % 50;
+    ctx.strokeStyle = "rgba(255,255,255,0.25)"; ctx.lineWidth = 2; ctx.setLineDash([18, 14]);
+    ctx.beginPath(); ctx.moveTo(-laneOff, GROUND + 12); ctx.lineTo(GW, GROUND + 12); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Ground bushes/grass at parallax 0.7
+    const bushOff = (g.frame * g.speed * 0.7) % 80;
+    const BUSHES = [10, 90, 170, 250, 330];
+    BUSHES.forEach(bx => {
+      const rx = ((bx - bushOff + GW + 80) % (GW + 80)) - 10;
+      ctx.fillStyle = "#2d6a14";
+      ctx.beginPath(); ctx.arc(rx, GROUND, 7, Math.PI, 0); ctx.fill();
+      ctx.beginPath(); ctx.arc(rx+8, GROUND, 5, Math.PI, 0); ctx.fill();
+    });
+
     // Ground texture tiles (moving)
     ctx.fillStyle = "#4caf5033"; ctx.font = "8px monospace";
     const tileOff = (g.frame * g.speed * 0.7) % 60;
     for (let d = -tileOff; d < GW; d += 60) ctx.fillText("· · ·", d, GROUND + 10);
+
+    // ── Warp speed horizontal streak lines ───────────────────────────────────
+    if (g.warpActive) {
+      const warpAge = g.frame - g.warpFrame;
+      const wAlpha = Math.max(0, 1 - warpAge / 30) * 0.7;
+      ctx.strokeStyle = `rgba(170,68,255,${wAlpha})`;
+      ctx.lineWidth = 1.5;
+      for (let si = 0; si < 18; si++) {
+        const sy = (si * (GH / 18) + (g.frame * 4 + si * 7) % GH) % GH;
+        const sLen = 40 + si * 12;
+        ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(sLen, sy); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(GW - sLen, sy); ctx.lineTo(GW, sy); ctx.stroke();
+      }
+    }
 
     // ── Speed lines ──────────────────────────────────────────────────────────
     if (g.speed > 8) {
@@ -363,6 +401,24 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
           ctx.stroke();
           ctx.setLineDash([]);
         }
+      } else if (o.kind === "ufo") {
+        ctx.font = "28px serif"; ctx.fillText("🛸", o.x, GROUND + o.yOff);
+        // laser beam below
+        const beamGrad = ctx.createLinearGradient(o.x+14, GROUND+o.yOff, o.x+14, GROUND);
+        beamGrad.addColorStop(0, "rgba(255,50,50,0)");
+        beamGrad.addColorStop(1, `rgba(255,50,50,${0.5 + 0.3*Math.sin(g.frame*0.3)})`);
+        ctx.fillStyle = beamGrad;
+        ctx.fillRect(o.x+10, GROUND+o.yOff, 8, -o.yOff);
+      } else if (o.kind === "laser") {
+        // Vertical laser wall — draw with a gap indicator
+        ctx.strokeStyle = `rgba(255,50,50,${0.7 + 0.3*Math.sin(g.frame*0.2)})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(o.x + 4, 0); ctx.lineTo(o.x + 4, GROUND); ctx.stroke();
+        ctx.strokeStyle = `rgba(255,150,50,${0.4 + 0.2*Math.sin(g.frame*0.2)})`;
+        ctx.lineWidth = 8;
+        ctx.beginPath(); ctx.moveTo(o.x + 4, 0); ctx.lineTo(o.x + 4, GROUND); ctx.stroke();
+        ctx.font = "14px serif"; ctx.textAlign = "center";
+        ctx.fillText("⚡", o.x + 4, GROUND / 2);
       } else {
         ctx.font = `${o.h}px serif`;
         ctx.fillText(o.emoji, o.x, GROUND + o.yOff);
@@ -572,6 +628,12 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       } else if (roll < 0.88) {
         // Spiderweb — wide, low (must jump over)
         obs = { id: g.frame, x: GW + 10, w: 60, h: 22, emoji: "🕸️", yOff: 0, kind: "spiderweb" };
+      } else if (roll < 0.94) {
+        // UFO — hovers and shoots laser downward
+        obs = { id: g.frame, x: GW + 10, w: 40, h: 30, emoji: "🛸", yOff: -140, kind: "ufo", vy: 0.6 };
+      } else if (roll < 0.97) {
+        // Laser — vertical laser wall
+        obs = { id: g.frame, x: GW + 10, w: 8, h: GH, emoji: "⚡", yOff: 0, kind: "laser" };
       } else {
         // Chain — top + bottom with gap; spawn both
         const chainId = g.frame;
@@ -591,6 +653,11 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
         if (ny < -60) nvy = -Math.abs(nvy);
         if (ny > 0)   nvy =  Math.abs(nvy);
         return { ...o, x: nx, yOff: ny, vy: nvy };
+      }
+      if (o.kind === "ufo") {
+        // Bob vertically between -100 and -180
+        const ny = -140 + Math.sin(g.frame * 0.05 + o.id * 0.1) * 40;
+        return { ...o, x: nx, yOff: ny };
       }
       if (o.kind === "bomb") {
         const newTimer = (o.timer ?? 120) - 1;
@@ -640,9 +707,18 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     // ── Obstacle collisions ──
     for (const o of g.obs) {
       if (o.kind === "bomb" && (o.exploded || (o.timer ?? 120) <= 0)) continue;
+      // Skip laser entirely for hitbox (visual only decoration for now)
+      if (o.kind === "laser") continue;
 
-      const oL = o.x + 4, oR = o.x + o.w - 4;
-      const oT = GROUND + o.yOff - o.h + 4, oB = GROUND + o.yOff - 4;
+      // UFO: only check the emoji hitbox (not the beam below)
+      let oL: number, oR: number, oT: number, oB: number;
+      if (o.kind === "ufo") {
+        oL = o.x + 4; oR = o.x + o.w - 4;
+        oT = GROUND + o.yOff - o.h + 4; oB = GROUND + o.yOff - 4;
+      } else {
+        oL = o.x + 4; oR = o.x + o.w - 4;
+        oT = GROUND + o.yOff - o.h + 4; oB = GROUND + o.yOff - 4;
+      }
 
       if (pR > oL && pL < oR && pB > oT && pT < oB) {
         // Star invincibility — phase through
@@ -771,7 +847,7 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
   return (
     <div style={{ position: "relative", userSelect: "none", touchAction: "none" }}>
       <canvas ref={cvs} width={GW} height={GH}
-        style={{ width: "100%", height: "auto", borderRadius: 18, border: "2.5px solid #1a2a10", display: "block", cursor: "pointer", boxShadow: "0 0 30px #4caf5022" }}
+        style={{ width: "100%", height: "auto", borderRadius: 18, border: "2px solid #1a2a10", display: "block", cursor: "pointer", boxShadow: "0 0 40px #4caf5044, 0 0 80px #4caf5011" }}
         onClick={jump} onTouchStart={e => { e.preventDefault(); jump(); }} />
 
       {/* IDLE SCREEN */}
