@@ -161,6 +161,34 @@ export default function FeedPage() {
         </motion.div>
       )}
 
+      {/* Quick action cards */}
+      {filter === "ALL" && (
+        <div style={{ display: "flex", gap: 8, padding: "12px 16px 0", overflowX: "auto", scrollbarWidth: "none" }}>
+          {[
+            { href: "/karma-pot", emoji: "💰", label: "POTTEN", sub: "249 kr idag", color: "#c8ff00" },
+            { href: "/ville",     emoji: "🏙️", label: "MIN STAD", sub: "Bygg & tjäna", color: "#ff6b35" },
+            { href: "/chat",      emoji: "💬", label: "CHATT",    sub: "137 online", color: "#00e5ff" },
+            { href: "/premium",   emoji: "👑", label: "PREMIUM",  sub: "Från 19 kr", color: "#ff8c00" },
+          ].map(item => (
+            <Link key={item.href} href={item.href} style={{ textDecoration: "none", flexShrink: 0 }}>
+              <motion.div
+                whileTap={{ scale: 0.93 }}
+                style={{
+                  background: "#111",
+                  border: `1.5px solid ${item.color}44`,
+                  borderRadius: 14, padding: "10px 14px",
+                  textAlign: "center", minWidth: 76,
+                }}
+              >
+                <div style={{ fontSize: "1.4rem", marginBottom: 3 }}>{item.emoji}</div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: item.color }}>{item.label}</div>
+                <div style={{ fontSize: 9, color: "#444", marginTop: 1 }}>{item.sub}</div>
+              </motion.div>
+            </Link>
+          ))}
+        </div>
+      )}
+
       {/* Karma Pot teaser */}
       {filter === "ALL" && (
         <Link href="/karma-pot" style={{ textDecoration: "none" }}>
