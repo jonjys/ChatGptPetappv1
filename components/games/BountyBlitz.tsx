@@ -460,6 +460,323 @@ function VerificationScreen({
     );
   }
 
+  // Health water — glasses tracker
+  if (vt === "health_water") {
+    const [glasses, setGlasses] = useState(0);
+    const target = 8;
+    useEffect(() => { onReady(glasses >= target); }, [glasses]);
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "12px 0" }}>
+        <div style={{ color: "#06b6d4", fontSize: 13, fontWeight: 700, letterSpacing: 2 }}>VATTEN-TRACKER</div>
+        <div style={{ fontSize: 11, color: "#888" }}>Markera varje glas du druckit</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+          {Array.from({ length: target }).map((_, i) => (
+            <motion.button key={i}
+              whileTap={{ scale: 0.88 }}
+              onClick={() => setGlasses(g => i < g ? i : i + 1)}
+              style={{
+                width: 40, height: 56, borderRadius: 10,
+                background: i < glasses ? "#06b6d422" : "#0a1214",
+                border: `2px solid ${i < glasses ? "#06b6d4" : "#1a3040"}`,
+                fontSize: "1.4rem", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+              {i < glasses ? "💧" : "🫙"}
+            </motion.button>
+          ))}
+        </div>
+        <div style={{ color: glasses >= target ? "#22c55e" : "#06b6d4", fontSize: 13, fontWeight: 700 }}>
+          {glasses}/{target} glas druckna
+        </div>
+      </div>
+    );
+  }
+
+  // Health sleep — sleep quality selector
+  if (vt === "health_sleep") {
+    const [quality, setQuality] = useState<string | null>(null);
+    useEffect(() => { onReady(!!quality); }, [quality]);
+    const options = [
+      { label: "😴 5-6h", q: "ok" }, { label: "😊 7h", q: "good" },
+      { label: "🌟 8h+", q: "great" }, { label: "💤 Deep sleep", q: "perfect" },
+    ];
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 0" }}>
+        <div style={{ color: "#8b5cf6", fontSize: 13, fontWeight: 700, letterSpacing: 2, textAlign: "center" }}>SÖMNKVALITET</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          {options.map(o => (
+            <motion.button key={o.q} whileTap={{ scale: 0.93 }} onClick={() => setQuality(o.q)} style={{
+              padding: "12px 8px", borderRadius: 12, textAlign: "center",
+              background: quality === o.q ? "#8b5cf622" : "#0a1214",
+              border: `2px solid ${quality === o.q ? "#8b5cf6" : "#1a3040"}`,
+              color: quality === o.q ? "#8b5cf6" : "#aaa",
+              fontSize: 13, fontWeight: 700, cursor: "pointer",
+            }}>{o.label}</motion.button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Finance read — news article mock
+  if (vt === "finance_read") {
+    const [read, setRead] = useState(false);
+    useEffect(() => { onReady(read); }, [read]);
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 0" }}>
+        <div style={{ color: "#eab308", fontSize: 13, fontWeight: 700, letterSpacing: 2 }}>BÖRS-NYHETER</div>
+        <div style={{
+          background: "#0d1214", border: "1.5px solid #1a3040",
+          borderRadius: 12, padding: "12px",
+        }}>
+          <div style={{ fontSize: 9, color: "#eab308", fontWeight: 700, letterSpacing: 2, marginBottom: 6 }}>DI.SE · IDAG</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", lineHeight: 1.4, marginBottom: 6 }}>
+            OMX Stockholm stiger på bred front — tech-sektorn leder uppgången
+          </div>
+          <div style={{ fontSize: 11, color: "#666", lineHeight: 1.5 }}>
+            Stockholmsbörsen handlas upp 1.3% i tidig handel. Teknikbolag och fintech leder uppgången...
+          </div>
+        </div>
+        <motion.button whileTap={{ scale: 0.95 }} onClick={() => setRead(true)}
+          style={{
+            padding: "10px", background: read ? "#eab30822" : "#0d1214",
+            border: `2px solid ${read ? "#eab308" : "#1a3040"}`,
+            borderRadius: 10, color: read ? "#eab308" : "#aaa",
+            fontSize: 12, fontWeight: 700, cursor: "pointer",
+          }}>
+          {read ? "✅ Läst!" : "📰 Markera som läst"}
+        </motion.button>
+      </div>
+    );
+  }
+
+  // Finance budget — spending categories
+  if (vt === "finance_budget") {
+    const [checked, setChecked] = useState<Set<string>>(new Set());
+    const cats = ["🍕 Mat", "🎮 Underhållning", "👕 Kläder", "🚌 Transport"];
+    useEffect(() => { onReady(checked.size >= 2); }, [checked.size]);
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 0" }}>
+        <div style={{ color: "#eab308", fontSize: 13, fontWeight: 700, letterSpacing: 2 }}>BUDGETÖVERSIKT</div>
+        <div style={{ fontSize: 11, color: "#888" }}>Granska minst 2 kategorier</div>
+        {cats.map(c => (
+          <motion.button key={c} whileTap={{ scale: 0.97 }} onClick={() => setChecked(prev => {
+            const n = new Set(prev);
+            n.has(c) ? n.delete(c) : n.add(c);
+            return n;
+          })} style={{
+            padding: "10px 12px", borderRadius: 10,
+            background: checked.has(c) ? "#eab30822" : "#0a1214",
+            border: `2px solid ${checked.has(c) ? "#eab308" : "#1a3040"}`,
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            cursor: "pointer",
+          }}>
+            <span style={{ color: "#fff", fontSize: 13 }}>{c}</span>
+            <span style={{ color: checked.has(c) ? "#eab308" : "#555", fontSize: 13 }}>
+              {checked.has(c) ? "✓" : "+"}
+            </span>
+          </motion.button>
+        ))}
+      </div>
+    );
+  }
+
+  // Social cheer — send message
+  if (vt === "social_cheer") {
+    const [msg, setMsg] = useState("");
+    useEffect(() => { onReady(msg.trim().length > 5); }, [msg]);
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 0" }}>
+        <div style={{ color: "#06b6d4", fontSize: 13, fontWeight: 700, letterSpacing: 2 }}>HEJAROP</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {["You got this! 💪", "Proud of you! 🌟", "Keep it up! 🔥", "Legend! 👑"].map(t => (
+            <motion.button key={t} whileTap={{ scale: 0.9 }} onClick={() => setMsg(t)}
+              style={{
+                padding: "6px 10px", borderRadius: 8,
+                background: msg === t ? "#06b6d422" : "#0a1214",
+                border: `1.5px solid ${msg === t ? "#06b6d4" : "#1a3040"}`,
+                color: msg === t ? "#06b6d4" : "#888",
+                fontSize: 11, cursor: "pointer",
+              }}>{t}</motion.button>
+          ))}
+        </div>
+        <textarea value={msg} onChange={e => setMsg(e.target.value)}
+          placeholder="Skriv ditt uppmuntrande meddelande..."
+          rows={3} style={{
+            width: "100%", padding: "10px 12px",
+            background: "#0d1214", border: "2px solid #06b6d4",
+            borderRadius: 10, color: "#fff", fontSize: 12,
+            outline: "none", resize: "none", fontFamily: "inherit",
+            boxSizing: "border-box",
+          }} />
+      </div>
+    );
+  }
+
+  // Social tag — platform picker
+  if (vt === "social_tag") {
+    const [platform, setPlatform] = useState<string | null>(null);
+    useEffect(() => { onReady(!!platform); }, [platform]);
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 0" }}>
+        <div style={{ color: "#06b6d4", fontSize: 13, fontWeight: 700, letterSpacing: 2 }}>TAGGA VÄN</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          {[{ icon: "📸", name: "Instagram" }, { icon: "🎵", name: "TikTok" }, { icon: "👻", name: "Snapchat" }, { icon: "🐦", name: "X / Twitter" }].map(p => (
+            <motion.button key={p.name} whileTap={{ scale: 0.93 }} onClick={() => setPlatform(p.name)}
+              style={{
+                padding: "12px 8px", borderRadius: 12, textAlign: "center",
+                background: platform === p.name ? "#06b6d422" : "#0a1214",
+                border: `2px solid ${platform === p.name ? "#06b6d4" : "#1a3040"}`,
+                color: platform === p.name ? "#06b6d4" : "#aaa",
+                fontSize: 12, fontWeight: 700, cursor: "pointer",
+              }}>
+              <div style={{ fontSize: "1.5rem", marginBottom: 4 }}>{p.icon}</div>
+              {p.name}
+            </motion.button>
+          ))}
+        </div>
+        {platform && <div style={{ color: "#06b6d4", fontSize: 12, textAlign: "center", fontWeight: 600 }}>Öppna {platform} och tagga en kompis ✓</div>}
+      </div>
+    );
+  }
+
+  // Social share — share preview
+  if (vt === "social_share") {
+    const [shared, setShared] = useState(false);
+    useEffect(() => { onReady(shared); }, [shared]);
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 0" }}>
+        <div style={{ color: "#06b6d4", fontSize: 13, fontWeight: 700, letterSpacing: 2 }}>DELA FRAMSTEG</div>
+        <div style={{
+          background: "#0d1214", border: "1.5px solid #1a3040",
+          borderRadius: 12, padding: "12px", textAlign: "center",
+        }}>
+          <div style={{ fontSize: "2rem", marginBottom: 6 }}>⚡</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Karma App Update</div>
+          <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>Jag klarade en utmaning och tjänade karma! 🌟</div>
+        </div>
+        <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShared(true)}
+          style={{
+            padding: "10px", background: shared ? "#06b6d422" : "#0a1214",
+            border: `2px solid ${shared ? "#06b6d4" : "#1a3040"}`,
+            borderRadius: 10, color: shared ? "#06b6d4" : "#aaa",
+            fontSize: 12, fontWeight: 700, cursor: "pointer",
+          }}>
+          {shared ? "✅ Delat!" : "📤 Dela nu"}
+        </motion.button>
+      </div>
+    );
+  }
+
+  // Learn word — word card flip
+  if (vt === "learn_word") {
+    const [revealed, setRevealed] = useState(false);
+    const [learned, setLearned] = useState(false);
+    useEffect(() => { onReady(learned); }, [learned]);
+    const words = [{ word: "Serendipity", lang: "Engelska", meaning: "Att hitta bra saker av en slump" },
+      { word: "Hygge", lang: "Danska", meaning: "Mysig, välmående samvaro" },
+      { word: "Saudade", lang: "Portugisiska", meaning: "Längtan efter något älskat" }];
+    const word = words[Math.floor(Math.random() * words.length)];
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 0" }}>
+        <div style={{ color: "#a855f7", fontSize: 13, fontWeight: 700, letterSpacing: 2 }}>DAGLIGT ORD</div>
+        <motion.div whileTap={{ scale: 0.97 }} onClick={() => setRevealed(true)}
+          style={{
+            background: revealed ? "#a855f722" : "#0a1214",
+            border: `2px solid ${revealed ? "#a855f7" : "#1a3040"}`,
+            borderRadius: 16, padding: "20px", textAlign: "center", cursor: "pointer",
+          }}>
+          <div style={{ fontSize: 9, color: "#a855f7", fontWeight: 700, letterSpacing: 2, marginBottom: 8 }}>{word.lang.toUpperCase()}</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: "#fff", marginBottom: 8 }}>{word.word}</div>
+          {revealed ? (
+            <div style={{ fontSize: 13, color: "#c084fc" }}>{word.meaning}</div>
+          ) : (
+            <div style={{ fontSize: 12, color: "#555" }}>Tryck för att avslöja</div>
+          )}
+        </motion.div>
+        {revealed && (
+          <motion.button whileTap={{ scale: 0.95 }} onClick={() => setLearned(true)}
+            style={{
+              padding: "10px", background: learned ? "#a855f722" : "#0d1214",
+              border: `2px solid ${learned ? "#a855f7" : "#1a3040"}`,
+              borderRadius: 10, color: learned ? "#a855f7" : "#aaa",
+              fontSize: 12, fontWeight: 700, cursor: "pointer",
+            }}>
+            {learned ? "✅ Lärt mig!" : "🧠 Jag lärde mig det!"}
+          </motion.button>
+        )}
+      </div>
+    );
+  }
+
+  // Learn podcast — episode player
+  if (vt === "learn_podcast") {
+    const [started, setStarted] = useState(false);
+    useEffect(() => { onReady(started); }, [started]);
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 0" }}>
+        <div style={{ color: "#a855f7", fontSize: 13, fontWeight: 700, letterSpacing: 2 }}>PODCAST</div>
+        <div style={{
+          background: "#0d1214", border: "1.5px solid #1a3040",
+          borderRadius: 12, padding: "14px", display: "flex", gap: 12, alignItems: "center",
+        }}>
+          <div style={{ width: 48, height: 48, borderRadius: 10, background: "#a855f722", border: "1.5px solid #a855f744", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem", flexShrink: 0 }}>🎙️</div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Ekonomipodden</div>
+            <div style={{ fontSize: 11, color: "#888" }}>Avsnitt 142 · 28 min</div>
+          </div>
+        </div>
+        <motion.button whileTap={{ scale: 0.95 }} onClick={() => setStarted(true)}
+          style={{
+            padding: "12px", background: started ? "#a855f722" : "#0a1214",
+            border: `2px solid ${started ? "#a855f7" : "#1a3040"}`,
+            borderRadius: 10, color: started ? "#a855f7" : "#aaa",
+            fontSize: 13, fontWeight: 700, cursor: "pointer",
+          }}>
+          {started ? "✅ Startad — lyssna nu!" : "▶️ Öppna Spotify / Podcasts"}
+        </motion.button>
+      </div>
+    );
+  }
+
+  // Learn read — reading timer
+  if (vt === "learn_read") {
+    const [done, setDone] = useState(false);
+    useEffect(() => { onReady(done); }, [done]);
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 0" }}>
+        <div style={{ color: "#a855f7", fontSize: 13, fontWeight: 700, letterSpacing: 2 }}>LÄSNING · 20 MIN</div>
+        <CountdownTimer totalSeconds={15} onDone={() => setDone(true)} />
+        {!done && <div style={{ color: "#888", fontSize: 12, textAlign: "center" }}>Öppna din bok eller artikel under läsningen</div>}
+      </div>
+    );
+  }
+
+  // Wellbeing confirm — honest check
+  if (vt === "wellbeing_confirm") {
+    const [honest, setHonest] = useState(false);
+    useEffect(() => { onReady(honest); }, [honest]);
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "12px 0", alignItems: "center" }}>
+        <div style={{ color: "#14b8a6", fontSize: 13, fontWeight: 700, letterSpacing: 2 }}>ÄRLIGHETSTEST</div>
+        <div style={{ fontSize: "2.5rem" }}>🤔</div>
+        <div style={{ fontSize: 14, color: "#fff", fontWeight: 700, textAlign: "center", lineHeight: 1.5 }}>
+          {bounty.verificationHint}
+        </div>
+        <div style={{ display: "flex", gap: 12 }}>
+          <motion.button whileTap={{ scale: 0.9 }} onClick={() => setHonest(false)}
+            style={{ padding: "12px 20px", borderRadius: 12, background: !honest ? "#ff2d8d22" : "#0a1214", border: `2px solid ${!honest ? "#ff2d8d" : "#1a3040"}`, color: !honest ? "#ff2d8d" : "#555", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+            ❌ Nej
+          </motion.button>
+          <motion.button whileTap={{ scale: 0.9 }} onClick={() => setHonest(true)}
+            style={{ padding: "12px 20px", borderRadius: 12, background: honest ? "#14b8a622" : "#0a1214", border: `2px solid ${honest ? "#14b8a6" : "#1a3040"}`, color: honest ? "#14b8a6" : "#555", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+            ✅ Ja!
+          </motion.button>
+        </div>
+      </div>
+    );
+  }
+
   // Social streak — friend avatar + streak animation
   if (vt === "social_streak" && socialFriend) {
     useEffect(() => { onReady(true); }, []);

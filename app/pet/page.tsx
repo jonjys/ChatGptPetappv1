@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { Flame, Gamepad2 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+import { FRIENDS } from "@/lib/mock-data";
 import PetNeedsBar from "@/components/pet/PetNeeds";
 import XPBar from "@/components/ui/XPBar";
 import { xpProgress, xpToNextLevel } from "@/lib/xp-system";
@@ -68,7 +69,8 @@ export default function PetPage() {
   } = useApp();
 
   // ── Core UI state ──────────────────────────────────────────────────────────
-  const [tab, setTab] = useState<"room" | "train" | "bond" | "grow">("room");
+  const [tab, setTab] = useState<"room" | "train" | "bond" | "grow" | "squad">("room");
+  const [challengedFriend, setChallengedFriend] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [petAction, setPetAction] = useState<string | null>(null);
   const [speechIdx, setSpeechIdx] = useState(0);
@@ -340,21 +342,23 @@ export default function PetPage() {
         </div>
 
         {/* ── Tab Nav ── */}
-        <div className="flex gap-2">
-          {(["room", "train", "bond", "grow"] as const).map(t => (
+        <div style={{ display: "flex", gap: 4, overflowX: "auto" }}>
+          {(["room", "train", "bond", "grow", "squad"] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               style={{
                 flex: 1, padding: "9px 4px",
                 background: tab === t ? "#0a0a0a" : "#f5f0e8",
                 border: "2.5px solid #0a0a0a",
                 borderRadius: 12,
-                fontSize: 11, fontWeight: 700,
-                color: tab === t ? "#c8ff00" : "#0a0a0a",
-                letterSpacing: "0.04em",
+                fontSize: t === "squad" ? 10 : 11, fontWeight: 700,
+                color: tab === t ? (t === "squad" ? "#06b6d4" : "#c8ff00") : "#0a0a0a",
+                letterSpacing: "0.03em",
                 cursor: "pointer",
                 textTransform: "uppercase",
+                whiteSpace: "nowrap",
+                minWidth: 0,
               }}>
-              {t}
+              {t === "squad" ? "👥 SQUAD" : t}
             </button>
           ))}
         </div>
@@ -1055,6 +1059,191 @@ export default function PetPage() {
                 {pet.totalBountiesCompleted} bounties done
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ══════════════════ SQUAD TAB ══════════════════ */}
+        {tab === "squad" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+            {/* Header */}
+            <div style={{
+              background: "linear-gradient(135deg, #001a1a, #00111a)",
+              border: "2.5px solid #06b6d4", borderRadius: 20, padding: "16px",
+              display: "flex", alignItems: "center", gap: 12,
+            }}>
+              <motion.div animate={{ scale: [1, 1.12, 1] }} transition={{ repeat: Infinity, duration: 2 }}
+                style={{ fontSize: "2.2rem" }}>👥</motion.div>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: "#06b6d4", letterSpacing: "0.06em" }}>TON SQUAD</div>
+                <div style={{ fontSize: 12, color: "#555" }}>Utmana vänner · Dela segrar · Klättra ligan</div>
+              </div>
+              <div style={{
+                marginLeft: "auto", background: "#06b6d422", border: "2px solid #06b6d4",
+                borderRadius: 10, padding: "4px 10px", textAlign: "center",
+              }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#06b6d4" }}>{FRIENDS.length}</div>
+                <div style={{ fontSize: 9, color: "#555" }}>VÄNNER</div>
+              </div>
+            </div>
+
+            {/* Friends list */}
+            {FRIENDS.map(friend => {
+              const isChallenged = challengedFriend === friend.id;
+              return (
+                <motion.div key={friend.id}
+                  initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                  style={{
+                    background: "#0d1214", border: `2px solid ${friend.online ? "#06b6d444" : "#1a2a3a"}`,
+                    borderRadius: 18, padding: "14px 16px",
+                    display: "flex", alignItems: "center", gap: 12,
+                  }}
+                >
+                  {/* Avatar */}
+                  <div style={{ position: "relative", flexShrink: 0 }}>
+                    <div style={{
+                      width: 52, height: 52, borderRadius: 16,
+                      background: friend.online ? "#002222" : "#111",
+                      border: `2px solid ${friend.online ? "#06b6d4" : "#222"}`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: "1.6rem",
+                    }}>{friend.emoji}</div>
+                    {friend.online && (
+                      <div style={{
+                        position: "absolute", bottom: 2, right: 2,
+                        width: 10, height: 10, borderRadius: "50%",
+                        background: "#22c55e", border: "2px solid #0d1214",
+                      }} />
+                    )}
+                  </div>
+
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>@{friend.username}</span>
+                      <span style={{ fontSize: 10, color: "#555" }}>Lv.{friend.level}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
+                      {friend.petEmoji} {friend.petName}
+                    </div>
+                    <div style={{ fontSize: 10, color: friend.online ? "#22c55e" : "#444", marginTop: 2, fontWeight: 600 }}>
+                      {friend.online ? (friend.currentGame ? `🎮 ${friend.currentGame}` : "🟢 Online") : `⚫ ${friend.lastActivity}`}
+                    </div>
+                  </div>
+
+                  {/* Challenge button */}
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => {
+                      setChallengedFriend(friend.id);
+                      showToast(`Utmanade ${friend.emoji} @${friend.username}! ⚔️`);
+                      setTimeout(() => setChallengedFriend(null), 3000);
+                    }}
+                    style={{
+                      padding: "8px 12px",
+                      background: isChallenged ? "#c8ff0022" : "#0a1a00",
+                      border: `2px solid ${isChallenged ? "#c8ff00" : "#333"}`,
+                      borderRadius: 12,
+                      fontSize: 11, fontWeight: 700,
+                      color: isChallenged ? "#c8ff00" : "#555",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {isChallenged ? "✅ Skickat!" : "⚔️ UTMANA"}
+                  </motion.button>
+                </motion.div>
+              );
+            })}
+
+            {/* Squad Leaderboard */}
+            <div style={{
+              background: "#0d1214", border: "2.5px solid #ffde0066",
+              borderRadius: 20, padding: "16px",
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 900, color: "#ffde00", letterSpacing: "0.08em", marginBottom: 12 }}>
+                👑 SQUAD LIGA — DENNA VECKA
+              </div>
+              {[
+                { emoji: "🦊", name: "Du", level: pet.level, karma: user.karma, rank: 1 },
+                ...FRIENDS.slice(0, 4).map((f, i) => ({
+                  emoji: f.emoji, name: `@${f.username}`,
+                  level: f.level, karma: Math.floor(user.karma * (0.9 - i * 0.15)), rank: i + 2,
+                })),
+              ].map(entry => (
+                <div key={entry.rank} style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "8px 0",
+                  borderBottom: entry.rank < 5 ? "1px solid #1a2a3a" : "none",
+                }}>
+                  <div style={{
+                    width: 26, height: 26, borderRadius: 8, flexShrink: 0,
+                    background: entry.rank === 1 ? "#ffde0022" : "#111",
+                    border: `1.5px solid ${entry.rank === 1 ? "#ffde00" : entry.rank === 2 ? "#aaa" : entry.rank === 3 ? "#cd7f32" : "#222"}`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 11, fontWeight: 700,
+                    color: entry.rank === 1 ? "#ffde00" : entry.rank <= 3 ? "#ccc" : "#555",
+                  }}>
+                    {entry.rank === 1 ? "👑" : `#${entry.rank}`}
+                  </div>
+                  <span style={{ fontSize: "1.2rem", flexShrink: 0 }}>{entry.emoji}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: entry.rank === 1 ? "#ffde00" : "#fff" }}>{entry.name}</div>
+                    <div style={{ fontSize: 10, color: "#555" }}>Lv.{entry.level}</div>
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#c8ff00" }}>⚡ {entry.karma.toLocaleString()}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Joint challenge */}
+            <div style={{
+              background: "linear-gradient(135deg, #0a0010, #100022)",
+              border: "2.5px solid #8b5cf6", borderRadius: 20, padding: "16px",
+              boxShadow: "0 0 24px #8b5cf622",
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 900, color: "#8b5cf6", letterSpacing: "0.06em", marginBottom: 8 }}>
+                🎯 GEMENSAM UTMANING
+              </div>
+              <div style={{ fontSize: 14, color: "#fff", fontWeight: 700, marginBottom: 4 }}>
+                Gå 50 000 steg ihop med ditt squad!
+              </div>
+              <div style={{ fontSize: 12, color: "#666", marginBottom: 12 }}>
+                3 av 5 vänner har anslutit sig · Belöning: +500⚡ var
+              </div>
+              {/* Progress bar */}
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span style={{ fontSize: 11, color: "#8b5cf6", fontWeight: 700 }}>32 450 / 50 000 steg</span>
+                  <span style={{ fontSize: 11, color: "#555" }}>65%</span>
+                </div>
+                <div style={{ height: 8, background: "#1a0a2a", borderRadius: 999, overflow: "hidden" }}>
+                  <motion.div
+                    initial={{ width: 0 }} animate={{ width: "65%" }}
+                    transition={{ duration: 1, ease: "easeOut" }}
+                    style={{ height: "100%", background: "linear-gradient(90deg, #8b5cf6, #c084fc)", borderRadius: 999 }}
+                  />
+                </div>
+              </div>
+              {/* Avatars */}
+              <div style={{ display: "flex", gap: -4 }}>
+                {["🦊", "🌙", "⚔️"].map((e, i) => (
+                  <div key={i} style={{
+                    width: 30, height: 30, borderRadius: "50%",
+                    background: "#1a0a2a", border: "2px solid #8b5cf6",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "1rem", marginLeft: i > 0 ? -8 : 0,
+                  }}>{e}</div>
+                ))}
+                <div style={{
+                  width: 30, height: 30, borderRadius: "50%",
+                  background: "#0a0a0a", border: "2px solid #333",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 10, color: "#555", marginLeft: -8,
+                }}>+2</div>
+              </div>
+            </div>
+
           </div>
         )}
 

@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type Phase = "idle" | "casting" | "waiting" | "bite" | "timing" | "result";
+type Phase = "idle" | "casting" | "waiting" | "bite" | "reeling" | "timing" | "result";
+type SpecialEvent = "STORM!" | "RARE SPAWN!" | "MIDNIGHT ZONE" | "FEEDING FRENZY" | null;
 type Rarity = "common" | "rare" | "legendary" | "secret";
 type DepthZone = 1 | 2 | 3;
 type Weather = "calm" | "rainy" | "stormy";
@@ -96,8 +97,12 @@ interface GameState {
   shakeX: number;
   shakeY: number;
   shakeDuration: number;
-  biteRing: number; // 0-1 pulse animation
-  t: number;       // frame counter
+  biteRing: number;  // 0-1 pulse animation
+  reelGauge: number; // 0-100
+  reelTaps: number;
+  reelDecay: number; // frames since last reel tap
+  t: number;         // frame counter
+  eventTimer: number; // frames until next event check
 }
 
 interface CaughtRecord {
@@ -112,14 +117,15 @@ interface Props {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const CW = 360;
-const CH = 400;
+const CH = 500;
 const SKY_H = 55;           // 0 → 55
 const WATER_TOP = SKY_H;
-const WATER_H = CH - SKY_H; // 345px of water
+const WATER_H = CH - SKY_H; // 445px of water
 // Zone boundaries (absolute Y)
-const ZONE1_MAX_Y = SKY_H + WATER_H * 0.30; // ~159
-const ZONE2_MAX_Y = SKY_H + WATER_H * 0.70; // ~297
-const ZONE3_MAX_Y = CH;                       // 400
+const ZONE1_MAX_Y = SKY_H + WATER_H * 0.28; // ~180
+const ZONE2_MAX_Y = SKY_H + WATER_H * 0.62; // ~331
+const ZONE3_MAX_Y = CH;                       // 500
+const REEL_TAPS_NEEDED = 10;
 const BOBBER_X = CW * 0.5;
 const BOBBER_Y = SKY_H + 4;
 const LINE_X = BOBBER_X;
@@ -150,6 +156,17 @@ const FISH_ROSTER: FishDef[] = [
   // Secret — any zone, ultra rare
   { emoji: "🪸", name: "Coral Spirit",  rarity: "secret",    zone: 3, karma: 500, xp: 350, speed: 0.5, size: 36, zoneWidth: 7  },
   { emoji: "⚡", name: "Electric Eel",  rarity: "secret",    zone: 3, karma: 450, xp: 300, speed: 3.0, size: 30, zoneWidth: 6  },
+  // 10 New Species
+  { emoji: "🐚", name: "Nautilus",       rarity: "common",    zone: 1, karma: 14,  xp: 9,   speed: 0.5, size: 18, zoneWidth: 41 },
+  { emoji: "🦦", name: "Sea Otter",      rarity: "common",    zone: 1, karma: 28,  xp: 18,  speed: 1.8, size: 24, zoneWidth: 36 },
+  { emoji: "🐢", name: "Sea Turtle",     rarity: "rare",      zone: 2, karma: 72,  xp: 48,  speed: 0.6, size: 28, zoneWidth: 27 },
+  { emoji: "🦭", name: "Leopard Seal",   rarity: "rare",      zone: 2, karma: 62,  xp: 42,  speed: 1.9, size: 30, zoneWidth: 25 },
+  { emoji: "🎏", name: "Phantom Koi",    rarity: "rare",      zone: 2, karma: 110, xp: 75,  speed: 0.8, size: 26, zoneWidth: 21 },
+  { emoji: "🐉", name: "Leviathan",      rarity: "legendary", zone: 3, karma: 350, xp: 235, speed: 1.4, size: 52, zoneWidth: 9  },
+  { emoji: "🌟", name: "Star King",      rarity: "legendary", zone: 3, karma: 230, xp: 155, speed: 0.7, size: 38, zoneWidth: 13 },
+  { emoji: "🌀", name: "Vortex Manta",   rarity: "legendary", zone: 3, karma: 275, xp: 185, speed: 2.4, size: 44, zoneWidth: 11 },
+  { emoji: "🔮", name: "Crystal Oracle", rarity: "secret",    zone: 3, karma: 700, xp: 500, speed: 0.3, size: 40, zoneWidth: 4  },
+  { emoji: "💀", name: "Shadow Ghost",   rarity: "secret",    zone: 3, karma: 550, xp: 380, speed: 3.5, size: 32, zoneWidth: 5  },
 ];
 
 const RARITY_COLOR: Record<Rarity, string> = {
@@ -322,7 +339,11 @@ export default function DeepCatch({ onCatch }: Props) {
     shakeY: 0,
     shakeDuration: 0,
     biteRing: 0,
+    reelGauge: 0,
+    reelTaps: 0,
+    reelDecay: 0,
     t: 0,
+    eventTimer: 300 + Math.floor(Math.random() * 300),
   });
   const rafRef = useRef<number>(0);
 
@@ -365,6 +386,13 @@ export default function DeepCatch({ onCatch }: Props) {
   // Collection
   const [collection, setCollection] = useState<Map<string, CaughtRecord>>(new Map());
   const [showCollection, setShowCollection] = useState(false);
+
+  // Special events
+  const [specialEvent, setSpecialEvent] = useState<SpecialEvent>(null);
+  const specialEventRef = useRef<SpecialEvent>(null);
+
+  // Trophy (first catch)
+  const [trophyFish, setTrophyFish] = useState<FishDef | null>(null);
 
   // Bite window timer
   const biteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -723,6 +751,40 @@ export default function DeepCatch({ onCatch }: Props) {
         ctx.fillText(BAIT_ICON[baitRef.current], LINE_X, gs.hookY + 4);
       }
 
+      // ── Reel gauge ───────────────────────────────────────────────────────
+      if (curPhase === "reeling") {
+        const rg = gs.reelGauge;
+        const gx = LINE_X - 90, gy = CH - 56, gw = 180, gh = 22;
+        // Background
+        ctx.fillStyle = "rgba(0,0,0,0.75)";
+        ctx.beginPath();
+        ctx.roundRect?.(gx - 4, gy - 24, gw + 8, gh + 34, 10);
+        ctx.fill();
+        // Label
+        ctx.fillStyle = "#00ff88";
+        ctx.font = "bold 11px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(`REEL! ${gs.reelTaps}/${REEL_TAPS_NEEDED} TAPS`, LINE_X, gy - 8);
+        // Track
+        ctx.fillStyle = "#0a1a0a";
+        ctx.beginPath();
+        ctx.roundRect?.(gx, gy, gw, gh, 6);
+        ctx.fill();
+        // Fill — green → yellow as it fills
+        const hue = 120 - rg * 0.4;
+        ctx.fillStyle = `hsl(${hue}, 90%, 52%)`;
+        if (rg > 0) {
+          ctx.beginPath();
+          ctx.roundRect?.(gx + 1, gy + 1, Math.max(8, (gw - 2) * rg / 100), gh - 2, 5);
+          ctx.fill();
+        }
+        // Tap prompt flash
+        const flash = 0.5 + 0.5 * Math.sin(t * 0.2);
+        ctx.fillStyle = `rgba(0,255,136,${flash})`;
+        ctx.font = "bold 10px monospace";
+        ctx.fillText("TAP TAP TAP!", LINE_X, gy + gh + 14);
+      }
+
       // ── Bite ring ────────────────────────────────────────────────────────
       if (curPhase === "bite" || curPhase === "waiting") {
         const ring = gs.biteRing;
@@ -868,6 +930,60 @@ export default function DeepCatch({ onCatch }: Props) {
         gs.biteRing = 0;
       }
 
+      // Special event system
+      gs.eventTimer -= 1;
+      if (gs.eventTimer <= 0) {
+        gs.eventTimer = 400 + Math.floor(Math.random() * 400);
+        const events: SpecialEvent[] = ["STORM!", "RARE SPAWN!", "MIDNIGHT ZONE", "FEEDING FRENZY"];
+        const ev = events[Math.floor(Math.random() * events.length)];
+        specialEventRef.current = ev;
+        setSpecialEvent(ev);
+        // Apply event effects
+        if (ev === "STORM!") gs.shakeDuration = 30;
+        if (ev === "RARE SPAWN!") {
+          const rares = FISH_ROSTER.filter(f => f.rarity === "rare" || f.rarity === "legendary");
+          for (let ri = 0; ri < 3; ri++) {
+            gs.fish.push(spawnLiveFish(rares[Math.floor(Math.random() * rares.length)]));
+          }
+        }
+        if (ev === "FEEDING FRENZY") {
+          for (let fi = 0; fi < 5; fi++) {
+            const d = FISH_ROSTER.filter(f => f.zone === 1);
+            gs.fish.push(spawnLiveFish(d[Math.floor(Math.random() * d.length)], 1));
+          }
+        }
+        setTimeout(() => { specialEventRef.current = null; setSpecialEvent(null); }, 4000);
+      }
+
+      // Reeling phase
+      if (curPhase === "reeling") {
+        gs.reelDecay += 1;
+        if (gs.reelDecay > 12) {
+          gs.reelGauge = Math.max(0, gs.reelGauge - 1.2);
+        }
+        if (gs.reelGauge <= 0 && gs.reelTaps > 0) {
+          // Fish escaped
+          if (gs.targetFishIdx >= 0 && gs.targetFishIdx < gs.fish.length) {
+            gs.fish.splice(gs.targetFishIdx, 1);
+          }
+          gs.targetFishIdx = -1;
+          gs.hookY = -80;
+          gs.reelGauge = 0;
+          gs.reelTaps = 0;
+          phaseRef.current = "result";
+          setPhase("result");
+          setIsMiss(true);
+          setCaughtFish(null);
+          setTimeout(() => { phaseRef.current = "idle"; setPhase("idle"); setIsMiss(false); }, 1800);
+        }
+        // Move hooked fish toward surface
+        const reeledFish = gs.fish[gs.targetFishIdx];
+        if (reeledFish) {
+          reeledFish.x += (LINE_X - reeledFish.x) * 0.08;
+          reeledFish.y += (gs.hookY - reeledFish.y) * 0.06;
+        }
+      }
+
       // Hook descent
       if (curPhase === "casting") {
         const targetY = zoneTargetY(activeZoneRef.current);
@@ -982,21 +1098,57 @@ export default function DeepCatch({ onCatch }: Props) {
     if (biteTimerRef.current) clearTimeout(biteTimerRef.current);
     const gs = gsRef.current;
 
-    // Transition to timing phase
     const tf = gs.fish[gs.targetFishIdx];
     if (!tf) return;
 
-    markerRef.current = 50;
-    markerDirRef.current = 1;
-    // Speed depends on rarity and weather
-    const baseSpeed = tf.def.rarity === "secret" ? 3.5 :
-                      tf.def.rarity === "legendary" ? 2.8 :
-                      tf.def.rarity === "rare" ? 2.0 : 1.5;
-    const weatherMod = weather === "stormy" ? 1.4 : weather === "rainy" ? 1.1 : 1;
-    markerSpeedRef.current = baseSpeed * weatherMod;
+    // Transition to reeling phase
+    gs.reelGauge = 0;
+    gs.reelTaps = 0;
+    gs.reelDecay = 0;
+    phaseRef.current = "reeling";
+    setPhase("reeling");
+  }, [weather]);
 
-    phaseRef.current = "timing";
-    setPhase("timing");
+  const handleReel = useCallback(() => {
+    if (phaseRef.current !== "reeling") return;
+    const gs = gsRef.current;
+    const tf = gs.fish[gs.targetFishIdx];
+    if (!tf) return;
+
+    gs.reelTaps += 1;
+    gs.reelDecay = 0;
+    gs.reelGauge = Math.min(100, gs.reelGauge + (100 / REEL_TAPS_NEEDED));
+    // Move hook up toward surface with each tap
+    gs.hookY = Math.max(WATER_TOP + 30, gs.hookY - 20);
+
+    // Add splash particles on each reel tap
+    for (let i = 0; i < 6; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 1.5 + Math.random() * 2.5;
+      gs.particles.push({
+        x: LINE_X + (Math.random() - 0.5) * 20,
+        y: gs.hookY,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 2,
+        r: 1.5 + Math.random() * 2,
+        color: RARITY_COLOR[tf.def.rarity],
+        life: 25,
+        maxLife: 25,
+      });
+    }
+
+    if (gs.reelGauge >= 100) {
+      // Reel complete → timing phase
+      markerRef.current = 50;
+      markerDirRef.current = 1;
+      const baseSpeed = tf.def.rarity === "secret" ? 3.5 :
+                        tf.def.rarity === "legendary" ? 2.8 :
+                        tf.def.rarity === "rare" ? 2.0 : 1.5;
+      const weatherMod = weather === "stormy" ? 1.4 : weather === "rainy" ? 1.1 : 1;
+      markerSpeedRef.current = baseSpeed * weatherMod;
+      phaseRef.current = "timing";
+      setPhase("timing");
+    }
   }, [weather]);
 
   const handleTiming = useCallback(() => {
@@ -1060,11 +1212,15 @@ export default function DeepCatch({ onCatch }: Props) {
         return ns;
       });
 
-      // Update collection
+      // Update collection + trophy on first catch
       setCollection(prev => {
         const next = new Map(prev);
         const key = tf.def.name;
         const existing = next.get(key);
+        if (!existing) {
+          // First catch — show trophy!
+          setTimeout(() => setTrophyFish(tf.def), 2600);
+        }
         next.set(key, { def: tf.def, count: (existing?.count ?? 0) + 1 });
         return next;
       });
@@ -1088,10 +1244,11 @@ export default function DeepCatch({ onCatch }: Props) {
 
   const handleMainButton = useCallback(() => {
     const p = phaseRef.current;
-    if (p === "idle")   return handleCast();
-    if (p === "bite")   return handleBiteTap();
-    if (p === "timing") return handleTiming();
-  }, [handleCast, handleBiteTap, handleTiming]);
+    if (p === "idle")    return handleCast();
+    if (p === "bite")    return handleBiteTap();
+    if (p === "reeling") return handleReel();
+    if (p === "timing")  return handleTiming();
+  }, [handleCast, handleBiteTap, handleReel, handleTiming]);
 
   const handleZoneSelect = useCallback((zone: DepthZone) => {
     if (phaseRef.current !== "idle") return;
@@ -1109,7 +1266,7 @@ export default function DeepCatch({ onCatch }: Props) {
   // ─── Derived state ─────────────────────────────────────────────────────────
 
   const activeFishDef =
-    (phase === "timing" || phase === "bite" || phase === "waiting")
+    (phase === "timing" || phase === "bite" || phase === "waiting" || phase === "reeling")
       ? gsRef.current.fish[gsRef.current.targetFishIdx]?.def
       : null;
 
@@ -1120,32 +1277,35 @@ export default function DeepCatch({ onCatch }: Props) {
 
   // Button label & style
   const btnLabel =
-    phase === "idle"    ? "🎣  CAST" :
-    phase === "casting" ? "⏳  Sinking..." :
-    phase === "waiting" ? "🎣  Waiting for bite..." :
-    phase === "bite"    ? "⚡  BITE! TAP NOW!" :
-    phase === "timing"  ? "🎯  REEL IT IN!" :
-    caughtFish          ? `${caughtFish.emoji}  CAUGHT!` : "💨  MISSED!";
+    phase === "idle"     ? "🎣  CAST" :
+    phase === "casting"  ? "⏳  Sinking..." :
+    phase === "waiting"  ? "🎣  Waiting for bite..." :
+    phase === "bite"     ? "⚡  BITE! TAP NOW!" :
+    phase === "reeling"  ? `🎣  REEL! TAP FAST! (${gsRef.current.reelTaps}/${REEL_TAPS_NEEDED})` :
+    phase === "timing"   ? "🎯  PERFECT TIMING!" :
+    caughtFish           ? `${caughtFish.emoji}  CAUGHT!` : "💨  MISSED!";
 
   const btnDisabled = phase === "casting" || phase === "waiting" || phase === "result";
 
   const btnBg =
     phase === "bite"    ? "linear-gradient(135deg,#ff6600,#ffcc00)" :
+    phase === "reeling" ? "linear-gradient(135deg,#006622,#00cc44)" :
     phase === "timing"  ? "linear-gradient(135deg,#ffaa00,#ff4400)" :
     phase === "idle"    ? "linear-gradient(135deg,#0044aa,#0077dd)" :
     btnDisabled         ? "#111" : "#222";
 
   const btnBorder =
-    phase === "bite"   ? "#ffcc00" :
-    phase === "timing" ? "#ff4400" :
-    phase === "idle"   ? "#4488ff" : "#333";
+    phase === "bite"    ? "#ffcc00" :
+    phase === "reeling" ? "#00ff66" :
+    phase === "timing"  ? "#ff4400" :
+    phase === "idle"    ? "#4488ff" : "#333";
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div
       style={{ fontFamily: "var(--font-space-grotesk,monospace)", userSelect: "none" }}
-      onTouchStart={phase === "bite" ? handleBiteTap : phase === "timing" ? handleTiming : undefined}
+      onTouchStart={phase === "bite" ? handleBiteTap : phase === "reeling" ? handleReel : phase === "timing" ? handleTiming : undefined}
     >
       {/* ── Top HUD ─────────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, paddingInline: 2 }}>
@@ -1190,6 +1350,35 @@ export default function DeepCatch({ onCatch }: Props) {
           style={{ display: "block", width: "100%", height: "auto" }}
           onClick={handleMainButton}
         />
+
+        {/* ── Reel alert overlay ────────────────────────────────────────── */}
+        <AnimatePresence>
+          {phase === "reeling" && activeFishDef && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              style={{
+                position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)",
+                background: "rgba(0,80,20,0.93)", borderRadius: 12, padding: "6px 18px",
+                border: `2px solid #00ff66`,
+                boxShadow: `0 0 18px #00ff6688`,
+                textAlign: "center", pointerEvents: "none",
+              }}
+            >
+              <motion.div
+                animate={{ scale: [1, 1.15, 1] }}
+                transition={{ repeat: Infinity, duration: 0.3 }}
+                style={{ fontSize: 13, fontWeight: 900, color: "#00ff88", letterSpacing: "0.08em" }}
+              >
+                🎣 REEL IT IN! TAP FAST!
+              </motion.div>
+              <div style={{ fontSize: 10, color: "#88ffaa", fontWeight: 700 }}>
+                {activeFishDef.emoji} {activeFishDef.name} — {gsRef.current.reelTaps}/{REEL_TAPS_NEEDED} TAPS
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ── Bite alert overlay ─────────────────────────────────────────── */}
         <AnimatePresence>
@@ -1345,9 +1534,94 @@ export default function DeepCatch({ onCatch }: Props) {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* ── Special event banner ───────────────────────────────────────── */}
+        <AnimatePresence>
+          {specialEvent && (
+            <motion.div
+              initial={{ y: -60, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -60, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 22 }}
+              style={{
+                position: "absolute", top: 8, left: 8, right: 8,
+                background: specialEvent === "STORM!" ? "rgba(255,80,0,0.92)"
+                  : specialEvent === "RARE SPAWN!" ? "rgba(180,0,255,0.9)"
+                  : specialEvent === "MIDNIGHT ZONE" ? "rgba(0,0,40,0.95)"
+                  : "rgba(0,150,60,0.9)",
+                borderRadius: 12,
+                border: `2px solid ${specialEvent === "STORM!" ? "#ffcc00" : specialEvent === "RARE SPAWN!" ? "#cc88ff" : specialEvent === "MIDNIGHT ZONE" ? "#4455ff" : "#00ff88"}`,
+                padding: "8px 14px",
+                display: "flex", alignItems: "center", gap: 10,
+                boxShadow: "0 0 20px rgba(0,0,0,0.5)",
+                pointerEvents: "none",
+              }}
+            >
+              <motion.span
+                animate={{ scale: [1, 1.3, 1] }}
+                transition={{ repeat: Infinity, duration: 0.6 }}
+                style={{ fontSize: "1.4rem" }}
+              >
+                {specialEvent === "STORM!" ? "⛈️" : specialEvent === "RARE SPAWN!" ? "💜" : specialEvent === "MIDNIGHT ZONE" ? "🌑" : "🐟"}
+              </motion.span>
+              <div>
+                <div style={{ color: "#fff", fontSize: 13, fontWeight: 900, letterSpacing: "0.1em" }}>{specialEvent}</div>
+                <div style={{ color: "rgba(255,255,255,0.75)", fontSize: 10 }}>
+                  {specialEvent === "STORM!" ? "×2 karma for all catches!" : specialEvent === "RARE SPAWN!" ? "Rare fish swarming the depths!" : specialEvent === "MIDNIGHT ZONE" ? "Legendary fish appear..." : "Schools of fish incoming!"}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* ── Score row ────────────────────────────────────────────────────────── */}
+      {/* ── Trophy first-catch modal ──────────────────────────────────────────── */}
+      <AnimatePresence>
+        {trophyFish && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: "fixed", inset: 0, zIndex: 200,
+              background: "rgba(0,0,0,0.88)", backdropFilter: "blur(6px)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              padding: 24,
+            }}
+            onClick={() => setTrophyFish(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.4, rotate: -10 }}
+              animate={{ scale: 1, rotate: 0 }}
+              exit={{ scale: 0.4 }}
+              transition={{ type: "spring", stiffness: 260, damping: 18 }}
+              onClick={e => e.stopPropagation()}
+              style={{
+                background: `radial-gradient(circle at 50% 30%, ${RARITY_COLOR[trophyFish.rarity]}33, #010d1a 70%)`,
+                border: `3px solid ${RARITY_COLOR[trophyFish.rarity]}`,
+                borderRadius: 28, padding: "32px 28px",
+                textAlign: "center", maxWidth: 280,
+                boxShadow: `0 0 60px ${RARITY_COLOR[trophyFish.rarity]}66`,
+              }}
+            >
+              <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: "0.2em", color: RARITY_COLOR[trophyFish.rarity], marginBottom: 8 }}>🏆 FIRST CATCH!</div>
+              <motion.div
+                animate={{ y: [0, -10, 0], rotate: [-5, 5, -5, 0] }}
+                transition={{ duration: 1.2, repeat: 3 }}
+                style={{ fontSize: "5rem", lineHeight: 1, marginBottom: 12 }}
+              >
+                {trophyFish.emoji}
+              </motion.div>
+              <div style={{ fontSize: 11, fontWeight: 900, color: RARITY_COLOR[trophyFish.rarity], letterSpacing: "0.12em", marginBottom: 4 }}>
+                {RARITY_LABEL[trophyFish.rarity]}
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 12 }}>{trophyFish.name}</div>
+              <div style={{ fontSize: 14, color: "#c8ff00", fontWeight: 700, marginBottom: 6 }}>Added to collection! 🐟</div>
+              <div style={{ fontSize: 12, color: "#888" }}>Tap anywhere to continue</div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, paddingInline: 2 }}>
         <span style={{ fontSize: 12, fontWeight: 700, color: "#4488ff" }}>
           Caught: {score}  |  Best: {best}
@@ -1434,11 +1708,13 @@ export default function DeepCatch({ onCatch }: Props) {
           borderRadius: 16,
           fontSize: phase === "bite" ? 19 : 17,
           fontWeight: 900,
-          color: phase === "bite" || phase === "timing" ? "#000" : btnDisabled ? "#444" : "#fff",
+          color: phase === "bite" || phase === "timing" || phase === "reeling" ? "#000" : btnDisabled ? "#444" : "#fff",
           cursor: btnDisabled ? "default" : "pointer",
           letterSpacing: "0.06em",
           boxShadow: phase === "bite"
             ? `0 0 28px #ff990088, 4px 4px 0 #000`
+            : phase === "reeling"
+            ? `0 0 24px #00ff6644, 4px 4px 0 #000`
             : phase === "timing"
             ? `0 0 20px #ff440066, 4px 4px 0 #000`
             : phase === "idle"
