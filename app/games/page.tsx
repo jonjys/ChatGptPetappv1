@@ -8,6 +8,7 @@ import { getDailyQuests } from "@/lib/quests";
 type Game = { id: string; href: string; emoji: string; name: string; tagline: string; reward: string; accent: string; bg: string; tag?: string; players?: number; hot?: boolean };
 
 const GAMES: Game[] = [
+  { id: "ville",   href: "/ville",         emoji: "🏙️", name: "KARMA VILLE", tagline: "Bygg din stad · passiv karma · vänner besöker", reward: "Passiv: 2–60 ⚡/timme", accent: "#c8ff00", bg: "#060f06", tag: "NY 🆕", hot: true, players: 421 },
   { id: "fishing", href: "/games/fishing", emoji: "🎣", name: "DEEP CATCH", tagline: "Tap timing · 30 fish · special events", reward: "15–600 ⚡ per catch", accent: "#4488ff", bg: "#010d1a", tag: "HOT 🔥", hot: true, players: 342 },
   { id: "runner",  href: "/games/runner",  emoji: "🏃", name: "KARMA RUNNER", tagline: "UFO lasers · Aurora · Warp portals", reward: "Up to 500 ⚡", accent: "#c8ff00", bg: "#060f06", hot: true, players: 218 },
   { id: "slots",   href: "/games/slots",   emoji: "🎰", name: "KARMA SLOTS", tagline: "5 reels · Jackpot 2000⚡ · Wild WARP", reward: "Jackpot: 2000 ⚡ · Max 150/spin", accent: "#ffaa00", bg: "#1a0d00", players: 189 },
