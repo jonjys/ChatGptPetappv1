@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Settings, Trophy, Zap, Flame, Globe, Star, Languages } from "lucide-react";
 import Link from "next/link";
+import SpinWheel from "@/components/ui/SpinWheel";
 import XPBar from "@/components/ui/XPBar";
 import { useApp } from "@/context/AppContext";
 import { xpProgress, xpToNextLevel, calculateLevel } from "@/lib/xp-system";
@@ -134,6 +135,9 @@ export default function ProfilePage() {
             </motion.div>
           ))}
         </div>
+
+        {/* Spin Wheel */}
+        <SpinWheel />
 
         {/* Premium + Pot quick links */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
