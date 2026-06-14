@@ -262,3 +262,83 @@ body {
 .diff-medium     { background: #fff3c4; border-color: #ff9800; color: #e65100; }
 .diff-hard       { background: #ffd0d0; border-color: #f44336; color: #b71c1c; }
 .diff-legendary  { background: #e8d5ff; border-color: #8b5cf6; color: #4c1d95; }
+
+/* ─── TAP BURST EFFECTS ───────────────────────────── */
+.tap-ring {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2.5px solid #c8ff00;
+  top: 0; left: 0;
+  transform: translate(-50%, -50%) scale(0.2);
+  animation: tapRing 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  pointer-events: none;
+}
+
+.tap-dot {
+  position: absolute;
+  border-radius: 50%;
+  top: 0; left: 0;
+  transform: translate(-50%, -50%);
+  animation: tapDot 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  pointer-events: none;
+}
+
+.tap-emoji {
+  position: absolute;
+  font-size: 13px;
+  top: 0; left: 0;
+  transform: translate(-50%, -50%);
+  animation: tapEmoji 0.6s ease-out forwards;
+  pointer-events: none;
+  user-select: none;
+}
+
+@keyframes tapRing {
+  0%   { transform: translate(-50%, -50%) scale(0.2); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(2.8); opacity: 0; }
+}
+
+@keyframes tapDot {
+  0%   { opacity: 1; transform: translate(-50%, -50%) translate(0, 0) scale(1); }
+  80%  { opacity: 0.8; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(0); }
+}
+
+@keyframes tapEmoji {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+  30%  { opacity: 1; transform: translate(-50%, calc(-50% - 14px)) scale(1.3); }
+  100% { opacity: 0; transform: translate(-50%, calc(-50% - 36px)) scale(0.7); }
+}
+
+/* ─── NEON ANIMATIONS ─────────────────────────────── */
+@keyframes neonTube {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 400% 50%; }
+}
+
+@keyframes potPulse {
+  0%, 100% { box-shadow: 0 0 20px currentColor; }
+  50%       { box-shadow: 0 0 40px currentColor, 0 0 80px currentColor; }
+}
+
+@keyframes coinRain {
+  0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+@keyframes pulseGrow {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.04); }
+}
+
+@keyframes slideUpFade {
+  0%   { transform: translateY(20px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}

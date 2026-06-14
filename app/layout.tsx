@@ -8,6 +8,7 @@ import BottomNav from "@/components/ui/BottomNav";
 import FloatingPet from "@/components/pet/FloatingPet";
 import WorldGate from "@/components/onboarding/WorldGate";
 import DailyReward from "@/components/ui/DailyReward";
+import TapEffect from "@/components/ui/TapEffect";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <DailyReward />
             <FloatingPet />
             <BottomNav />
+            <TapEffect />
           </WorldGate>
         </AppProvider>
       </body>
