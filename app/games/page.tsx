@@ -5,17 +5,17 @@ import { motion } from "framer-motion";
 import { useApp } from "@/context/AppContext";
 import { getDailyQuests } from "@/lib/quests";
 
-type Game = { id: string; href: string; emoji: string; name: string; tagline: string; reward: string; accent: string; bg: string; tag?: string };
+type Game = { id: string; href: string; emoji: string; name: string; tagline: string; reward: string; accent: string; bg: string; tag?: string; players?: number; hot?: boolean };
 
 const GAMES: Game[] = [
-  { id: "fishing", href: "/games/fishing", emoji: "🎣", name: "DEEP CATCH", tagline: "Tap timing · catch rare fish", reward: "15–300 ⚡ per catch", accent: "#4488ff", bg: "#010d1a", tag: "NEW" },
-  { id: "cases",   href: "/games/cases",   emoji: "🏴‍☠️", name: "SHADOW VAULT", tagline: "Unbox rare artifacts · Roll the vault", reward: "10–800 ⚡ per vault", accent: "#cc44ff", bg: "#080010", tag: "NEW" },
-  { id: "breaker", href: "/games/breaker", emoji: "🧬", name: "DNA BREAKER", tagline: "Breakout · Collect DNA · Fusion Strike", reward: "Score → karma", accent: "#cc55ff", bg: "#050510", tag: "NEW" },
-  { id: "runner",  href: "/games/runner",  emoji: "🏃", name: "KARMA RUNNER", tagline: "Double-jump · Shield · Magnet · Combos", reward: "Up to 300 ⚡", accent: "#c8ff00", bg: "#060f06" },
-  { id: "slots",   href: "/games/slots",   emoji: "🎰", name: "KARMA SLOTS", tagline: "Spin to win big karma", reward: "Jackpot: 500 ⚡ · 25/spin", accent: "#ffaa00", bg: "#1a0d00" },
-  { id: "memory",  href: "/games/memory",  emoji: "🧠", name: "MEMORY PALACE", tagline: "Match all pairs before time runs out", reward: "Up to 150 ⚡", accent: "#ff44cc", bg: "#1a0015" },
-  { id: "battle",  href: "/games/battle",  emoji: "⚔️", name: "PET BATTLE", tagline: "Turn-based combat vs real pets", reward: "Win: 100+ ⚡", accent: "#ff6b35", bg: "#150a00" },
-  { id: "blitz",   href: "/games/blitz",   emoji: "💥", name: "BOUNTY BLITZ", tagline: "Race-swipe bounties in 30 seconds", reward: "Up to 250 ⚡", accent: "#00e5ff", bg: "#001a1a" },
+  { id: "fishing", href: "/games/fishing", emoji: "🎣", name: "DEEP CATCH", tagline: "Tap timing · 30 fish · special events", reward: "15–600 ⚡ per catch", accent: "#4488ff", bg: "#010d1a", tag: "HOT 🔥", hot: true, players: 342 },
+  { id: "runner",  href: "/games/runner",  emoji: "🏃", name: "KARMA RUNNER", tagline: "UFO lasers · Aurora · Warp portals", reward: "Up to 500 ⚡", accent: "#c8ff00", bg: "#060f06", hot: true, players: 218 },
+  { id: "slots",   href: "/games/slots",   emoji: "🎰", name: "KARMA SLOTS", tagline: "5 reels · Jackpot 2000⚡ · Wild WARP", reward: "Jackpot: 2000 ⚡ · Max 150/spin", accent: "#ffaa00", bg: "#1a0d00", players: 189 },
+  { id: "cases",   href: "/games/cases",   emoji: "🏴‍☠️", name: "SHADOW VAULT", tagline: "Unbox rare artifacts · Roll the vault", reward: "10–800 ⚡ per vault", accent: "#cc44ff", bg: "#080010", tag: "NEW", players: 156 },
+  { id: "breaker", href: "/games/breaker", emoji: "🧬", name: "DNA BREAKER", tagline: "Infinite levels · Plasma Shield · Laser", reward: "Score → karma", accent: "#cc55ff", bg: "#050510", tag: "NEW", players: 134 },
+  { id: "battle",  href: "/games/battle",  emoji: "⚔️", name: "PET BATTLE", tagline: "Status effects · Boss fight · Equipment", reward: "Win: 100–300 ⚡", accent: "#ff6b35", bg: "#150a00", players: 98 },
+  { id: "memory",  href: "/games/memory",  emoji: "🧠", name: "MEMORY PALACE", tagline: "Circular ring · Combo chain · 60 stars", reward: "Up to 150 ⚡", accent: "#ff44cc", bg: "#1a0015", players: 87 },
+  { id: "blitz",   href: "/games/blitz",   emoji: "💥", name: "BOUNTY BLITZ", tagline: "Step counter · Savings verify · Streaks", reward: "Up to 500 ⚡", accent: "#00e5ff", bg: "#001a1a", tag: "NEW", players: 203 },
 ];
 
 export default function GamesPage() {
@@ -39,6 +39,33 @@ export default function GamesPage() {
       </div>
 
       <div className="px-4 pt-4 pb-24 space-y-3">
+        {/* KARMA POT teaser */}
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+          <Link href="/karma-pot" style={{ textDecoration: "none" }}>
+            <motion.div whileTap={{ scale: 0.97 }} style={{
+              background: "linear-gradient(135deg, #0f1a00, #0a0a0a)",
+              border: "2px solid #c8ff0055", borderRadius: 20, padding: "14px 16px",
+              display: "flex", alignItems: "center", gap: 14,
+              boxShadow: "0 0 30px #c8ff0011",
+            }}>
+              <motion.div
+                animate={{ scale: [1, 1.12, 1], rotate: [0, -8, 8, 0] }}
+                transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 1 }}
+                style={{ fontSize: "2.2rem", flexShrink: 0 }}
+              >💰</motion.div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 15, fontWeight: 900, color: "#c8ff00" }}>KARMA POTTEN</span>
+                  <span style={{ fontSize: 9, fontWeight: 800, background: "#c8ff00", color: "#0a0a0a", padding: "2px 6px", borderRadius: 4 }}>LIVE 🔴</span>
+                </div>
+                <div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>Spela → tjäna biljetter → vinn riktiga pengar</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#ff6b35", marginTop: 4 }}>Daglig pott: 249 kr · Vecka: 1 249 kr</div>
+              </div>
+              <div style={{ color: "#c8ff00", fontSize: 18 }}>→</div>
+            </motion.div>
+          </Link>
+        </motion.div>
+
         {/* Daily Quests link card */}
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
           <Link href="/quests" style={{ textDecoration: "none" }}>
@@ -92,6 +119,9 @@ export default function GamesPage() {
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
                     {score > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: g.accent, opacity: 0.8 }}>🏆 {score}</span>}
                     <div style={{ width: 28, height: 28, borderRadius: 8, background: `${g.accent}22`, border: `1.5px solid ${g.accent}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.9rem" }}>→</div>
+                    {g.players && (
+                      <div style={{ fontSize: 9, color: "#444", fontWeight: 600 }}>👥 {g.players}</div>
+                    )}
                   </div>
                 </div>
               </Link>
