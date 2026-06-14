@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Flame, PawPrint, Gamepad2, Users, User } from "lucide-react";
+import { Flame, PawPrint, Gamepad2, Users, User, Compass } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { t } from "@/lib/i18n";
 
@@ -11,11 +11,12 @@ export default function BottomNav() {
   const { pet, worldId, lang } = useApp();
 
   const TABS = [
-    { href: "/feed",   icon: Flame,     label: t(lang, "feed") },
-    { href: "/pet",    icon: PawPrint,  label: t(lang, "pet") },
-    { href: "/games",  icon: Gamepad2,  label: t(lang, "games"), special: true },
-    { href: "/social", icon: Users,     label: t(lang, "social") },
-    { href: "/profile",icon: User,      label: t(lang, "me") },
+    { href: "/feed",    icon: Flame,    label: t(lang, "feed") },
+    { href: "/pet",     icon: PawPrint, label: t(lang, "pet") },
+    { href: "/games",   icon: Gamepad2, label: t(lang, "games"), special: true },
+    { href: "/explore", icon: Compass,  label: "Utforska" },
+    { href: "/social",  icon: Users,    label: t(lang, "social") },
+    { href: "/profile", icon: User,     label: t(lang, "me") },
   ];
   const isCritical = pet.needs.hunger < 25 || pet.needs.energy < 15;
 
