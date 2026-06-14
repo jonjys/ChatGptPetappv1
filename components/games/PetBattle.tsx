@@ -583,6 +583,10 @@ export default function PetBattle({ pet, onEnd }: Props) {
   const [currentRound, setCurrentRound] = useState(1);
   const [roundResultMsg, setRoundResultMsg] = useState("");
 
+  // Judgment Ring state
+  const [showRing, setShowRing] = useState(false);
+  const [pendingAbility, setPendingAbility] = useState<ExtendedAbility | null>(null);
+
   const dmgIdRef = useRef(0);
   const enemy = selectedEnemy;
 
@@ -750,7 +754,7 @@ export default function PetBattle({ pet, onEnd }: Props) {
   }
 
   const useAbility = useCallback(
-    (ability: ExtendedAbility) => {
+    (ability: ExtendedAbility, qualityMult = 1) => {
       if (turnPhase !== "player" || !enemy) return;
 
       // Check freeze
@@ -795,8 +799,8 @@ export default function PetBattle({ pet, onEnd }: Props) {
         return;
       }
 
-      // Calculate damage
-      let dmg = rnd(...ability.damage);
+      // Calculate damage (qualityMult: 1.5 = perfect, 1.0 = good)
+      let dmg = Math.round(rnd(...ability.damage) * qualityMult);
 
       // Debt Collector: 15% of enemy max HP
       if (ability.scalingDmg) {
@@ -864,8 +868,9 @@ export default function PetBattle({ pet, onEnd }: Props) {
 
         const comboBadge = newCombo >= 3 ? ` 🔥 COMBO ×${newCombo}!` : "";
         const statusTag = ability.statusEffect ? ` · ${STATUS_META[ability.statusEffect].emoji} ${ability.statusEffect}` : "";
+        const qualityBadge = qualityMult >= 1.5 ? " ⭐ PERFECT HIT!" : "";
         setLog((l) => [
-          `${ability.emoji} ${pet.name} used ${ability.name}! ${finalDmg} dmg${heal ? ` · +${heal} HP` : ""}${statusTag}${comboBadge}`,
+          `${ability.emoji} ${pet.name} used ${ability.name}! ${finalDmg} dmg${heal ? ` · +${heal} HP` : ""}${statusTag}${comboBadge}${qualityBadge}`,
           ...enemyTickLogs.map((ll) => `${enemy.name}: ${ll}`),
           ...l.slice(0, Math.max(0, 5 - 1 - enemyTickLogs.length)),
         ]);
@@ -891,6 +896,28 @@ export default function PetBattle({ pet, onEnd }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [turnPhase, enemy, enemyHP, playerHP, combo, pet, onEnd, playerEffects, enemyEffects, equipment, environment, playerMaxHP]
   );
+
+  function handleAbilityClick(ability: ExtendedAbility) {
+    if (turnPhase !== "player" || !enemy) return;
+    setPendingAbility(ability);
+    setShowRing(true);
+  }
+
+  function handleRingResult(quality: "perfect" | "good" | "miss") {
+    setShowRing(false);
+    if (!pendingAbility) return;
+    if (quality === "miss") {
+      setLog((l) => [`💨 MISS! ${pet.name}'s attack whiffed!`, ...l.slice(0, 5)]);
+      setCombo(0);
+      setTurnPhase("animating");
+      setTimeout(() => doEnemyTurn(playerHP, enemyHP, 0), 700);
+      setPendingAbility(null);
+      return;
+    }
+    const mult = quality === "perfect" ? 1.5 : 1.0;
+    useAbility(pendingAbility, mult);
+    setPendingAbility(null);
+  }
 
   function doEnemyTurn(
     currentPlayerHP: number,
@@ -2052,7 +2079,7 @@ export default function PetBattle({ pet, onEnd }: Props) {
                 key={a.name}
                 whileHover={active ? { scale: 1.03, y: -2 } : {}}
                 whileTap={active ? { scale: 0.92 } : {}}
-                onClick={() => useAbility(a)}
+                onClick={() => handleAbilityClick(a)}
                 disabled={!active}
                 style={{
                   padding: "11px 6px 9px",
@@ -2132,6 +2159,44 @@ export default function PetBattle({ pet, onEnd }: Props) {
           ))}
         </div>
       </div>
+
+      {/* Judgment Ring overlay */}
+      <AnimatePresence>
+        {showRing && pendingAbility && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 200,
+              background: "rgba(0,0,0,0.88)",
+              backdropFilter: "blur(4px)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 16,
+            }}
+          >
+            <div style={{ color: "#888", fontSize: 11, fontWeight: 700, letterSpacing: "0.1em" }}>
+              USING ABILITY
+            </div>
+            <div style={{ color: "#fff", fontSize: 18, fontWeight: 900 }}>
+              {pendingAbility.emoji} {pendingAbility.name}
+            </div>
+            <JudgmentRing
+              onResult={handleRingResult}
+              hitZoneWidth={combo >= 3 ? 16 : 22}
+              hasCombo={combo >= 3}
+            />
+            <div style={{ fontSize: 11, color: "#555", marginTop: 4 }}>
+              ⭐ Perfect zone = ×1.5 damage
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Combo indicator */}
       <AnimatePresence>
