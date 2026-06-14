@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Bell, Zap, Flame, X } from "lucide-react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import FeedCard from "@/components/feed/FeedCard";
 import StoriesBar from "@/components/feed/StoriesBar";
@@ -158,6 +159,44 @@ export default function FeedPage() {
             ))}
           </div>
         </motion.div>
+      )}
+
+      {/* Karma Pot teaser */}
+      {filter === "ALL" && (
+        <Link href="/karma-pot" style={{ textDecoration: "none" }}>
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileTap={{ scale: 0.98 }}
+            className="mx-4 mt-3"
+            style={{
+              background: "linear-gradient(135deg, #0a0a0a, #111)",
+              border: "2px solid #c8ff0044",
+              borderRadius: 16, padding: "12px 14px",
+              display: "flex", alignItems: "center", gap: 12,
+              boxShadow: "0 0 20px #c8ff0011",
+            }}
+          >
+            <motion.div
+              animate={{ scale: [1, 1.1, 1], rotate: [0, -5, 5, 0] }}
+              transition={{ duration: 3, repeat: Infinity, repeatDelay: 2 }}
+              style={{ fontSize: "2rem", flexShrink: 0 }}
+            >💰</motion.div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, fontWeight: 900, color: "#c8ff00", letterSpacing: "0.04em" }}>
+                DAGLIG POTT — 249 kr
+              </div>
+              <div style={{ fontSize: 10, color: "#666", marginTop: 1 }}>
+                Var aktiv idag → tjäna biljetter → vinn riktiga pengar
+              </div>
+            </div>
+            <div style={{
+              background: "#c8ff00", color: "#0a0a0a",
+              fontSize: 10, fontWeight: 800,
+              borderRadius: 8, padding: "5px 10px", whiteSpace: "nowrap",
+            }}>SE POTTEN →</div>
+          </motion.div>
+        </Link>
       )}
 
       {/* Live activity ticker */}

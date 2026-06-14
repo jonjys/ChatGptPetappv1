@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Settings, Trophy, Zap, Flame, Globe, Star, Languages } from "lucide-react";
+import Link from "next/link";
 import XPBar from "@/components/ui/XPBar";
 import { useApp } from "@/context/AppContext";
 import { xpProgress, xpToNextLevel, calculateLevel } from "@/lib/xp-system";
@@ -132,6 +133,33 @@ export default function ProfilePage() {
               </div>
             </motion.div>
           ))}
+        </div>
+
+        {/* Premium + Pot quick links */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <Link href="/karma-pot" style={{ textDecoration: "none" }}>
+            <motion.div whileTap={{ scale: 0.95 }} style={{
+              background: "#0a0a0a", border: "2.5px solid #c8ff00",
+              borderRadius: 16, padding: "14px 12px", textAlign: "center",
+              boxShadow: "0 0 20px #c8ff0022",
+            }}>
+              <div style={{ fontSize: "1.8rem", marginBottom: 4 }}>💰</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#c8ff00" }}>KARMA POTTEN</div>
+              <div style={{ fontSize: 10, color: "#555", marginTop: 2 }}>Vinn riktiga pengar</div>
+            </motion.div>
+          </Link>
+          <Link href="/premium" style={{ textDecoration: "none" }}>
+            <motion.div whileTap={{ scale: 0.95 }} style={{
+              background: "linear-gradient(135deg, #1a0e00, #0d1a00)",
+              border: "2.5px solid #ff8c00",
+              borderRadius: 16, padding: "14px 12px", textAlign: "center",
+              boxShadow: "0 0 20px #ff8c0022",
+            }}>
+              <div style={{ fontSize: "1.8rem", marginBottom: 4 }}>👑</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#ff8c00" }}>KARMA PRO</div>
+              <div style={{ fontSize: 10, color: "#555", marginTop: 2 }}>Uppgradera nu</div>
+            </motion.div>
+          </Link>
         </div>
 
         {/* Class card */}
