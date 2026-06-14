@@ -4,6 +4,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { useApp } from "@/context/AppContext";
 import { getDailyQuests } from "@/lib/quests";
+import SpinWheel from "@/components/ui/SpinWheel";
 
 type Game = { id: string; href: string; emoji: string; name: string; tagline: string; reward: string; accent: string; bg: string; tag?: string; players?: number; hot?: boolean };
 
@@ -40,6 +41,11 @@ export default function GamesPage() {
       </div>
 
       <div className="px-4 pt-4 pb-24 space-y-3">
+        {/* Spin Wheel */}
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+          <SpinWheel />
+        </motion.div>
+
         {/* KARMA POT teaser */}
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
           <Link href="/karma-pot" style={{ textDecoration: "none" }}>
