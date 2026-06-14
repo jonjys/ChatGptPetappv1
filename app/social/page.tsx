@@ -552,8 +552,18 @@ export default function SocialPage() {
               <span style={{ color: "#4caf50", fontWeight: 700 }}>● {onlineFriends.length} online</span> · {FRIENDS.length} friends
             </p>
           </div>
-          <div style={{ background: world.accent, border: "2.5px solid #0a0a0a", borderRadius: 12, padding: "8px 14px", boxShadow: "3px 3px 0px #0a0a0a" }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#000" }}>{user.avatarEmoji} @{user.username}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Link href="/chat" style={{ textDecoration: "none" }}>
+              <div style={{
+                background: "#0a0a0a", border: "2.5px solid #0a0a0a",
+                borderRadius: 12, padding: "8px 12px",
+                boxShadow: "3px 3px 0px #c8ff00",
+                fontSize: 13, fontWeight: 700, color: "#c8ff00",
+              }}>💬</div>
+            </Link>
+            <div style={{ background: world.accent, border: "2.5px solid #0a0a0a", borderRadius: 12, padding: "8px 14px", boxShadow: "3px 3px 0px #0a0a0a" }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#000" }}>{user.avatarEmoji} @{user.username}</span>
+            </div>
           </div>
         </div>
 
