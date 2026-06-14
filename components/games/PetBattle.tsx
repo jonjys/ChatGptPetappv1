@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { BattleAbility } from "@/types/game";
 import type { Pet } from "@/types/pet";
@@ -230,6 +230,132 @@ function applyStatusEffect(
       break;
   }
   return { newHP, logLine, consumed };
+}
+
+/* ─── Judgment Ring (Shadow Hearts-style timing mechanic) ─────────────────── */
+
+interface JudgmentRingProps {
+  onResult: (quality: "perfect" | "good" | "miss") => void;
+  hitZoneWidth: number; // 0-100, percentage of ring that's the green zone
+  hasCombo: boolean;
+}
+
+function JudgmentRing({ onResult, hitZoneWidth, hasCombo }: JudgmentRingProps) {
+  const [markerAngle, setMarkerAngle] = useState(0);
+  const [tapped, setTapped] = useState(false);
+  const rafRef = useRef<number>(0);
+  const startRef = useRef<number | null>(null);
+  const SPEED = hasCombo ? 280 : 220; // degrees per second, faster with combo
+
+  useEffect(() => {
+    function tick(ts: number) {
+      if (!startRef.current) startRef.current = ts;
+      const elapsed = (ts - startRef.current) / 1000;
+      setMarkerAngle((elapsed * SPEED) % 360);
+      rafRef.current = requestAnimationFrame(tick);
+    }
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [SPEED]);
+
+  function handleTap() {
+    if (tapped) return;
+    setTapped(true);
+    cancelAnimationFrame(rafRef.current);
+    // Hit zone: perfect = center 10%, good = full hitZoneWidth%, miss = outside
+    const zoneCenter = 45; // degrees offset where green starts
+    const zoneEnd = zoneCenter + hitZoneWidth * 3.6;
+    const normalizedAngle = markerAngle % 360;
+    let quality: "perfect" | "good" | "miss";
+    if (normalizedAngle >= zoneCenter && normalizedAngle <= zoneCenter + hitZoneWidth * 0.36) {
+      quality = "perfect";
+    } else if (normalizedAngle >= zoneCenter && normalizedAngle <= zoneEnd) {
+      quality = "good";
+    } else {
+      quality = "miss";
+    }
+    setTimeout(() => onResult(quality), 300);
+  }
+
+  const size = 160;
+  const r = 68;
+  const cx = size / 2;
+  const cy = size / 2;
+
+  // Convert angle to SVG arc
+  function angleToXY(deg: number) {
+    const rad = (deg - 90) * Math.PI / 180;
+    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+  }
+
+  // Build green hit zone arc path
+  const zoneStart = 45;
+  const zoneEndDeg = zoneStart + hitZoneWidth * 3.6;
+  const greenStart = angleToXY(zoneStart);
+  const greenEnd = angleToXY(zoneEndDeg);
+  const largeArc = hitZoneWidth * 3.6 > 180 ? 1 : 0;
+
+  // Perfect zone (inner 30% of hit zone)
+  const perfectEnd = angleToXY(zoneStart + hitZoneWidth * 1.08);
+
+  // Marker position
+  const markerPos = angleToXY(markerAngle);
+
+  return (
+    <motion.div
+      initial={{ scale: 0, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0, opacity: 0 }}
+      transition={{ type: "spring", stiffness: 300, damping: 22 }}
+      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}
+    >
+      <div style={{ color: "#ffde00", fontSize: 11, fontWeight: 900, letterSpacing: "0.12em" }}>
+        ⚔️ JUDGMENT RING
+      </div>
+      <motion.div
+        whileTap={{ scale: 0.96 }}
+        onClick={handleTap}
+        style={{ cursor: tapped ? "default" : "pointer", position: "relative" }}
+      >
+        <svg width={size} height={size}>
+          {/* Background ring */}
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="#1a0a00" strokeWidth={18} />
+          {/* Green hit zone */}
+          <path
+            d={`M ${greenStart.x} ${greenStart.y} A ${r} ${r} 0 ${largeArc} 1 ${greenEnd.x} ${greenEnd.y}`}
+            fill="none" stroke="#22c55e" strokeWidth={18} strokeLinecap="round"
+          />
+          {/* Perfect zone (brighter) */}
+          <path
+            d={`M ${greenStart.x} ${greenStart.y} A ${r} ${r} 0 0 1 ${perfectEnd.x} ${perfectEnd.y}`}
+            fill="none" stroke="#c8ff00" strokeWidth={18} strokeLinecap="round"
+          />
+          {/* Marker */}
+          {!tapped && (
+            <motion.circle
+              cx={markerPos.x} cy={markerPos.y} r={10}
+              fill="#ffffff"
+              style={{ filter: "drop-shadow(0 0 6px #fff) drop-shadow(0 0 12px #ffde00)" }}
+            />
+          )}
+          {/* Result flash */}
+          {tapped && (
+            <text x={cx} y={cy + 6} textAnchor="middle" fill="#c8ff00" fontSize={16} fontWeight="bold">
+              TAP!
+            </text>
+          )}
+          {/* Center */}
+          <circle cx={cx} cy={cy} r={20} fill="#0a0a0a" stroke="#ffde0066" strokeWidth={2} />
+          <text x={cx} y={cy + 5} textAnchor="middle" fill="#ffde00" fontSize={12}>⚔️</text>
+        </svg>
+      </motion.div>
+      {!tapped && (
+        <div style={{ color: "#888", fontSize: 10, fontWeight: 600 }}>
+          Tryck när markören träffar den gröna zonen!
+        </div>
+      )}
+    </motion.div>
+  );
 }
 
 /* ─── Sub-components ──────────────────────────────────────────────────────── */

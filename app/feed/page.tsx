@@ -252,11 +252,11 @@ export default function FeedPage() {
       </div>
 
       {/* Feed */}
-      <div className="px-4 pt-4 pb-4 space-y-3">
+      <div className="px-4 pt-4 pb-24 space-y-3" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {/* My Activity Cards */}
         {myActivities.length > 0 && (
-          <div style={{ marginBottom: 4 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#888", letterSpacing: "0.12em", marginBottom: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#888", letterSpacing: "0.12em" }}>
               ⚡ YOUR RECENT ACTIVITY
             </div>
             {myActivities.map((act, i) => {
@@ -270,7 +270,7 @@ export default function FeedPage() {
                   style={{
                     background: "#fff",
                     border: `2.5px solid ${act.rarity && act.rarity !== "common" ? rarityColor : "#0a0a0a"}`,
-                    borderRadius: 16, padding: "12px 14px", marginBottom: 8,
+                    borderRadius: 16, padding: "12px 14px",
                     boxShadow: act.rarity && act.rarity !== "common" ? `3px 3px 0px #0a0a0a, 0 0 12px ${rarityColor}22` : "3px 3px 0px #0a0a0a",
                     display: "flex", alignItems: "center", gap: 12,
                   }}>
