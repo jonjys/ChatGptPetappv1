@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { FRIENDS } from "@/lib/mock-data";
 
 // ── MEGA UPGRADE: bigger canvas, dynamic sky, parallax city, 6 powerups, 12 obstacles, milestones ──
 
@@ -120,6 +121,13 @@ function skyColor(speed: number): [string,string] {
   }
 }
 
+interface Ghost {
+  name: string;
+  petEmoji: string;
+  diedAt: number;       // score threshold where ghost appears
+  showUntilFrame: number; // frame when display ends (-1 = not yet triggered)
+}
+
 export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: string; onEnd?: (score: number, gems: number) => void }) {
   const cvs  = useRef<HTMLCanvasElement>(null);
   const gs   = useRef<GS>(mkGS());
@@ -129,6 +137,18 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
   const [best,  setBest]  = useState(0);
   const [ui,    setUi]    = useState({ combo: 0, shield: false, magnet: false, star: false, beat: false, speed: BASE_SPD, beatTimer: 0 });
   const [copied, setCopied] = useState(false);
+
+  // Social ghost runners — friends who "died" at specific scores
+  const ghostsRef = useRef<Ghost[]>([]);
+  useEffect(() => {
+    const seeds = [90, 220, 380, 560];
+    ghostsRef.current = FRIENDS.slice(0, 4).map((f, i) => ({
+      name: f.username,
+      petEmoji: f.petEmoji,
+      diedAt: seeds[i] + Math.floor(Math.sin(i * 137.5) * 40 + 40),
+      showUntilFrame: -1,
+    }));
+  }, []);
 
   // Load best on mount
   useEffect(() => {
@@ -488,6 +508,31 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     ctx.fillText(petEmoji, PET_X, petScreenY);
     ctx.restore();
 
+    // ── Social Ghost Runners ─────────────────────────────────────────────────
+    ghostsRef.current.forEach(gh => {
+      if (gh.showUntilFrame <= 0 || g.frame > gh.showUntilFrame) return;
+      const framesLeft = gh.showUntilFrame - g.frame;
+      const alpha = Math.min(0.5, framesLeft / 60 * 0.5);
+      const ghostX = PET_X - 55;
+      const ghostY = GROUND;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.font = `${PET_H * 0.82}px serif`;
+      ctx.fillText(gh.petEmoji, ghostX, ghostY);
+      ctx.font = "bold 8px monospace";
+      ctx.fillStyle = "#ff4466";
+      ctx.fillText(`@${gh.name}`, ghostX - 4, ghostY - PET_H - 2);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText("💀 died here", ghostX - 4, ghostY - PET_H + 10);
+      // ghost glow ring
+      ctx.strokeStyle = "#ff446688";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(ghostX + 18, ghostY - PET_H / 2, 24, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    });
+
     // ── Warp portal swirl ────────────────────────────────────────────────────
     if (g.warpActive && g.frame - g.warpFrame < 30) {
       const wt = (g.frame - g.warpFrame) / 30;
@@ -566,6 +611,13 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     g.speed = Math.min(BASE_SPD + Math.floor(g.frame / 320) * 0.8, 14);
     const beatMult = g.hasBeat ? 2 : 1;
     g.score = Math.floor(g.frame * g.speed * 0.09 * beatMult) + g.gems * 10 * Math.max(1, g.comboCount) + g.scoreBonus;
+
+    // Activate ghost runners when score passes their threshold
+    ghostsRef.current.forEach(gh => {
+      if (gh.showUntilFrame === -1 && g.score >= gh.diedAt) {
+        gh.showUntilFrame = g.frame + 130; // show for ~2 seconds
+      }
+    });
 
     // Milestone check
     const msTarget = Math.floor(g.score / 1000) * 1000;
@@ -828,6 +880,8 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     gs.current = mkGS(); setPhase("idle"); setFin({ score: 0, gems: 0, maxCombo: 0, timeSec: 0 });
     setUi({ combo: 0, shield: false, magnet: false, star: false, beat: false, speed: BASE_SPD, beatTimer: 0 });
     setCopied(false);
+    // Reset ghost triggers for next run
+    ghostsRef.current.forEach(gh => { gh.showUntilFrame = -1; });
     requestAnimationFrame(draw);
   }
 
@@ -877,6 +931,20 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
           <div style={{ color: "#c8ff00", fontSize: 42, fontWeight: 900, textShadow: "0 0 24px #c8ff0077", lineHeight: 1 }}>{fin.score}</div>
           {fin.score > best && <div style={{ color: "#ffdd00", fontSize: 12, fontWeight: 700 }}>NEW BEST!</div>}
           {fin.score <= best && best > 0 && <div style={{ color: "#666", fontSize: 11 }}>BEST: <span style={{ color: "#c8ff00" }}>{best}</span></div>}
+          {/* Ghost proximity hint */}
+          {(() => {
+            const ahead = ghostsRef.current.filter(gh => gh.diedAt > fin.score).sort((a, b) => a.diedAt - b.diedAt)[0];
+            const beat  = ghostsRef.current.filter(gh => gh.diedAt <= fin.score).sort((a, b) => b.diedAt - a.diedAt)[0];
+            return ahead ? (
+              <div style={{ fontSize: 10, color: "#ff8888", background: "#ff000018", border: "1px solid #ff444433", borderRadius: 8, padding: "5px 12px", textAlign: "center" }}>
+                {ahead.petEmoji} @{ahead.name} died {ahead.diedAt - fin.score} pts ahead
+              </div>
+            ) : beat ? (
+              <div style={{ fontSize: 10, color: "#c8ff00", background: "#c8ff0011", border: "1px solid #c8ff0033", borderRadius: 8, padding: "5px 12px", textAlign: "center" }}>
+                👻 You beat @{beat.name}'s ghost! ({beat.diedAt} pts)
+              </div>
+            ) : null;
+          })()}
           {/* Stats grid */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 18px", marginTop: 4, marginBottom: 4 }}>
             <div style={{ textAlign: "center" }}>
