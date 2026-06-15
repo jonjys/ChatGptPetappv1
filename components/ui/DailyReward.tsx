@@ -37,7 +37,7 @@ export default function DailyReward() {
     const nextDay = isConsecutive ? ((savedDay % 7) + 1) : 1;
 
     setDayIdx(nextDay - 1);
-    setShow(true);
+    setTimeout(() => setShow(true), 1500);
   }, []);
 
   function handleClaim() {

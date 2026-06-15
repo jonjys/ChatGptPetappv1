@@ -16,8 +16,10 @@ export default function WorldGate({ children }: { children: React.ReactNode }) {
     if (saved) {
       setReady(true);
     } else {
-      setShow(true);
+      // Auto-select city as default — never block the whole app
+      localStorage.setItem(WORLD_STORAGE_KEY, "city");
       setReady(true);
+      // Don't show the gate (it's shown from Settings instead)
     }
   }, []);
 
