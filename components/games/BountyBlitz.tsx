@@ -17,6 +17,8 @@ type VerificationType =
   | "health_steps"
   | "health_water"
   | "health_sleep"
+  | "health_shower"
+  | "health_workout"
   | "workout_timer"
   | "finance_save"
   | "finance_read"
@@ -30,6 +32,7 @@ type VerificationType =
   | "learn_read"
   | "meditate_timer"
   | "wellbeing_gratitude"
+  | "wellbeing_grateful"
   | "wellbeing_confirm";
 
 interface Bounty {
@@ -221,9 +224,18 @@ const STATIC_BOUNTIES: Bounty[] = [
     title: "Ta en kall dusch",
     description: "Bygg mental styrka och boosta cirkulationen.",
     karmaReward: 40, xpReward: 90,
-    verificationType: "wellbeing_confirm",
-    verificationHint: "Ärlighet är allt — gjorde du det?",
+    verificationType: "health_shower",
+    verificationHint: "Håll ut! Kall dusch i 3 minuter bevisar ditt engagemang",
     appHook: undefined,
+  },
+  {
+    id: "h3b", emoji: "🏋️", category: "health", difficulty: "hard",
+    title: "Träna hårt 20 min",
+    description: "Intensiv träning i minst 20 minuter — timer krävs.",
+    karmaReward: 45, xpReward: 100,
+    verificationType: "health_workout",
+    verificationHint: "Starta timern och träna — du kan inte förkorta den!",
+    appHook: "Träningsapp",
   },
 ];
 
@@ -366,17 +378,52 @@ function VerificationScreen({
 }) {
   const vt = bounty.verificationType;
 
-  // Steps
+  // Steps — manual entry with honest reporting
   if (vt === "health_steps") {
-    const steps = useRef(Math.floor(Math.random() * 5001) + 7000).current;
-    useEffect(() => { onReady(true); }, []);
+    const [stepsEntered, setStepsEntered] = useState(0);
+    useEffect(() => { onReady(stepsEntered >= 8000); }, [stepsEntered]);
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "12px 0" }}>
-        <div style={{ color: "#22c55e", fontSize: 13, fontWeight: 700, letterSpacing: 2 }}>HÄLSA-APPEN</div>
-        <StepRing steps={steps} />
-        <div style={{ color: "#aaa", fontSize: 12, textAlign: "center" }}>
-          {bounty.verificationHint}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, padding: "12px 0" }}>
+        <div style={{ color: "#22c55e", fontSize: 13, fontWeight: 700, letterSpacing: 2 }}>👟 10 000 STEG VERIFIERING</div>
+        <div style={{
+          background: "#0d1a0d", border: "1.5px solid #22c55e44",
+          borderRadius: 12, padding: "10px 14px", width: "100%", boxSizing: "border-box",
+        }}>
+          <div style={{ color: "#22c55e", fontSize: 12, fontWeight: 700, marginBottom: 4 }}>🔗 Hälsa-appen integration kommer snart</div>
+          <div style={{ color: "#888", fontSize: 11 }}>Steg räknas automatiskt via Hälsa-appen</div>
         </div>
+        <div style={{ width: "100%" }}>
+          <div style={{ color: "#aaa", fontSize: 12, marginBottom: 6 }}>Hur många steg gick du idag?</div>
+          <input
+            type="number"
+            min={0}
+            max={20000}
+            value={stepsEntered || ""}
+            onChange={(e) => setStepsEntered(Number(e.target.value))}
+            placeholder="Ange ditt stegantal"
+            style={{
+              width: "100%", padding: "10px 14px",
+              background: "#0d1a0d", border: `2px solid ${stepsEntered >= 8000 ? "#22c55e" : "#333"}`,
+              borderRadius: 10, color: stepsEntered >= 8000 ? "#22c55e" : "#fff",
+              fontSize: 18, fontWeight: 700, fontFamily: "monospace",
+              outline: "none", boxSizing: "border-box",
+            }}
+          />
+        </div>
+        {stepsEntered > 0 && (
+          <StepRing steps={stepsEntered} />
+        )}
+        <div style={{ color: "#555", fontSize: 11, textAlign: "center" }}>
+          Ange ditt faktiska antal steg från Hälsa-appen på din telefon
+        </div>
+        <div style={{ color: "#444", fontSize: 10, textAlign: "center", fontStyle: "italic" }}>
+          Vi litar på din ärlighet — fusk skadar bara dig själv
+        </div>
+        {stepsEntered > 0 && stepsEntered < 8000 && (
+          <div style={{ color: "#ff6b35", fontSize: 11, textAlign: "center" }}>
+            Minst 8 000 steg krävs för att bekräfta (du har {stepsEntered.toLocaleString("sv-SE")})
+          </div>
+        )}
       </div>
     );
   }
@@ -394,6 +441,136 @@ function VerificationScreen({
             Timern måste löpa klart för att bekräfta
           </div>
         )}
+      </div>
+    );
+  }
+
+  // Cold shower — 3-minute countdown timer
+  if (vt === "health_shower") {
+    const [showerTime, setShowerTime] = useState(180);
+    const [showerRunning, setShowerRunning] = useState(false);
+    const [showerDone, setShowerDone] = useState(false);
+    useEffect(() => { onReady(showerDone); }, [showerDone]);
+    useEffect(() => {
+      if (!showerRunning || showerTime <= 0) return;
+      const id = setInterval(() => setShowerTime((t) => {
+        if (t <= 1) { setShowerRunning(false); setShowerDone(true); return 0; }
+        return t - 1;
+      }), 1000);
+      return () => clearInterval(id);
+    }, [showerRunning, showerTime]);
+    const pct = ((180 - showerTime) / 180) * 100;
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, padding: "12px 0" }}>
+        <div style={{ color: "#ff2d8d", fontSize: 13, fontWeight: 700, letterSpacing: 2 }}>🚿 KALL DUSCH VERIFIERING</div>
+        <div style={{
+          color: showerDone ? "#22c55e" : "#ff2d8d",
+          fontSize: 48, fontWeight: 900, fontFamily: "monospace",
+          textShadow: showerDone ? "0 0 20px #22c55e" : "0 0 20px #ff2d8d",
+        }}>
+          {Math.floor(showerTime / 60)}:{String(showerTime % 60).padStart(2, "0")}
+        </div>
+        <div style={{ width: "100%", height: 10, background: "#1a0010", borderRadius: 999, overflow: "hidden" }}>
+          <motion.div
+            animate={{ width: `${pct}%` }}
+            style={{ height: "100%", background: showerDone ? "#22c55e" : "#ff2d8d", borderRadius: 999 }}
+            transition={{ duration: 0.5 }}
+          />
+        </div>
+        {showerDone ? (
+          <div style={{ color: "#22c55e", fontSize: 18, fontWeight: 700, textAlign: "center" }}>
+            ✅ DU KLARADE DET!
+          </div>
+        ) : (
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowerRunning((r) => !r)}
+            style={{
+              padding: "12px 28px", borderRadius: 12,
+              background: showerRunning ? "#1a0010" : "#ff2d8d22",
+              border: "2px solid #ff2d8d",
+              color: "#ff2d8d", fontSize: 14, fontWeight: 700, cursor: "pointer",
+            }}
+          >
+            {showerRunning ? "⏸ PAUSA" : showerTime === 180 ? "▶ START" : "▶ FORTSÄTT"}
+          </motion.button>
+        )}
+        <div style={{ color: "#888", fontSize: 11, textAlign: "center" }}>
+          {bounty.verificationHint}
+        </div>
+      </div>
+    );
+  }
+
+  // Workout — 20-minute countdown with pause/resume and progress bar
+  if (vt === "health_workout") {
+    const [workoutTime, setWorkoutTime] = useState(1200);
+    const [workoutRunning, setWorkoutRunning] = useState(false);
+    const [workoutDone, setWorkoutDone] = useState(false);
+    const [workoutPaused, setWorkoutPaused] = useState(false);
+    useEffect(() => { onReady(workoutDone); }, [workoutDone]);
+    useEffect(() => {
+      if (!workoutRunning || workoutTime <= 0) return;
+      const id = setInterval(() => setWorkoutTime((t) => {
+        if (t <= 1) { setWorkoutRunning(false); setWorkoutDone(true); return 0; }
+        return t - 1;
+      }), 1000);
+      return () => clearInterval(id);
+    }, [workoutRunning, workoutTime]);
+    const elapsed = 1200 - workoutTime;
+    const pct = (elapsed / 1200) * 100;
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, padding: "12px 0" }}>
+        <div style={{ color: "#00e5ff", fontSize: 13, fontWeight: 700, letterSpacing: 2 }}>🏋️ TRÄNINGSVERIFIERING</div>
+        <div style={{
+          color: workoutDone ? "#22c55e" : "#00e5ff",
+          fontSize: 48, fontWeight: 900, fontFamily: "monospace",
+          textShadow: workoutDone ? "0 0 20px #22c55e" : "0 0 20px #00e5ff",
+        }}>
+          {Math.floor(workoutTime / 60)}:{String(workoutTime % 60).padStart(2, "0")}
+        </div>
+        {/* Progress bar */}
+        <div style={{ width: "100%", height: 10, background: "#001a1a", borderRadius: 999, overflow: "hidden" }}>
+          <motion.div
+            animate={{ width: `${pct}%` }}
+            style={{ height: "100%", background: workoutDone ? "#22c55e" : "#00e5ff", borderRadius: 999 }}
+            transition={{ duration: 0.5 }}
+          />
+        </div>
+        <div style={{ color: "#555", fontSize: 11 }}>
+          {Math.round(pct)}% klar · {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")} tränad
+        </div>
+        {workoutDone ? (
+          <div style={{ color: "#22c55e", fontSize: 18, fontWeight: 700, textAlign: "center" }}>
+            💪 TRÄNING KLAR! Fantastiskt!
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 10 }}>
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                if (workoutRunning) {
+                  setWorkoutRunning(false);
+                  setWorkoutPaused(true);
+                } else {
+                  setWorkoutRunning(true);
+                  setWorkoutPaused(false);
+                }
+              }}
+              style={{
+                padding: "12px 24px", borderRadius: 12,
+                background: workoutRunning ? "#001a1a" : "#00e5ff22",
+                border: "2px solid #00e5ff",
+                color: "#00e5ff", fontSize: 14, fontWeight: 700, cursor: "pointer",
+              }}
+            >
+              {workoutRunning ? "⏸ PAUSA" : workoutPaused ? "▶ ÅTERUPPTA" : "▶ START"}
+            </motion.button>
+          </div>
+        )}
+        <div style={{ color: "#888", fontSize: 11, textAlign: "center" }}>
+          Starta timern och träna — du kan inte förkorta den!
+        </div>
       </div>
     );
   }
@@ -802,32 +979,94 @@ function VerificationScreen({
     );
   }
 
-  // Gratitude — text input
-  if (vt === "wellbeing_gratitude") {
-    const [text, setText] = useState("");
-    const lineCount = text.split("\n").filter((l) => l.trim().length > 0).length;
-    useEffect(() => { onReady(lineCount >= 3); }, [lineCount]);
+  // Gratitude — structured 3-field compose UI
+  if (vt === "wellbeing_gratitude" || vt === "wellbeing_grateful") {
+    const [gratefulItems, setGratefulItems] = useState(["", "", ""]);
+    const [toastShown, setToastShown] = useState(false);
+    const allFilled = gratefulItems.every((g) => g.trim().length >= 10);
+    useEffect(() => { onReady(allFilled); }, [allFilled]);
+    function updateItem(i: number, val: string) {
+      setGratefulItems((prev) => { const next = [...prev]; next[i] = val; return next; });
+    }
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "12px 0" }}>
-        <div style={{ color: "#14b8a6", fontSize: 12, fontWeight: 700, letterSpacing: 1 }}>
-          Skriv 3 saker du är tacksam för ({lineCount}/3)
-        </div>
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={"1. ...\n2. ...\n3. ..."}
-          rows={5}
-          style={{
-            width: "100%", padding: "10px 12px",
-            background: "#0d1214", border: "2px solid #14b8a6",
-            borderRadius: 10, color: "#fff", fontSize: 13, lineHeight: 1.6,
-            outline: "none", resize: "none", fontFamily: "inherit",
-            boxSizing: "border-box",
-          }}
-        />
-        {lineCount < 3 && (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "12px 0" }}>
+        <div style={{ color: "#14b8a6", fontSize: 13, fontWeight: 700, letterSpacing: 2 }}>🙏 TACKSAM VERIFIERING</div>
+        <div style={{ color: "#aaa", fontSize: 12 }}>Skriv 3 saker du är tacksam för idag</div>
+        {([0, 1, 2] as const).map((i) => (
+          <div key={i}>
+            <div style={{ color: "#888", fontSize: 11, marginBottom: 4 }}>
+              {i + 1}. Jag är tacksam för...
+            </div>
+            <input
+              type="text"
+              value={gratefulItems[i]}
+              onChange={(e) => updateItem(i, e.target.value)}
+              placeholder={`Skriv något du är tacksam för...`}
+              style={{
+                width: "100%", padding: "10px 12px",
+                background: "#0d1214",
+                border: `2px solid ${gratefulItems[i].trim().length >= 10 ? "#14b8a6" : "#333"}`,
+                borderRadius: 10, color: "#fff", fontSize: 13,
+                outline: "none", fontFamily: "inherit", boxSizing: "border-box",
+              }}
+            />
+            {gratefulItems[i].trim().length > 0 && gratefulItems[i].trim().length < 10 && (
+              <div style={{ color: "#555", fontSize: 10, marginTop: 2 }}>
+                Minst 10 tecken ({gratefulItems[i].trim().length}/10)
+              </div>
+            )}
+          </div>
+        ))}
+        {/* Preview card */}
+        {gratefulItems.some((g) => g.trim().length > 0) && (
+          <div style={{
+            background: "#0a1a14", border: "1.5px solid #14b8a644",
+            borderRadius: 12, padding: "12px",
+          }}>
+            <div style={{ color: "#14b8a6", fontSize: 10, fontWeight: 700, letterSpacing: 2, marginBottom: 8 }}>
+              FÖRHANDSGRANSKNING AV INLÄGG
+            </div>
+            {gratefulItems.map((g, i) => g.trim() ? (
+              <div key={i} style={{ color: "#ccc", fontSize: 12, lineHeight: 1.6 }}>
+                {i + 1}. {g.trim()}
+              </div>
+            ) : (
+              <div key={i} style={{ color: "#333", fontSize: 12, lineHeight: 1.6, fontStyle: "italic" }}>
+                {i + 1}. (inte ifyllt ännu)
+              </div>
+            ))}
+          </div>
+        )}
+        {toastShown && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            style={{
+              background: "#0a1a0a", border: "2px solid #22c55e",
+              borderRadius: 10, padding: "8px 14px",
+              color: "#22c55e", fontSize: 12, fontWeight: 700, textAlign: "center",
+            }}
+          >
+            📝 Inlägg delat!
+          </motion.div>
+        )}
+        {allFilled && !toastShown && (
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setToastShown(true)}
+            style={{
+              padding: "10px", background: "#0a1a14",
+              border: "2px solid #14b8a6", borderRadius: 10,
+              color: "#14b8a6", fontSize: 12, fontWeight: 700, cursor: "pointer",
+            }}
+          >
+            📤 Dela inlägg till flödet
+          </motion.button>
+        )}
+        {!allFilled && (
           <div style={{ color: "#555", fontSize: 11 }}>
-            Skriv minst 3 rader för att bekräfta
+            Fyll i alla 3 fält (minst 10 tecken vardera) för att bekräfta
           </div>
         )}
       </div>
