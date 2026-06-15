@@ -361,21 +361,23 @@ function JudgmentRing({ onResult, hitZoneWidth, hasCombo }: JudgmentRingProps) {
 /* ─── Sub-components ──────────────────────────────────────────────────────── */
 
 function DmgNum({ value, x, y, color }: { value: number; x: number; y: number; color: string }) {
+  const isBig = value >= 30;
   return (
     <motion.div
-      initial={{ opacity: 1, y: 0, scale: 0.5 }}
-      animate={{ opacity: 0, y: -60, scale: 1.2 }}
-      transition={{ duration: 1.2 }}
+      initial={{ opacity: 1, y: 0, scale: isBig ? 0.4 : 0.6 }}
+      animate={{ opacity: 0, y: -70, scale: isBig ? 1.5 : 1.2 }}
+      transition={{ duration: 1.3, ease: "easeOut" }}
       style={{
         position: "absolute",
         left: x,
         top: y,
         color,
         fontWeight: 900,
-        fontSize: 22,
+        fontSize: isBig ? 30 : 24,
         pointerEvents: "none",
         zIndex: 20,
-        textShadow: `0 0 8px ${color}`,
+        textShadow: `0 0 12px ${color}, 0 0 4px ${color}`,
+        letterSpacing: isBig ? -1 : 0,
       }}
     >
       -{value}
@@ -1673,29 +1675,68 @@ export default function PetBattle({ pet, onEnd }: Props) {
         </motion.div>
       )}
 
-      {/* ── Isometric Arena ─────────────────────────────────────────────────── */}
+      {/* ── Epic Arena ──────────────────────────────────────────────────────── */}
       <div
         style={{
-          background: environment ? environment.bgAccent : "#0e0600",
-          border: "2px solid #ff6b3544",
-          borderRadius: 16,
-          padding: "14px 14px 10px",
+          background: environment ? environment.bgAccent : "#050010",
+          border: `2px solid ${combo >= 5 ? "#ff2d8d" : combo >= 3 ? "#ffde00" : "#ff6b3544"}`,
+          borderRadius: 20,
+          padding: "12px 12px 8px",
           position: "relative",
           overflow: "hidden",
+          boxShadow: combo >= 3 ? `0 0 30px ${combo >= 5 ? "#ff2d8d44" : "#ffde0044"} inset` : "none",
         }}
       >
+        {/* Animated energy rings */}
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
+          {[0, 1, 2].map(i => (
+            <motion.div
+              key={i}
+              animate={{ scale: [0.4, 1.6], opacity: [0.4, 0] }}
+              transition={{ duration: 2.5 + i * 0.8, repeat: Infinity, delay: i * 0.7, ease: "easeOut" }}
+              style={{
+                position: "absolute",
+                left: "50%", top: "50%",
+                transform: "translate(-50%, -50%)",
+                width: 120, height: 120,
+                borderRadius: "50%",
+                border: `1.5px solid ${environment?.bgAccent ? "#ff9800" : "#ff6b35"}`,
+                opacity: 0,
+              }}
+            />
+          ))}
+          {/* Ambient glow orbs */}
+          {[
+            { left: "15%", top: "30%", color: "#ff2d8d" },
+            { left: "75%", top: "55%", color: "#ff6b35" },
+            { left: "50%", top: "20%", color: "#8b5cf6" },
+          ].map((orb, i) => (
+            <motion.div
+              key={i}
+              animate={{ opacity: [0.1, 0.35, 0.1], scale: [1, 1.3, 1] }}
+              transition={{ duration: 2.5 + i * 0.6, repeat: Infinity, ease: "easeInOut" }}
+              style={{
+                position: "absolute",
+                width: 40, height: 40,
+                borderRadius: "50%",
+                background: orb.color,
+                filter: "blur(14px)",
+                left: orb.left, top: orb.top,
+                transform: "translate(-50%,-50%)",
+              }}
+            />
+          ))}
+        </div>
         {/* Arena floor */}
         <div
           style={{
-            background:
-              "repeating-linear-gradient(45deg, #0a0500 0px, #0a0500 24px, #150800 24px, #150800 48px)",
-            transform: "perspective(400px) rotateX(40deg)",
-            border: "2px solid #ff6b3566",
-            boxShadow: "0 0 40px #ff6b3522 inset",
+            background: "radial-gradient(ellipse at 50% 100%, #1a0a0022 0%, transparent 70%), repeating-linear-gradient(45deg, #0a0508 0px, #0a0508 20px, #100510 20px, #100510 40px)",
+            border: `1.5px solid ${combo >= 3 ? "#ffde0044" : "#ff6b3533"}`,
+            boxShadow: "0 0 30px #ff6b3511 inset",
             borderRadius: 10,
-            height: 100,
+            height: 70,
             position: "relative",
-            marginBottom: 10,
+            marginBottom: 8,
             overflow: "hidden",
           }}
         >
@@ -1791,9 +1832,9 @@ export default function PetBattle({ pet, onEnd }: Props) {
             <motion.div
               animate={
                 shakePlayer
-                  ? { x: [-8, 8, -5, 5, 0] }
+                  ? { x: [-10, 10, -6, 6, 0] }
                   : turnPhase === "player"
-                  ? { y: [0, -4, 0] }
+                  ? { y: [0, -6, 0] }
                   : {}
               }
               transition={
@@ -1802,24 +1843,32 @@ export default function PetBattle({ pet, onEnd }: Props) {
                   : { duration: 2, repeat: Infinity, ease: "easeInOut" }
               }
               style={{
-                width: 80,
-                height: 80,
+                width: 96,
+                height: 96,
                 borderRadius: "50%",
-                background: "#0a0500",
-                border: `3px solid ${turnPhase === "player" ? "#c8ff00" : "#333"}`,
-                boxShadow:
-                  turnPhase === "player"
-                    ? "0 0 18px #c8ff0088, 0 0 4px #c8ff00"
+                background: "radial-gradient(circle at 35% 35%, #1a1000, #0a0500)",
+                border: `3px solid ${turnPhase === "player" ? "#c8ff00" : playerLow ? "#ff2d2d" : "#333"}`,
+                boxShadow: turnPhase === "player"
+                    ? "0 0 28px #c8ff0099, 0 0 8px #c8ff00, inset 0 0 12px #c8ff0022"
                     : playerLow
-                    ? "0 0 12px #ff2d2d88"
+                    ? "0 0 20px #ff2d2d99, 0 0 6px #ff2d2d"
                     : "none",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "2.8rem",
-                filter: playerLow ? "grayscale(0.4) brightness(0.8)" : "none",
+                fontSize: "3.4rem",
+                filter: playerLow ? "grayscale(0.3) brightness(0.75) drop-shadow(0 0 4px #ff2d2d)" : "drop-shadow(0 0 4px #c8ff0044)",
+                position: "relative",
               }}
             >
+              {/* Turn-active pulse ring */}
+              {turnPhase === "player" && (
+                <motion.div
+                  animate={{ scale: [1, 1.4, 1], opacity: [0.6, 0, 0.6] }}
+                  transition={{ duration: 1.2, repeat: Infinity }}
+                  style={{ position: "absolute", inset: -6, borderRadius: "50%", border: "2px solid #c8ff00", pointerEvents: "none" }}
+                />
+              )}
               {petAvatarEmoji}
             </motion.div>
             <AnimatePresence>
@@ -1870,26 +1919,47 @@ export default function PetBattle({ pet, onEnd }: Props) {
               alignItems: "center",
               justifyContent: "center",
               gap: 4,
-              paddingBottom: 20,
+              paddingBottom: 24,
+              minWidth: 44,
             }}
           >
             <motion.div
-              animate={{ scale: [1, 1.1, 1], opacity: [0.8, 1, 0.8] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
+              animate={{ scale: [1, 1.18, 1], opacity: [0.9, 1, 0.9], textShadow: ["0 0 8px #ff6b35", "0 0 20px #ff6b35", "0 0 8px #ff6b35"] as unknown as string }}
+              transition={{ duration: 1.2, repeat: Infinity }}
               style={{
                 color: "#ff6b35",
                 fontWeight: 900,
-                fontSize: 14,
-                letterSpacing: 2,
-                textShadow: "0 0 10px #ff6b35",
+                fontSize: 16,
+                letterSpacing: 3,
+                textShadow: "0 0 12px #ff6b35",
+                background: "#ff6b3522",
+                border: "1.5px solid #ff6b3566",
+                borderRadius: 8,
+                padding: "4px 8px",
               }}
             >
               VS
             </motion.div>
+            {combo >= 2 && (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                style={{
+                  color: "#ffde00",
+                  fontSize: 10,
+                  fontWeight: 900,
+                  textShadow: "0 0 8px #ffde00",
+                  textAlign: "center",
+                  letterSpacing: 0.5,
+                }}
+              >
+                🔥×{combo}
+              </motion.div>
+            )}
             <div
               style={{
-                width: 1,
-                height: 30,
+                width: 1.5,
+                height: 20,
                 background: "linear-gradient(to bottom, #ff6b3588, transparent)",
               }}
             />
@@ -1930,10 +2000,10 @@ export default function PetBattle({ pet, onEnd }: Props) {
                   : { duration: 2.2, repeat: Infinity, ease: "easeInOut" }
               }
               style={{
-                width: enemy?.isBoss ? 78 : 68,
-                height: enemy?.isBoss ? 78 : 68,
+                width: enemy?.isBoss ? 100 : 88,
+                height: enemy?.isBoss ? 100 : 88,
                 borderRadius: "50%",
-                background: "#0a0500",
+                background: "radial-gradient(circle at 35% 35%, #1a0800, #080400)",
                 border: `3px solid ${
                   enemy?.isBoss
                     ? "#ff2d2d"
@@ -1943,19 +2013,30 @@ export default function PetBattle({ pet, onEnd }: Props) {
                 }`,
                 boxShadow:
                   enemy?.isBoss
-                    ? "0 0 20px #ff2d2d88"
+                    ? "0 0 30px #ff2d2d99, 0 0 10px #ff2d2d, inset 0 0 10px #ff2d2d22"
                     : turnPhase === "enemy" || turnPhase === "animating"
-                    ? "0 0 18px #ff6b3588, 0 0 4px #ff6b35"
+                    ? "0 0 26px #ff6b3599, 0 0 8px #ff6b35"
                     : enemyLow
-                    ? "0 0 12px #ff2d2d88"
+                    ? "0 0 18px #ff2d2d99"
                     : "none",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "2.2rem",
-                filter: enemyLow ? "grayscale(0.4) brightness(0.7)" : "none",
+                fontSize: enemy?.isBoss ? "3rem" : "2.7rem",
+                filter: enemyLow
+                  ? "grayscale(0.3) brightness(0.7) drop-shadow(0 0 4px #ff2d2d)"
+                  : "drop-shadow(0 0 4px #ff6b3544)",
+                position: "relative",
               }}
             >
+              {/* Enemy turn pulse ring */}
+              {(turnPhase === "enemy" || turnPhase === "animating") && (
+                <motion.div
+                  animate={{ scale: [1, 1.4, 1], opacity: [0.6, 0, 0.6] }}
+                  transition={{ duration: 1.1, repeat: Infinity }}
+                  style={{ position: "absolute", inset: -6, borderRadius: "50%", border: "2px solid #ff6b35", pointerEvents: "none" }}
+                />
+              )}
               {enemy?.petEmoji}
             </motion.div>
             {enemy && !enemy.isBoss && (
