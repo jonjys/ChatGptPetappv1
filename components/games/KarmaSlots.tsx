@@ -306,14 +306,14 @@ function ReelWindow({ symbol, spinning, stopped, spinIndex, isWinner, isUltraJac
   const borderColor = isWinner || showJackpot || isWild ? glowColor : "rgba(200,255,0,0.3)";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
       <div
         style={{
-          width: 78,
-          height: 90,
+          width: 58,
+          height: 68,
           background: "#0a0a0a",
           border: `2px solid ${borderColor}`,
-          borderRadius: 12,
+          borderRadius: 10,
           overflow: "hidden",
           position: "relative",
           flexShrink: 0,
@@ -327,7 +327,7 @@ function ReelWindow({ symbol, spinning, stopped, spinIndex, isWinner, isUltraJac
       >
         {!stopped ? (
           <motion.div
-            animate={{ y: [0, -90 * SYMBOLS.length] }}
+            animate={{ y: [0, -68 * SYMBOLS.length] }}
             transition={{ duration: 0.35 + spinIndex * 0.05, repeat: Infinity, ease: "linear" }}
             style={{
               display: "flex",
@@ -343,12 +343,12 @@ function ReelWindow({ symbol, spinning, stopped, spinIndex, isWinner, isUltraJac
               <div
                 key={si}
                 style={{
-                  width: 78,
-                  height: 90,
+                  width: 58,
+                  height: 68,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: "2.8rem",
+                  fontSize: "2rem",
                   flexShrink: 0,
                 }}
               >
@@ -368,7 +368,7 @@ function ReelWindow({ symbol, spinning, stopped, spinIndex, isWinner, isUltraJac
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: "2.8rem",
+              fontSize: "2rem",
               position: "relative",
             }}
           >
@@ -960,8 +960,8 @@ export default function KarmaSlots({ karma, onSpin, onWin }: Props) {
         transition={{ duration: 0.5 }}
         style={{
           background: "linear-gradient(135deg, #2a2a2a, #111, #333, #111)",
-          borderRadius: 28,
-          padding: "20px 36px 24px",
+          borderRadius: 24,
+          padding: "10px 20px 14px",
           boxShadow: "0 20px 60px rgba(0,0,0,0.8), 0 0 40px #c8ff0022",
           width: "100%",
           maxWidth: 500,
@@ -973,7 +973,7 @@ export default function KarmaSlots({ karma, onSpin, onWin }: Props) {
         <SidePanel side="right" />
 
         {/* KARMA SLOTS Logo */}
-        <div style={{ textAlign: "center", marginTop: 14, marginBottom: 8, position: "relative", zIndex: 1 }}>
+        <div style={{ textAlign: "center", marginTop: 6, marginBottom: 4, position: "relative", zIndex: 1 }}>
           <motion.div
             animate={{
               textShadow: [
@@ -986,11 +986,11 @@ export default function KarmaSlots({ karma, onSpin, onWin }: Props) {
               color: ["#c8ff00", "#00e5ff", "#ff2d8d", "#ffde00", "#c8ff00"],
             }}
             transition={{ duration: 4, repeat: Infinity }}
-            style={{ fontSize: 28, fontWeight: 900, letterSpacing: 6, lineHeight: 1 }}
+            style={{ fontSize: 20, fontWeight: 900, letterSpacing: 4, lineHeight: 1 }}
           >
             ★ KARMA SLOTS ★
           </motion.div>
-          <div style={{ color: "#ffde0066", fontSize: 10, fontWeight: 600, letterSpacing: 3, marginTop: 3 }}>
+          <div style={{ color: "#ffde0066", fontSize: 9, fontWeight: 600, letterSpacing: 2, marginTop: 2 }}>
             SESSION: <span style={{ color: "#ffde00", fontWeight: 800 }}>{sessionKarma} ⚡</span>
           </div>
         </div>
@@ -1014,8 +1014,8 @@ export default function KarmaSlots({ karma, onSpin, onWin }: Props) {
           style={{
             background: "#1a0a00",
             border: `3px solid ${inBonusActive ? "#ff6b00" : isNextLucky ? "#00e5ff" : "#c8ff00"}`,
-            borderRadius: 20,
-            padding: "18px 16px",
+            borderRadius: 16,
+            padding: "10px 10px",
             position: "relative",
             overflow: "hidden",
           }}
@@ -1119,7 +1119,7 @@ export default function KarmaSlots({ karma, onSpin, onWin }: Props) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                style={{ textAlign: "center", marginBottom: 12, minHeight: 44 }}
+                style={{ textAlign: "center", marginBottom: 8, minHeight: 36 }}
               >
                 <div style={{
                   color: result.win > 0 ? (result.isUltraJackpot ? "#bf00ff" : result.isJackpot ? "#ffde00" : "#c8ff00") : "#555",
@@ -1153,7 +1153,7 @@ export default function KarmaSlots({ karma, onSpin, onWin }: Props) {
               </motion.div>
             )}
             {!result && !spinning && (
-              <div style={{ height: 44, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ height: 36, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <div style={{ color: "#333", fontSize: 12, letterSpacing: 2 }}>PRESS SPIN TO PLAY</div>
               </div>
             )}
@@ -1161,7 +1161,7 @@ export default function KarmaSlots({ karma, onSpin, onWin }: Props) {
               <motion.div
                 animate={{ opacity: [0.5, 1, 0.5] }}
                 transition={{ duration: 0.5, repeat: Infinity }}
-                style={{ height: 44, display: "flex", alignItems: "center", justifyContent: "center" }}
+                style={{ height: 36, display: "flex", alignItems: "center", justifyContent: "center" }}
               >
                 <div style={{ color: "#ffde0099", fontSize: 13, letterSpacing: 4, fontWeight: 700 }}>SPINNING...</div>
               </motion.div>
@@ -1210,8 +1210,8 @@ export default function KarmaSlots({ karma, onSpin, onWin }: Props) {
             disabled={!canSpin}
             style={{
               width: "100%",
-              height: 64,
-              padding: "0 20px",
+              height: 48,
+              padding: "0 16px",
               background: !canSpin
                 ? "#222"
                 : inBonusActive
@@ -1270,13 +1270,13 @@ export default function KarmaSlots({ karma, onSpin, onWin }: Props) {
         {/* ── Bet Level Selector ── */}
         <div style={{
           display: "flex",
-          gap: 8,
+          gap: 6,
           alignItems: "center",
-          marginTop: 14,
+          marginTop: 8,
           background: "#0d0d0d",
           border: "2px solid #2a2a2a",
-          borderRadius: 14,
-          padding: "10px 14px",
+          borderRadius: 12,
+          padding: "6px 10px",
         }}>
           <span style={{ color: "#555", fontSize: 11, fontWeight: 700, letterSpacing: 2, flexShrink: 0 }}>BET:</span>
           {BET_LEVELS.map((level, idx) => {
@@ -1321,7 +1321,7 @@ export default function KarmaSlots({ karma, onSpin, onWin }: Props) {
         {/* ── Stats Row ── */}
         <div style={{
           display: "flex",
-          marginTop: 10,
+          marginTop: 6,
           background: "#080808",
           border: "1px solid #1a1a1a",
           borderRadius: 10,

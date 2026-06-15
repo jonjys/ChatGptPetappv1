@@ -4,8 +4,8 @@ import { useRef, useEffect, useCallback, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-const CW = 360, CH = 480;
-const PAD_W = 70, PAD_H = 10, PAD_Y = CH - 45;
+const CW = 360, CH = 310;
+const PAD_W = 70, PAD_H = 10, PAD_Y = CH - 32;
 const BALL_R = 7;
 const BLOCK_COLS = 8;
 const BW = Math.floor(CW / BLOCK_COLS) - 3;
@@ -91,7 +91,7 @@ const POWERUP_INFO: Record<PowerupKind, { emoji: string; color: string; label: s
 function buildBlocks(wave: number): Block[] {
   const blocks: Block[] = [];
   const colors = WAVE_COLORS[(wave - 1) % WAVE_COLORS.length];
-  const rows = Math.min(4 + Math.floor(wave / 2), 9);
+  const rows = Math.min(3 + Math.floor(wave / 2), 6);
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < BLOCK_COLS; c++) {

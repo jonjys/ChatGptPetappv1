@@ -117,8 +117,8 @@ interface Props {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const CW = 360;
-const CH = 500;
-const SKY_H = 55;           // 0 → 55
+const CH = 320;
+const SKY_H = 28;           // 0 → 28
 const WATER_TOP = SKY_H;
 const WATER_H = CH - SKY_H; // 445px of water
 // Zone boundaries (absolute Y)

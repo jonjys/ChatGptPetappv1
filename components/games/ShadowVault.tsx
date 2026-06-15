@@ -156,31 +156,31 @@ export default function ShadowVault({ karma, onSpend, onWin }: Props) {
       {activeTab === "open" && (
         <>
           {/* Vault picker */}
-          <div className="flex gap-2 mb-4">
+          <div className="flex gap-2 mb-2">
             {VAULTS.map((vt, i) => (
               <button key={i} onClick={() => setSelectedVault(i)}
                 disabled={phase === "spinning"}
                 style={{
-                  flex: 1, padding: "10px 6px", borderRadius: 14,
+                  flex: 1, padding: "6px 4px", borderRadius: 10,
                   background: selectedVault === i ? `${vt.color}18` : "#111",
-                  border: `2.5px solid ${selectedVault === i ? vt.color : "#2a2a2a"}`,
+                  border: `2px solid ${selectedVault === i ? vt.color : "#2a2a2a"}`,
                   cursor: "pointer", textAlign: "center",
-                  boxShadow: selectedVault === i ? `0 0 18px ${vt.color}44` : "none",
+                  boxShadow: selectedVault === i ? `0 0 12px ${vt.color}44` : "none",
                   transition: "all 0.2s",
                 }}>
-                <div style={{ fontSize: "1.6rem" }}>{vt.emoji}</div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: selectedVault === i ? vt.color : "#888", marginTop: 3 }}>{vt.name}</div>
-                <div style={{ fontSize: 10, color: selectedVault === i ? vt.color : "#555" }}>{vt.price} ⚡</div>
+                <div style={{ fontSize: "1.2rem" }}>{vt.emoji}</div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: selectedVault === i ? vt.color : "#888", marginTop: 2 }}>{vt.name}</div>
+                <div style={{ fontSize: 9, color: selectedVault === i ? vt.color : "#555" }}>{vt.price} ⚡</div>
               </button>
             ))}
           </div>
-          <p style={{ fontSize: 11, color: "#555", textAlign: "center", marginBottom: 10 }}>{v.description}</p>
+          <p style={{ fontSize: 10, color: "#555", textAlign: "center", marginBottom: 6 }}>{v.description}</p>
 
           {/* Reel window */}
           <div style={{
-            position: "relative", height: 118, borderRadius: 18, overflow: "hidden",
-            background: v.theme, border: `2.5px solid ${v.color}`,
-            boxShadow: `0 0 30px ${v.color}33`,
+            position: "relative", height: 88, borderRadius: 14, overflow: "hidden",
+            background: v.theme, border: `2px solid ${v.color}`,
+            boxShadow: `0 0 20px ${v.color}33`,
             marginBottom: 4,
           }}>
             {/* Center pointer line */}
@@ -215,7 +215,7 @@ export default function ShadowVault({ karma, onSpend, onWin }: Props) {
                   const isWinner = i === 44;
                   return (
                     <div key={i} style={{
-                      minWidth: ITEM_W, height: 100,
+                      minWidth: ITEM_W, height: 80,
                       display: "flex", flexDirection: "column",
                       alignItems: "center", justifyContent: "center",
                       background: isWinner ? `${rc.color}28` : "#0a0a0a",
@@ -299,7 +299,7 @@ export default function ShadowVault({ karma, onSpend, onWin }: Props) {
             onClick={handleOpen}
             disabled={phase === "spinning"}
             style={{
-              width: "100%", padding: "18px",
+              width: "100%", padding: "12px",
               background: phase === "spinning" ? "#111" : `linear-gradient(135deg, ${v.color}99, ${v.color})`,
               border: `3px solid ${phase === "spinning" ? "#222" : v.color}`,
               borderRadius: 16, fontSize: 17, fontWeight: 700,
@@ -312,16 +312,13 @@ export default function ShadowVault({ karma, onSpend, onWin }: Props) {
             {phase === "spinning" ? "🔓 Opening vault..." : phase === "reveal" ? "🏴‍☠️ OPEN AGAIN" : `🏴‍☠️ OPEN VAULT — ${v.price} ⚡`}
           </button>
 
-          {/* Drop rates */}
-          <div style={{ marginTop: 14, padding: "12px", background: "#0a0a0a", borderRadius: 12, border: "1px solid #1a1a1a" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#444", letterSpacing: "0.12em", marginBottom: 8 }}>DROP RATES</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {/* Drop rates — compact inline */}
+          <div style={{ marginTop: 8, textAlign: "center" }}>
+            <span style={{ fontSize: 9, color: "#444", letterSpacing: "0.08em" }}>
               {(Object.entries(RARITY_CFG) as [Rarity, typeof RARITY_CFG[Rarity]][]).map(([key, r]) => (
-                <span key={key} style={{ fontSize: 10, fontWeight: 700, color: r.color, background: `${r.color}18`, padding: "3px 8px", borderRadius: 6 }}>
-                  {r.label}: {r.weight}%
-                </span>
+                <span key={key} style={{ color: r.color, marginRight: 6 }}>{r.label} {r.weight}%</span>
               ))}
-            </div>
+            </span>
           </div>
         </>
       )}
