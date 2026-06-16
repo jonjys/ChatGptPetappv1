@@ -4,9 +4,10 @@ import Link from "next/link";
 import { ChevronLeft, Trophy } from "lucide-react";
 import DeepCatch from "@/components/games/DeepCatch";
 import { useApp } from "@/context/AppContext";
+import { getPetEmoji } from "@/lib/pet-evolution";
 
 export default function FishingPage() {
-  const { addKarma, addXP, updateScore, gameScores, addActivity } = useApp();
+  const { addKarma, addXP, updateScore, gameScores, addActivity, pet } = useApp();
 
   function handleCatch(karma: number, xp: number, fishName: string, rarity: string) {
     addKarma(karma, "Deep Catch");
@@ -40,7 +41,7 @@ export default function FishingPage() {
       </div>
 
       <div className="px-4 pt-4 pb-4">
-        <DeepCatch onCatch={handleCatch} />
+        <DeepCatch onCatch={handleCatch} petEmoji={getPetEmoji(pet.evolution, pet.class)} />
       </div>
     </div>
   );

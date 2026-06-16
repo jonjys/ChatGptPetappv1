@@ -2,10 +2,11 @@
 
 import { useRef, useEffect, useCallback, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { FRIENDS } from "@/lib/mock-data";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type Phase = "idle" | "casting" | "waiting" | "bite" | "reeling" | "timing" | "result";
+type Phase = "idle" | "charging" | "casting" | "waiting" | "bite" | "reeling" | "battle" | "timing" | "result";
 type SpecialEvent = "STORM!" | "RARE SPAWN!" | "MIDNIGHT ZONE" | "FEEDING FRENZY" | null;
 type Rarity = "common" | "rare" | "legendary" | "secret";
 type DepthZone = 1 | 2 | 3;
@@ -84,6 +85,27 @@ interface LightShaft {
   offset: number;
 }
 
+interface SonarBlip {
+  relX: number;
+  relY: number;
+  rarity: Rarity;
+  alpha: number;
+}
+
+interface CoralCluster {
+  x: number;
+  type: "branch" | "fan" | "tube";
+  color: string;
+  h: number;
+  phase: number;
+}
+
+interface ThermalVent {
+  x: number;
+  heat: number;
+  phase: number;
+}
+
 interface GameState {
   fish: LiveFish[];
   hookY: number;
@@ -103,6 +125,13 @@ interface GameState {
   reelDecay: number; // frames since last reel tap
   t: number;         // frame counter
   eventTimer: number; // frames until next event check
+  sonarPing: number;
+  sonarBlips: SonarBlip[];
+  sonarNextPing: number;
+  corals: CoralCluster[];
+  vents: ThermalVent[];
+  battleGauge: number;
+  castPower: number;
 }
 
 interface CaughtRecord {
@@ -112,6 +141,7 @@ interface CaughtRecord {
 
 interface Props {
   onCatch: (karma: number, xp: number, fishName: string, rarity: string) => void;
+  petEmoji?: string;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -126,6 +156,9 @@ const ZONE1_MAX_Y = SKY_H + WATER_H * 0.28; // ~180
 const ZONE2_MAX_Y = SKY_H + WATER_H * 0.62; // ~331
 const ZONE3_MAX_Y = CH;                       // 500
 const REEL_TAPS_NEEDED = 10;
+const SONAR_X = 44;
+const SONAR_Y = WATER_TOP + 44;
+const SONAR_R = 32;
 const BOBBER_X = CW * 0.5;
 const BOBBER_Y = SKY_H + 4;
 const LINE_X = BOBBER_X;
@@ -290,6 +323,32 @@ function spawnCloud(): Cloud {
   };
 }
 
+function zoneFromPower(power: number): DepthZone {
+  if (power < 34) return 1;
+  if (power < 67) return 2;
+  return 3;
+}
+
+function spawnCoral(): CoralCluster {
+  const colors = ["#ff6699", "#ffaa33", "#cc66ff", "#33ccaa", "#ff5555"];
+  const types: CoralCluster["type"][] = ["branch", "fan", "tube"];
+  return {
+    x: 20 + Math.random() * (CW - 40),
+    type: types[Math.floor(Math.random() * types.length)],
+    color: colors[Math.floor(Math.random() * colors.length)],
+    h: 14 + Math.random() * 16,
+    phase: Math.random() * Math.PI * 2,
+  };
+}
+
+function spawnVent(): ThermalVent {
+  return {
+    x: 30 + Math.random() * (CW - 60),
+    heat: 0.7 + Math.random() * 0.6,
+    phase: Math.random(),
+  };
+}
+
 function spawnJelly(): Jellyfish {
   const colors = ["#ff55ff", "#55ffff", "#aaddff", "#ffaaff"];
   return {
@@ -321,9 +380,21 @@ function drawRoundRect(
   ctx.closePath();
 }
 
+// ─── Social recent catches ──────────────────────────────────────────────────
+
+const SOCIAL_CATCHES = FRIENDS.slice(0, 4).map((f, i) => ({
+  emoji: f.emoji,
+  username: f.username,
+  fishEmoji: ["🐬", "🦈", "🦑", "🔮"][i],
+  fishName: ["Dolphin", "Great Shark", "Baby Squid", "Crystal Oracle"][i],
+  rarity: (["rare", "legendary", "common", "secret"] as Rarity[])[i],
+  ago: ["2m", "8m", "15m", "1h"][i],
+  karma: [90, 180, 15, 700][i],
+}));
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function DeepCatch({ onCatch }: Props) {
+export default function DeepCatch({ onCatch, petEmoji = "🐟" }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gsRef = useRef<GameState>({
     fish: [],
@@ -344,8 +415,22 @@ export default function DeepCatch({ onCatch }: Props) {
     reelDecay: 0,
     t: 0,
     eventTimer: 300 + Math.floor(Math.random() * 300),
+    sonarPing: 0,
+    sonarBlips: [],
+    sonarNextPing: 60,
+    corals: [],
+    vents: [],
+    battleGauge: 50,
+    castPower: 0,
   });
   const rafRef = useRef<number>(0);
+  const petEmojiRef = useRef(petEmoji);
+  useEffect(() => { petEmojiRef.current = petEmoji; }, [petEmoji]);
+  const castPowerRef = useRef(0);
+  const castChargeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const battleGaugeRef = useRef(50);
+  const [castPower, setCastPower] = useState(0);
+  const [battleGauge, setBattleGauge] = useState(50);
 
   // Phase
   const phaseRef = useRef<Phase>("idle");
@@ -448,6 +533,12 @@ export default function DeepCatch({ onCatch }: Props) {
       gs.shafts.push({ x: 30 + i * 70, width: 20 + Math.random() * 30, speed: 0.2 + Math.random() * 0.2, offset: Math.random() * CW });
     }
 
+    // Coral clusters (zone 1 floor)
+    for (let i = 0; i < 5; i++) gs.corals.push(spawnCoral());
+
+    // Thermal vents (zone 3 floor)
+    for (let i = 0; i < 3; i++) gs.vents.push(spawnVent());
+
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext("2d")!;
 
@@ -501,6 +592,28 @@ export default function DeepCatch({ onCatch }: Props) {
       ctx.arc(CW - 34, 15, 9, 0, Math.PI * 2);
       ctx.fill();
 
+      // Moon reflection on water
+      const moonReflY = WATER_TOP + 8;
+      for (let rx = 0; rx < 5; rx++) {
+        const reflX = CW - 38 + (rx - 2) * 6 + Math.sin(t * 0.03 + rx) * 3;
+        ctx.fillStyle = "rgba(255,252,220,0.1)";
+        ctx.beginPath();
+        ctx.ellipse(reflX, moonReflY + rx * 3, 3 - rx * 0.4, 1.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Dock + pet
+      ctx.fillStyle = "#4a2a0a";
+      ctx.fillRect(CW - 40, SKY_H - 4, 40, 5);
+      const petBob = Math.sin(t * 0.07) * 2;
+      ctx.font = "16px serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.shadowColor = "rgba(200,255,0,0.4)";
+      ctx.shadowBlur = 6;
+      ctx.fillText(petEmojiRef.current, CW - 20, SKY_H - 5 + petBob);
+      ctx.shadowBlur = 0;
+
       // Clouds
       gs.clouds.forEach(c => {
         ctx.fillStyle = "rgba(200,230,255,0.18)";
@@ -549,6 +662,67 @@ export default function DeepCatch({ onCatch }: Props) {
         ctx.lineTo(shaftX - s.width * 1.2, CH);
         ctx.closePath();
         ctx.fill();
+        ctx.restore();
+      });
+
+      // ── Caustic light patches (surface shimmer) ─────────────────────────
+      for (let i = 0; i < 7; i++) {
+        const cx = ((t * (0.35 + i * 0.11) + i * 53) % (CW + 40)) - 20;
+        const cy = WATER_TOP + 8 + ((i * 23 + t * 0.05) % (ZONE1_MAX_Y - WATER_TOP - 20));
+        const cw_ = 14 + Math.sin(t * 0.03 + i) * 7;
+        const ch_ = 5 + Math.sin(t * 0.04 + i * 0.7) * 2;
+        ctx.globalAlpha = Math.max(0, 0.05 + Math.sin(t * 0.05 + i) * 0.02);
+        ctx.fillStyle = "#aaddff";
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, cw_, ch_, Math.sin(t * 0.01 + i) * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      // ── Coral clusters (zone 1 floor) ───────────────────────────────────
+      gs.corals.forEach(c => {
+        const sway = Math.sin(c.phase + t * 0.02) * 0.12;
+        ctx.save();
+        ctx.translate(c.x, ZONE1_MAX_Y);
+        ctx.rotate(sway);
+        ctx.globalAlpha = 0.75;
+        if (c.type === "branch") {
+          ctx.strokeStyle = c.color;
+          ctx.lineWidth = 2.5;
+          ctx.lineCap = "round";
+          ctx.shadowColor = c.color; ctx.shadowBlur = 6;
+          ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -c.h); ctx.stroke();
+          ctx.lineWidth = 1.5;
+          for (let b = 0; b < 3; b++) {
+            const by = -c.h * (0.35 + b * 0.22);
+            const side = b % 2 === 0 ? 1 : -1;
+            ctx.beginPath(); ctx.moveTo(0, by); ctx.lineTo(side * (7 + b * 2), by - 9); ctx.stroke();
+          }
+        } else if (c.type === "fan") {
+          ctx.strokeStyle = c.color;
+          ctx.lineWidth = 0.8;
+          ctx.shadowColor = c.color; ctx.shadowBlur = 4;
+          for (let a = -40; a <= 40; a += 10) {
+            const rad = (a * Math.PI) / 180;
+            ctx.beginPath(); ctx.moveTo(0, 0);
+            ctx.lineTo(Math.sin(rad) * c.h, -Math.cos(rad) * c.h);
+            ctx.stroke();
+          }
+        } else {
+          ctx.lineWidth = 3.5;
+          ctx.lineCap = "round";
+          for (let ti = -1; ti <= 1; ti++) {
+            const tx = ti * 6;
+            const ty = -c.h * (0.85 + ti * 0.08);
+            ctx.strokeStyle = c.color;
+            ctx.shadowColor = c.color; ctx.shadowBlur = 5;
+            ctx.beginPath(); ctx.moveTo(tx, 0); ctx.lineTo(tx, ty); ctx.stroke();
+            ctx.fillStyle = c.color + "99";
+            ctx.beginPath(); ctx.arc(tx, ty, 3.5, 0, Math.PI * 2); ctx.fill();
+          }
+        }
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
         ctx.restore();
       });
 
@@ -637,6 +811,36 @@ export default function DeepCatch({ onCatch }: Props) {
         }
         ctx.globalAlpha = 1;
       }
+
+      // ── Thermal vents (zone 3 floor) ─────────────────────────────────────
+      gs.vents.forEach(v => {
+        ctx.fillStyle = "#2a1500";
+        ctx.beginPath();
+        ctx.ellipse(v.x, CH, 14, 8, 0, 0, Math.PI);
+        ctx.fill();
+        ctx.shadowColor = "#ff5500";
+        ctx.shadowBlur = 16 * v.heat;
+        ctx.fillStyle = "#ff6600";
+        ctx.beginPath();
+        ctx.ellipse(v.x, CH - 5, 4, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        for (let bi = 0; bi < 5; bi++) {
+          const bAge = (t * 0.6 + bi * 13 + v.phase * 40) % 70;
+          const bAlpha = (1 - bAge / 70) * 0.65;
+          const bY = CH - 8 - bAge * 1.1;
+          const bX = v.x + Math.sin(t * 0.04 + bi * 1.2) * 4;
+          if (bY > ZONE2_MAX_Y && bAlpha > 0) {
+            ctx.globalAlpha = bAlpha;
+            ctx.strokeStyle = "#ff7733";
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.arc(bX, bY, 1.5 + bi * 0.2, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+          }
+        }
+      });
 
       // ── Fish ─────────────────────────────────────────────────────────────
       gs.fish.forEach((f, idx) => {
@@ -801,6 +1005,127 @@ export default function DeepCatch({ onCatch }: Props) {
         ctx.arc(LINE_X, gs.hookY, ringR * 0.5, 0, Math.PI * 2);
         ctx.stroke();
       }
+
+      // ── Charging UI (zone preview + power ring) ────────────────────────
+      if (curPhase === "charging") {
+        const power = gs.castPower;
+        const previewZone = zoneFromPower(power);
+        const previewY = zoneTargetY(previewZone);
+        ctx.strokeStyle = previewZone === 1 ? "#4499ff" : previewZone === 2 ? "#00ffaa" : "#cc55ff";
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([8, 6]);
+        ctx.globalAlpha = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(0, previewY);
+        ctx.lineTo(CW, previewY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+
+        const arcAngle = (power / 100) * Math.PI * 2;
+        ctx.strokeStyle = previewZone === 1 ? "#4499ff" : previewZone === 2 ? "#00ffaa" : "#cc55ff";
+        ctx.lineWidth = 3;
+        ctx.lineCap = "round";
+        ctx.shadowColor = ctx.strokeStyle;
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(BOBBER_X, BOBBER_Y + 2, 14, -Math.PI / 2, -Math.PI / 2 + arcAngle);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.lineCap = "butt";
+      }
+
+      // ── Battle canvas overlay ────────────────────────────────────────────
+      if (curPhase === "battle") {
+        const tf = gs.fish[gs.targetFishIdx];
+        if (tf) {
+          const bx = LINE_X + Math.sin(t * 0.15) * 30;
+          const by = CH / 2 + Math.sin(t * 0.2) * 15;
+          ctx.font = "48px serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.shadowColor = RARITY_COLOR[tf.def.rarity];
+          ctx.shadowBlur = 20;
+          ctx.fillText(tf.def.emoji, bx, by);
+          ctx.shadowBlur = 0;
+
+          ctx.fillStyle = RARITY_COLOR[tf.def.rarity];
+          ctx.font = "bold 14px monospace";
+          ctx.fillText("BATTLE!", LINE_X, CH / 2 - 50);
+
+          const pullLeft = Math.sin(t * 0.05) > 0;
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 13px sans-serif";
+          ctx.fillText(pullLeft ? "← ← ← PULLING" : "PULLING → → →", LINE_X, CH / 2 + 55);
+        }
+      }
+
+      // ── Sonar (top-left circular radar) ─────────────────────────────────
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(SONAR_X, SONAR_Y, SONAR_R, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.fillStyle = "rgba(0,15,0,0.82)";
+      ctx.fillRect(SONAR_X - SONAR_R, SONAR_Y - SONAR_R, SONAR_R * 2, SONAR_R * 2);
+      [0.33, 0.66, 1].forEach(r => {
+        ctx.strokeStyle = `rgba(0,200,80,${r === 1 ? 0.4 : 0.15})`;
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.arc(SONAR_X, SONAR_Y, SONAR_R * r, 0, Math.PI * 2);
+        ctx.stroke();
+      });
+      ctx.strokeStyle = "rgba(0,200,80,0.15)";
+      ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(SONAR_X - SONAR_R, SONAR_Y); ctx.lineTo(SONAR_X + SONAR_R, SONAR_Y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(SONAR_X, SONAR_Y - SONAR_R); ctx.lineTo(SONAR_X, SONAR_Y + SONAR_R); ctx.stroke();
+
+      const pingAngle = (gs.sonarPing / 120) * Math.PI * 2 - Math.PI / 2;
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = "rgba(0,255,80,0.6)";
+      ctx.beginPath();
+      ctx.moveTo(SONAR_X, SONAR_Y);
+      ctx.arc(SONAR_X, SONAR_Y, SONAR_R, pingAngle - Math.PI * 0.4, pingAngle);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      ctx.strokeStyle = "#00ff60";
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = "#00ff60";
+      ctx.shadowBlur = 4;
+      ctx.beginPath();
+      ctx.moveTo(SONAR_X, SONAR_Y);
+      ctx.lineTo(SONAR_X + Math.cos(pingAngle) * SONAR_R, SONAR_Y + Math.sin(pingAngle) * SONAR_R);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      gs.sonarBlips.forEach(b => {
+        ctx.globalAlpha = b.alpha;
+        ctx.fillStyle = RARITY_COLOR[b.rarity];
+        ctx.shadowColor = RARITY_COLOR[b.rarity];
+        ctx.shadowBlur = 4;
+        ctx.beginPath();
+        ctx.arc(SONAR_X + b.relX, SONAR_Y + b.relY, (b.rarity === "legendary" || b.rarity === "secret") ? 3 : 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+      });
+
+      ctx.fillStyle = "#00ff88";
+      ctx.shadowColor = "#00ff88"; ctx.shadowBlur = 6;
+      ctx.beginPath(); ctx.arc(SONAR_X, SONAR_Y, 2.5, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+
+      ctx.strokeStyle = "#00ff4055";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(SONAR_X, SONAR_Y, SONAR_R, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = "#00ff4077";
+      ctx.font = "bold 7px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("SONAR", SONAR_X, SONAR_Y + SONAR_R + 8);
 
       // ── Surface shimmer ───────────────────────────────────────────────────
       ctx.strokeStyle = "rgba(120,200,255,0.35)";
@@ -984,6 +1309,47 @@ export default function DeepCatch({ onCatch }: Props) {
         }
       }
 
+      // Battle phase
+      if (curPhase === "battle") {
+        gs.battleGauge = Math.max(0, gs.battleGauge - 0.8);
+        battleGaugeRef.current = gs.battleGauge;
+        setBattleGauge(gs.battleGauge);
+
+        const bf = gs.fish[gs.targetFishIdx];
+        if (bf) {
+          bf.x = LINE_X + Math.sin(t * 0.15) * 30;
+          bf.y = gs.hookY - 30 + Math.sin(t * 0.2) * 15;
+        }
+
+        if (gs.battleGauge <= 0) {
+          if (gs.targetFishIdx >= 0 && gs.targetFishIdx < gs.fish.length) {
+            gs.fish.splice(gs.targetFishIdx, 1);
+          }
+          gs.targetFishIdx = -1;
+          gs.hookY = -80;
+          gs.battleGauge = 50;
+          phaseRef.current = "result";
+          setPhase("result");
+          setIsMiss(true);
+          setCaughtFish(null);
+          setTimeout(() => { phaseRef.current = "idle"; setPhase("idle"); setIsMiss(false); }, 1800);
+        }
+      }
+
+      // Sonar ping + blip refresh
+      gs.sonarPing = (gs.sonarPing + 1) % 120;
+      gs.sonarNextPing -= 1;
+      if (gs.sonarNextPing <= 0) {
+        gs.sonarNextPing = 120 + Math.floor(Math.random() * 60);
+        gs.sonarBlips = gs.fish.slice(0, 10).map(f => {
+          const relX = ((f.x - LINE_X) / (CW * 0.8)) * SONAR_R * 0.85;
+          const relY = ((f.y - WATER_TOP - WATER_H * 0.5) / (WATER_H * 0.5)) * SONAR_R * 0.85;
+          return { relX, relY, rarity: f.def.rarity, alpha: 0.85 };
+        }).filter(b => Math.abs(b.relX) < SONAR_R && Math.abs(b.relY) < SONAR_R);
+      }
+      gs.sonarBlips.forEach(b => { b.alpha = Math.max(0, b.alpha - 0.004); });
+      gs.sonarBlips = gs.sonarBlips.filter(b => b.alpha > 0.08);
+
       // Hook descent
       if (curPhase === "casting") {
         const targetY = zoneTargetY(activeZoneRef.current);
@@ -1072,8 +1438,10 @@ export default function DeepCatch({ onCatch }: Props) {
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
-  const handleCast = useCallback(() => {
-    if (phaseRef.current !== "idle") return;
+  const launchCast = useCallback((power: number) => {
+    const zone = zoneFromPower(power);
+    activeZoneRef.current = zone;
+    setActiveZone(zone);
     if (biteTimerRef.current) clearTimeout(biteTimerRef.current);
     const gs = gsRef.current;
     gs.hookY = BOBBER_Y + 10;
@@ -1092,6 +1460,43 @@ export default function DeepCatch({ onCatch }: Props) {
       }
     }
   }, []);
+
+  const handlePointerDown = useCallback(() => {
+    if (phaseRef.current !== "idle") return;
+    phaseRef.current = "charging";
+    setPhase("charging");
+    castPowerRef.current = 0;
+    setCastPower(0);
+    gsRef.current.castPower = 0;
+    castChargeIntervalRef.current = setInterval(() => {
+      const next = Math.min(100, castPowerRef.current + 2.5);
+      castPowerRef.current = next;
+      gsRef.current.castPower = next;
+      setCastPower(Math.round(next));
+    }, 50);
+  }, []);
+
+  useEffect(() => {
+    const onUp = () => {
+      if (phaseRef.current !== "charging") return;
+      if (castChargeIntervalRef.current) {
+        clearInterval(castChargeIntervalRef.current);
+        castChargeIntervalRef.current = null;
+      }
+      const power = castPowerRef.current;
+      castPowerRef.current = 0;
+      gsRef.current.castPower = 0;
+      setCastPower(0);
+      if (power < 2) {
+        phaseRef.current = "idle";
+        setPhase("idle");
+        return;
+      }
+      launchCast(power);
+    };
+    document.addEventListener("pointerup", onUp);
+    return () => document.removeEventListener("pointerup", onUp);
+  }, [launchCast]);
 
   const handleBiteTap = useCallback(() => {
     if (phaseRef.current !== "bite") return;
@@ -1138,18 +1543,100 @@ export default function DeepCatch({ onCatch }: Props) {
     }
 
     if (gs.reelGauge >= 100) {
-      // Reel complete → timing phase
-      markerRef.current = 50;
-      markerDirRef.current = 1;
-      const baseSpeed = tf.def.rarity === "secret" ? 3.5 :
-                        tf.def.rarity === "legendary" ? 2.8 :
-                        tf.def.rarity === "rare" ? 2.0 : 1.5;
-      const weatherMod = weather === "stormy" ? 1.4 : weather === "rainy" ? 1.1 : 1;
-      markerSpeedRef.current = baseSpeed * weatherMod;
-      phaseRef.current = "timing";
-      setPhase("timing");
+      if (tf.def.rarity === "legendary" || tf.def.rarity === "secret") {
+        // Reel complete → battle phase (tug-of-war for epic fish)
+        gs.reelGauge = 0;
+        gs.battleGauge = 50;
+        battleGaugeRef.current = 50;
+        setBattleGauge(50);
+        phaseRef.current = "battle";
+        setPhase("battle");
+      } else {
+        // Reel complete → timing phase
+        markerRef.current = 50;
+        markerDirRef.current = 1;
+        const baseSpeed = tf.def.rarity === "rare" ? 2.0 : 1.5;
+        const weatherMod = weather === "stormy" ? 1.4 : weather === "rainy" ? 1.1 : 1;
+        markerSpeedRef.current = baseSpeed * weatherMod;
+        phaseRef.current = "timing";
+        setPhase("timing");
+      }
     }
   }, [weather]);
+
+  const handleBattleTap = useCallback(() => {
+    if (phaseRef.current !== "battle") return;
+    const gs = gsRef.current;
+    const tf = gs.fish[gs.targetFishIdx];
+    if (!tf) return;
+
+    gs.battleGauge = Math.min(100, gs.battleGauge + 8);
+    battleGaugeRef.current = gs.battleGauge;
+    setBattleGauge(gs.battleGauge);
+
+    for (let i = 0; i < 4; i++) {
+      gs.particles.push({
+        x: LINE_X + (Math.random() - 0.5) * 30,
+        y: gs.hookY - 20,
+        vx: (Math.random() - 0.5) * 3,
+        vy: -2 - Math.random() * 2,
+        r: 2 + Math.random() * 2,
+        color: RARITY_COLOR[tf.def.rarity],
+        life: 20,
+        maxLife: 20,
+      });
+    }
+
+    if (gs.battleGauge >= 100) {
+      // Battle won — catch the fish!
+      gs.fish.splice(gs.targetFishIdx, 1);
+      gs.targetFishIdx = -1;
+      gs.hookY = -80;
+      gs.battleGauge = 50;
+      gs.shakeDuration = 18;
+      phaseRef.current = "result";
+
+      const newStreak = streakRef.current + 1;
+      streakRef.current = newStreak;
+      setStreak(newStreak);
+      const { mult } = getCombo(newStreak);
+      const wMult = weather === "stormy" ? 2 : weather === "rainy" ? 1.3 : 1;
+      const finalKarma = Math.round(tf.def.karma * mult * wMult);
+      const finalXP = Math.round(tf.def.xp * mult * wMult);
+
+      setCaughtFish(tf.def);
+      setCatchKarma(finalKarma);
+      setCatchXP(finalXP);
+      setIsMiss(false);
+
+      setScore(s => {
+        const ns = s + 1;
+        setBest(b => Math.max(b, ns));
+        return ns;
+      });
+
+      setCollection(prev => {
+        const next = new Map(prev);
+        const key = tf.def.name;
+        const existing = next.get(key);
+        if (!existing) {
+          setTimeout(() => setTrophyFish(tf.def), 2600);
+        }
+        next.set(key, { def: tf.def, count: (existing?.count ?? 0) + 1 });
+        return next;
+      });
+
+      onCatch(finalKarma, finalXP, tf.def.name, tf.def.rarity);
+
+      setPhase("result");
+      setTimeout(() => {
+        phaseRef.current = "idle";
+        setPhase("idle");
+        setCaughtFish(null);
+        setIsMiss(false);
+      }, 2400);
+    }
+  }, [weather, onCatch]);
 
   const handleTiming = useCallback(() => {
     if (phaseRef.current !== "timing") return;
@@ -1244,17 +1731,11 @@ export default function DeepCatch({ onCatch }: Props) {
 
   const handleMainButton = useCallback(() => {
     const p = phaseRef.current;
-    if (p === "idle")    return handleCast();
     if (p === "bite")    return handleBiteTap();
     if (p === "reeling") return handleReel();
     if (p === "timing")  return handleTiming();
-  }, [handleCast, handleBiteTap, handleReel, handleTiming]);
-
-  const handleZoneSelect = useCallback((zone: DepthZone) => {
-    if (phaseRef.current !== "idle") return;
-    activeZoneRef.current = zone;
-    setActiveZone(zone);
-  }, []);
+    if (p === "battle")  return handleBattleTap();
+  }, [handleBiteTap, handleReel, handleTiming, handleBattleTap]);
 
   const handleBaitSelect = useCallback((b: BaitType) => {
     if (phaseRef.current !== "idle") return;
@@ -1266,7 +1747,7 @@ export default function DeepCatch({ onCatch }: Props) {
   // ─── Derived state ─────────────────────────────────────────────────────────
 
   const activeFishDef =
-    (phase === "timing" || phase === "bite" || phase === "waiting" || phase === "reeling")
+    (phase === "timing" || phase === "bite" || phase === "waiting" || phase === "reeling" || phase === "battle")
       ? gsRef.current.fish[gsRef.current.targetFishIdx]?.def
       : null;
 
@@ -1277,35 +1758,41 @@ export default function DeepCatch({ onCatch }: Props) {
 
   // Button label & style
   const btnLabel =
-    phase === "idle"     ? "🎣  CAST" :
+    phase === "idle"     ? "🎣  HOLD TO CAST" :
+    phase === "charging" ? `⚡  CHARGING... ${castPower}%` :
     phase === "casting"  ? "⏳  Sinking..." :
     phase === "waiting"  ? "🎣  Waiting for bite..." :
     phase === "bite"     ? "⚡  BITE! TAP NOW!" :
     phase === "reeling"  ? `🎣  REEL! TAP FAST! (${gsRef.current.reelTaps}/${REEL_TAPS_NEEDED})` :
+    phase === "battle"   ? `🐉  BATTLE! TAP! (${Math.round(battleGauge)}%)` :
     phase === "timing"   ? "🎯  PERFECT TIMING!" :
     caughtFish           ? `${caughtFish.emoji}  CAUGHT!` : "💨  MISSED!";
 
   const btnDisabled = phase === "casting" || phase === "waiting" || phase === "result";
 
   const btnBg =
-    phase === "bite"    ? "linear-gradient(135deg,#ff6600,#ffcc00)" :
-    phase === "reeling" ? "linear-gradient(135deg,#006622,#00cc44)" :
-    phase === "timing"  ? "linear-gradient(135deg,#ffaa00,#ff4400)" :
-    phase === "idle"    ? "linear-gradient(135deg,#0044aa,#0077dd)" :
-    btnDisabled         ? "#111" : "#222";
+    phase === "bite"     ? "linear-gradient(135deg,#ff6600,#ffcc00)" :
+    phase === "reeling"  ? "linear-gradient(135deg,#006622,#00cc44)" :
+    phase === "battle"   ? "linear-gradient(135deg,#660000,#cc2200)" :
+    phase === "timing"   ? "linear-gradient(135deg,#ffaa00,#ff4400)" :
+    phase === "charging" ? "linear-gradient(135deg,#0044aa,#00aaff)" :
+    phase === "idle"     ? "linear-gradient(135deg,#0044aa,#0077dd)" :
+    btnDisabled          ? "#111" : "#222";
 
   const btnBorder =
-    phase === "bite"    ? "#ffcc00" :
-    phase === "reeling" ? "#00ff66" :
-    phase === "timing"  ? "#ff4400" :
-    phase === "idle"    ? "#4488ff" : "#333";
+    phase === "bite"     ? "#ffcc00" :
+    phase === "reeling"  ? "#00ff66" :
+    phase === "battle"   ? "#ff3300" :
+    phase === "timing"   ? "#ff4400" :
+    phase === "charging" ? "#00ccff" :
+    phase === "idle"     ? "#4488ff" : "#333";
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div
       style={{ fontFamily: "var(--font-space-grotesk,monospace)", userSelect: "none" }}
-      onTouchStart={phase === "bite" ? handleBiteTap : phase === "reeling" ? handleReel : phase === "timing" ? handleTiming : undefined}
+      onTouchStart={phase === "bite" ? handleBiteTap : phase === "reeling" ? handleReel : phase === "timing" ? handleTiming : phase === "battle" ? handleBattleTap : undefined}
     >
       {/* ── Top HUD ─────────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, paddingInline: 2 }}>
@@ -1464,6 +1951,41 @@ export default function DeepCatch({ onCatch }: Props) {
               </div>
               <p style={{ textAlign: "center", fontSize: 10, color: "#ffcc00", fontWeight: 700, marginTop: 4, letterSpacing: "0.1em" }}>
                 TAP WHEN MARKER HITS THE GREEN ZONE
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Battle gauge overlay ───────────────────────────────────────── */}
+        <AnimatePresence>
+          {phase === "battle" && activeFishDef && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              style={{ position: "absolute", bottom: 14, left: 14, right: 14 }}
+            >
+              <div style={{ textAlign: "center", marginBottom: 5 }}>
+                <span style={{ fontSize: 12, fontWeight: 900, color: RARITY_COLOR[activeFishDef.rarity], textShadow: `0 0 8px ${RARITY_COLOR[activeFishDef.rarity]}` }}>
+                  {activeFishDef.emoji} BATTLE! — {activeFishDef.name.toUpperCase()}
+                </span>
+              </div>
+              <div style={{ position: "relative", height: 28, background: "rgba(0,0,0,0.85)", borderRadius: 14, border: `2px solid ${RARITY_COLOR[activeFishDef.rarity]}`, overflow: "hidden" }}>
+                <motion.div
+                  animate={{ opacity: [0.8, 1, 0.8] }}
+                  transition={{ repeat: Infinity, duration: 0.4 }}
+                  style={{
+                    position: "absolute", top: 0, bottom: 0, left: 0,
+                    width: `${battleGauge}%`,
+                    background: `linear-gradient(90deg, ${RARITY_COLOR[activeFishDef.rarity]}44, ${RARITY_COLOR[activeFishDef.rarity]})`,
+                  }}
+                />
+                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: "#fff" }}>
+                  TAP TO WIN! {Math.round(battleGauge)}%
+                </div>
+              </div>
+              <p style={{ textAlign: "center", fontSize: 10, color: "#ffcc00", fontWeight: 700, marginTop: 4, letterSpacing: "0.08em" }}>
+                TAP FAST — THE FISH IS PULLING BACK!
               </p>
             </motion.div>
           )}
@@ -1637,32 +2159,57 @@ export default function DeepCatch({ onCatch }: Props) {
         )}
       </div>
 
-      {/* ── Zone selector ────────────────────────────────────────────────────── */}
+      {/* ── Zone indicator ───────────────────────────────────────────────────── */}
       <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
         {([1, 2, 3] as DepthZone[]).map(z => (
-          <button
+          <div
             key={z}
-            onClick={() => handleZoneSelect(z)}
             style={{
               flex: 1,
-              padding: "10px 4px",
+              padding: "8px 4px",
+              textAlign: "center",
               background: activeZone === z
                 ? `linear-gradient(135deg, ${ZONE_COLOR[z]}cc, ${ZONE_COLOR[z]}88)`
-                : "rgba(10,20,40,0.8)",
+                : "rgba(10,20,40,0.6)",
               border: activeZone === z ? `2px solid ${z === 1 ? "#4499ff" : z === 2 ? "#2255aa" : "#1a2a66"}` : "2px solid #1a2a3a",
               borderRadius: 12,
               color: activeZone === z ? "#fff" : "#445566",
-              fontSize: 11,
+              fontSize: 9,
               fontWeight: 800,
-              cursor: phaseRef.current === "idle" ? "pointer" : "default",
-              transition: "all 0.2s",
               letterSpacing: "0.04em",
               boxShadow: activeZone === z ? `0 0 12px ${ZONE_COLOR[z]}88` : "none",
+              opacity: activeZone === z ? 1 : 0.5,
             }}
           >
-            {z === 1 ? "☀️" : z === 2 ? "🌊" : "🌑"}<br />
-            <span style={{ fontSize: 9 }}>{ZONE_LABEL[z]}</span>
-          </button>
+            {z === 1 ? "☀️" : z === 2 ? "🌊" : "🌑"} {ZONE_LABEL[z]}
+          </div>
+        ))}
+      </div>
+      <p style={{ textAlign: "center", fontSize: 9, color: "#445", marginTop: 4, letterSpacing: "0.04em" }}>
+        HOLD THE CAST BUTTON LONGER TO REACH DEEPER ZONES
+      </p>
+
+      {/* ── Social recent catches ────────────────────────────────────────────── */}
+      <div style={{ display: "flex", gap: 8, marginTop: 10, overflowX: "auto", paddingBottom: 2 }}>
+        {SOCIAL_CATCHES.map((s, i) => (
+          <div
+            key={i}
+            style={{
+              flexShrink: 0, display: "flex", alignItems: "center", gap: 6,
+              background: "#0a1a2a", border: `1.5px solid ${RARITY_COLOR[s.rarity]}44`,
+              borderRadius: 12, padding: "6px 10px",
+            }}
+          >
+            <span style={{ fontSize: 14 }}>{s.emoji}</span>
+            <div>
+              <div style={{ fontSize: 8, color: "#556", fontWeight: 700 }}>{s.username}</div>
+              <div style={{ fontSize: 11 }}>{s.fishEmoji} <span style={{ fontSize: 9, color: RARITY_COLOR[s.rarity] }}>{s.fishName}</span></div>
+            </div>
+            <div style={{ textAlign: "right", marginLeft: 4 }}>
+              <div style={{ fontSize: 9, color: "#c8ff00", fontWeight: 700 }}>+{s.karma}⚡</div>
+              <div style={{ fontSize: 8, color: "#445" }}>{s.ago}</div>
+            </div>
+          </div>
         ))}
       </div>
 
@@ -1697,6 +2244,7 @@ export default function DeepCatch({ onCatch }: Props) {
 
       {/* ── Main action button ───────────────────────────────────────────────── */}
       <button
+        onPointerDown={handlePointerDown}
         onClick={handleMainButton}
         disabled={btnDisabled}
         style={{
@@ -1708,15 +2256,20 @@ export default function DeepCatch({ onCatch }: Props) {
           borderRadius: 16,
           fontSize: phase === "bite" ? 19 : 17,
           fontWeight: 900,
-          color: phase === "bite" || phase === "timing" || phase === "reeling" ? "#000" : btnDisabled ? "#444" : "#fff",
+          color: phase === "bite" || phase === "timing" || phase === "reeling" || phase === "battle" ? "#000" : btnDisabled ? "#444" : "#fff",
           cursor: btnDisabled ? "default" : "pointer",
           letterSpacing: "0.06em",
+          touchAction: "none",
           boxShadow: phase === "bite"
             ? `0 0 28px #ff990088, 4px 4px 0 #000`
             : phase === "reeling"
             ? `0 0 24px #00ff6644, 4px 4px 0 #000`
+            : phase === "battle"
+            ? `0 0 24px #ff330066, 4px 4px 0 #000`
             : phase === "timing"
             ? `0 0 20px #ff440066, 4px 4px 0 #000`
+            : phase === "charging"
+            ? `0 0 20px #00ccff66, 4px 4px 0 #000`
             : phase === "idle"
             ? `0 0 16px #0066aa55, 4px 4px 0 #000`
             : "none",
