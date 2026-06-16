@@ -2,7 +2,7 @@ import type { Pet } from "@/types/pet";
 import type { User } from "@/types/user";
 import type { Bounty } from "@/types/bounty";
 import type { Post } from "@/types/post";
-import type { Story, Friend, BattleEnemy, GameMeta } from "@/types/game";
+import type { Story, Friend, Follower, BattleEnemy, GameMeta } from "@/types/game";
 
 export const CURRENT_USER: User = {
   id: "u1",
@@ -83,6 +83,28 @@ export const FRIENDS: Friend[] = [
   { id: "u5", username: "neonmiku", emoji: "✨", level: 10, petEmoji: "🦋", petName: "Yuki", online: false, lastActivity: "1h ago" },
   { id: "u4", username: "pixelrush", emoji: "🎮", level: 5, petEmoji: "🦊", petName: "Rex", online: true, lastActivity: "12m ago", currentGame: "Karma Runner" },
   { id: "u6", username: "voltfox", emoji: "🦊", level: 7, petEmoji: "🦁", petName: "Blaze", online: false, lastActivity: "3h ago" },
+];
+
+export const FOLLOWERS: Follower[] = [
+  { id: "u2",  username: "lunavibes",   emoji: "🌙", level: 8,  class: "Influencer Spirit", followedAt: "2d ago",  isNew: true,  mutual: true,  youFollowBack: true  },
+  { id: "u3",  username: "tradeknight", emoji: "⚔️", level: 15, class: "Merchant King",     followedAt: "5d ago",  isNew: false, mutual: true,  youFollowBack: true  },
+  { id: "u7",  username: "wildrose88",  emoji: "🌹", level: 6,  class: "Influencer Spirit", followedAt: "6h ago",  isNew: true,  mutual: false, youFollowBack: false },
+  { id: "u8",  username: "duskhunter",  emoji: "🏹", level: 19, class: "Grinder Beast",     followedAt: "1d ago",  isNew: true,  mutual: false, youFollowBack: false },
+  { id: "u4",  username: "pixelrush",   emoji: "🎮", level: 5,  class: "Grinder Beast",     followedAt: "9d ago",  isNew: false, mutual: true,  youFollowBack: true  },
+  { id: "u9",  username: "stardustfox", emoji: "🦊", level: 11, class: "Influencer Spirit", followedAt: "3d ago",  isNew: false, mutual: false, youFollowBack: false },
+  { id: "u10", username: "ironclad99",  emoji: "🛡️", level: 31, class: "Grinder Beast",     followedAt: "14d ago", isNew: false, mutual: false, youFollowBack: false },
+  { id: "u6",  username: "voltfox",     emoji: "🦊", level: 7,  class: "Merchant King",     followedAt: "20d ago", isNew: false, mutual: true,  youFollowBack: true  },
+  { id: "u11", username: "mistynova",   emoji: "🌌", level: 14, class: "Influencer Spirit", followedAt: "8h ago",  isNew: true,  mutual: false, youFollowBack: false },
+  { id: "u12", username: "goblincoin",  emoji: "💰", level: 22, class: "Merchant King",     followedAt: "30d ago", isNew: false, mutual: false, youFollowBack: false },
+];
+
+export const FOLLOWING: Follower[] = [
+  { id: "u2",  username: "lunavibes",   emoji: "🌙", level: 8,  class: "Influencer Spirit", followedAt: "2d ago",  isNew: false, mutual: true, youFollowBack: true },
+  { id: "u3",  username: "tradeknight", emoji: "⚔️", level: 15, class: "Merchant King",     followedAt: "10d ago", isNew: false, mutual: true, youFollowBack: true },
+  { id: "u4",  username: "pixelrush",   emoji: "🎮", level: 5,  class: "Grinder Beast",     followedAt: "9d ago",  isNew: false, mutual: true, youFollowBack: true },
+  { id: "u6",  username: "voltfox",     emoji: "🦊", level: 7,  class: "Merchant King",     followedAt: "20d ago", isNew: false, mutual: true, youFollowBack: true },
+  { id: "u13", username: "zenmaster",   emoji: "🧘", level: 28, class: "Influencer Spirit", followedAt: "45d ago", isNew: false, mutual: false, youFollowBack: true },
+  { id: "u14", username: "ironforge",   emoji: "⚒️", level: 25, class: "Grinder Beast",     followedAt: "60d ago", isNew: false, mutual: false, youFollowBack: true },
 ];
 
 export const BATTLE_ENEMIES: BattleEnemy[] = [

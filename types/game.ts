@@ -61,3 +61,15 @@ export type Friend = {
   lastActivity: string;
   currentGame?: string;
 };
+
+export type Follower = {
+  id: string;
+  username: string;
+  emoji: string;
+  level: number;
+  class: string;
+  followedAt: string;
+  isNew: boolean;
+  mutual: boolean;
+  youFollowBack: boolean;
+};

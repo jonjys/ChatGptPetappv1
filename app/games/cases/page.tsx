@@ -30,7 +30,7 @@ export default function CasesPage() {
           onWin={(karma, xp, itemName, rarity) => {
             addKarma(karma, "Shadow Vault");
             addXP(xp);
-            addActivity({ emoji: rarity === "legendary" ? "👑" : rarity === "covert" ? "⭐" : "🏴‍☠️", title: `Unboxed ${itemName}`, detail: `${rarity.toUpperCase()} · Shadow Vault`, karma, xp, source: "cases", rarity });
+            addActivity({ emoji: rarity === "mythic" ? "🌠" : rarity === "legendary" ? "👑" : rarity === "covert" ? "⭐" : "🏴‍☠️", title: `Unboxed ${itemName}`, detail: `${rarity.toUpperCase()} · Shadow Vault`, karma, xp, source: "cases", rarity });
           }}
         />
       </div>

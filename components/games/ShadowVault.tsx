@@ -3,16 +3,19 @@
 import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-type Rarity = "consumer" | "industrial" | "classified" | "restricted" | "covert" | "legendary";
+type Rarity = "consumer" | "industrial" | "classified" | "restricted" | "covert" | "legendary" | "mythic";
 type CaseItem = { emoji: string; name: string; rarity: Rarity };
 
+// Cascading drop weights modeled on real CS:GO case odds (~5-6x rarer per tier).
+// Sums to exactly 100, so each weight doubles as a display percentage.
 const RARITY_CFG: Record<Rarity, { label: string; color: string; glow: string; weight: number }> = {
-  consumer:   { label: "Common",      color: "#aaaaaa", glow: "#aaaaaa44", weight: 50  },
-  industrial: { label: "Industrial",  color: "#4488ff", glow: "#4488ff44", weight: 28  },
-  classified: { label: "Classified",  color: "#9933ff", glow: "#9933ff44", weight: 14  },
-  restricted: { label: "Restricted",  color: "#ff44cc", glow: "#ff44cc44", weight: 6   },
-  covert:     { label: "Covert",      color: "#ff3333", glow: "#ff333344", weight: 1.7 },
-  legendary:  { label: "★ LEGENDARY", color: "#ffcc00", glow: "#ffcc0066", weight: 0.3 },
+  consumer:   { label: "Common",      color: "#aaaaaa", glow: "#aaaaaa44", weight: 50    },
+  industrial: { label: "Industrial",  color: "#4488ff", glow: "#4488ff44", weight: 28    },
+  classified: { label: "Classified",  color: "#9933ff", glow: "#9933ff44", weight: 14    },
+  restricted: { label: "Restricted",  color: "#ff44cc", glow: "#ff44cc44", weight: 6     },
+  covert:     { label: "Covert",      color: "#ff3333", glow: "#ff333344", weight: 1.7   },
+  legendary:  { label: "★ LEGENDARY", color: "#ffcc00", glow: "#ffcc0066", weight: 0.25  },
+  mythic:     { label: "✦ MYTHIC",    color: "#ff0055", glow: "#ff0055aa", weight: 0.05  },
 };
 
 const VAULT_ITEMS: CaseItem[] = [
@@ -36,6 +39,8 @@ const VAULT_ITEMS: CaseItem[] = [
   { emoji: "🐉",  name: "Dragon Lance",        rarity: "covert"     },
   { emoji: "👑",  name: "KARMA CROWN",         rarity: "legendary"  },
   { emoji: "🌌",  name: "VOID SINGULARITY",    rarity: "legendary"  },
+  { emoji: "🌠",  name: "ETERNAL NOVA",        rarity: "mythic"     },
+  { emoji: "💠",  name: "ABYSSAL THRONE",      rarity: "mythic"     },
 ];
 
 type VaultDef = { name: string; emoji: string; price: number; color: string; description: string; theme: string };
@@ -49,7 +54,7 @@ const VAULTS: VaultDef[] = [
 function rollItem(vault: VaultDef): CaseItem {
   let pool = VAULT_ITEMS;
   if (vault.name === "Shadow Vault")  pool = VAULT_ITEMS.filter(i => i.rarity !== "consumer");
-  if (vault.name === "LEGEND VAULT")  pool = VAULT_ITEMS.filter(i => ["classified","restricted","covert","legendary"].includes(i.rarity));
+  if (vault.name === "LEGEND VAULT")  pool = VAULT_ITEMS.filter(i => ["classified","restricted","covert","legendary","mythic"].includes(i.rarity));
   const weights = pool.map(item => RARITY_CFG[item.rarity].weight);
   const total = weights.reduce((a, b) => a + b, 0);
   let r = Math.random() * total;
@@ -95,8 +100,8 @@ export default function ShadowVault({ karma, onSpend, onWin }: Props) {
 
     setTimeout(() => {
       setInventory(prev => [w, ...prev]);
-      const rarityKarma: Record<Rarity, number> = { consumer: 10, industrial: 30, classified: 80, restricted: 180, covert: 350, legendary: 800 };
-      const rarityXP:    Record<Rarity, number> = { consumer: 5,  industrial: 20, classified: 50, restricted: 100, covert: 200, legendary: 500 };
+      const rarityKarma: Record<Rarity, number> = { consumer: 10, industrial: 30, classified: 80, restricted: 180, covert: 350, legendary: 800, mythic: 3000 };
+      const rarityXP:    Record<Rarity, number> = { consumer: 5,  industrial: 20, classified: 50, restricted: 100, covert: 200, legendary: 500, mythic: 1500 };
       onWin(rarityKarma[w.rarity], rarityXP[w.rarity], w.name, w.rarity);
       setPhase("reveal");
     }, 4500);
@@ -249,6 +254,22 @@ export default function ShadowVault({ karma, onSpend, onWin }: Props) {
             <div style={{ width: 0, height: 0, borderLeft: "9px solid transparent", borderRight: "9px solid transparent", borderBottom: `12px solid #c8ff00`, display: "inline-block" }} />
           </div>
 
+          {/* Mythic full-screen flash burst */}
+          <AnimatePresence>
+            {phase === "reveal" && winner?.rarity === "mythic" && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 1, 0] }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 1.4, times: [0, 0.15, 1] }}
+                style={{
+                  position: "fixed", inset: 0, zIndex: 200, pointerEvents: "none",
+                  background: "radial-gradient(circle, #ff0055aa, transparent 70%)",
+                }}
+              />
+            )}
+          </AnimatePresence>
+
           {/* Reveal card */}
           <AnimatePresence>
             {phase === "reveal" && winner && cfg && (
@@ -278,6 +299,13 @@ export default function ShadowVault({ karma, onSpend, onWin }: Props) {
                       transition={{ duration: 1.2, repeat: Infinity }}
                       style={{ marginTop: 4, fontSize: 10, color: "#ffcc00", fontWeight: 700, letterSpacing: "0.1em" }}
                     >✨ ARTIFACT CLAIMED ✨</motion.div>
+                  )}
+                  {winner.rarity === "mythic" && (
+                    <motion.div
+                      animate={{ opacity: [0.4, 1, 0.4], color: ["#ff0055", "#ff66aa", "#ff0055"] }}
+                      transition={{ duration: 0.9, repeat: Infinity }}
+                      style={{ marginTop: 4, fontSize: 10, fontWeight: 800, letterSpacing: "0.12em" }}
+                    >⚡ ONE IN TWO THOUSAND ⚡</motion.div>
                   )}
                 </div>
               </motion.div>

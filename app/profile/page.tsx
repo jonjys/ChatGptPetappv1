@@ -1,13 +1,14 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Settings, Trophy, Zap, Flame, Globe, Star, Languages } from "lucide-react";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Settings, Trophy, Zap, Flame, Globe, Star, Languages, Users } from "lucide-react";
 import Link from "next/link";
 import SpinWheel from "@/components/ui/SpinWheel";
 import XPBar from "@/components/ui/XPBar";
 import { useApp } from "@/context/AppContext";
 import { xpProgress, xpToNextLevel, calculateLevel } from "@/lib/xp-system";
-import { LEADERBOARD } from "@/lib/mock-data";
+import { LEADERBOARD, FOLLOWERS, FOLLOWING } from "@/lib/mock-data";
 import { getPetClassColor } from "@/lib/pet-evolution";
 import { WORLDS } from "@/lib/worlds";
 import { ACHIEVEMENTS } from "@/lib/achievements";
@@ -28,6 +29,13 @@ export default function ProfilePage() {
   const xpToNext   = xpToNextLevel(user.xp);
   const level      = calculateLevel(user.xp);
   const classColor = getPetClassColor(user.petClass);
+
+  const [followTab, setFollowTab] = useState<"followers" | "following">("followers");
+  const [followOverrides, setFollowOverrides] = useState<Record<string, boolean>>({});
+  const toggleFollow = (id: string, current: boolean) =>
+    setFollowOverrides(prev => ({ ...prev, [id]: !current }));
+  const newFollowerCount = FOLLOWERS.filter(f => f.isNew).length;
+  const followList = followTab === "followers" ? FOLLOWERS : FOLLOWING;
 
   return (
     <div style={{ background: "#080808", minHeight: "100dvh", color: "#fff" }}>
@@ -131,6 +139,120 @@ export default function ProfilePage() {
               <div style={{ fontSize: 9, fontWeight: 700, color: "#444", letterSpacing: "0.08em", marginTop: 2 }}>{label}</div>
             </motion.div>
           ))}
+        </div>
+
+        {/* ── My Followers ─────────────────────────────────────────────────── */}
+        <div style={{ background: "#111", border: "2px solid #222", borderRadius: 18, padding: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Users size={14} color="#ff2d8d" />
+              <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.06em", color: "#ff2d8d" }}>MINA FÖLJARE</span>
+            </div>
+            {newFollowerCount > 0 && (
+              <motion.span
+                animate={{ opacity: [0.6, 1, 0.6] }}
+                transition={{ repeat: Infinity, duration: 1.2 }}
+                style={{ fontSize: 9, fontWeight: 800, color: "#ff2d8d", background: "#ff2d8d18", border: "1.5px solid #ff2d8d55", borderRadius: 6, padding: "2px 7px" }}
+              >
+                +{newFollowerCount} NYA
+              </motion.span>
+            )}
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-2 mb-3">
+            {(["followers", "following"] as const).map(t => (
+              <button key={t} onClick={() => setFollowTab(t)}
+                style={{
+                  flex: 1, padding: "8px", borderRadius: 10,
+                  background: followTab === t ? "#ff2d8d18" : "#0d0d0d",
+                  border: `2px solid ${followTab === t ? "#ff2d8d" : "#1a1a1a"}`,
+                  color: followTab === t ? "#ff2d8d" : "#666",
+                  fontWeight: 700, fontSize: 12, cursor: "pointer",
+                }}>
+                {t === "followers" ? `Följare (${FOLLOWERS.length})` : `Följer (${FOLLOWING.length})`}
+              </button>
+            ))}
+          </div>
+
+          {/* New followers strip */}
+          {followTab === "followers" && newFollowerCount > 0 && (
+            <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 8, marginBottom: 4 }}>
+              {FOLLOWERS.filter(f => f.isNew).map(f => (
+                <div key={f.id} style={{ flexShrink: 0, textAlign: "center", width: 56 }}>
+                  <motion.div
+                    animate={{ boxShadow: ["0 0 0px #ff2d8d00", "0 0 12px #ff2d8d88", "0 0 0px #ff2d8d00"] }}
+                    transition={{ repeat: Infinity, duration: 1.6 }}
+                    style={{ width: 44, height: 44, margin: "0 auto", borderRadius: "50%", background: "#0d0d0d", border: "2px solid #ff2d8d", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}
+                  >
+                    {f.emoji}
+                  </motion.div>
+                  <div style={{ fontSize: 8, color: "#888", marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.username}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* List */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <AnimatePresence initial={false}>
+              {followList.map(f => {
+                const isFollowingBack = followOverrides[f.id] ?? f.youFollowBack;
+                return (
+                  <motion.div
+                    key={f.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10, padding: "9px 10px",
+                      background: "#0d0d0d", border: "2px solid #1a1a1a", borderRadius: 12,
+                    }}
+                  >
+                    <div style={{ width: 32, height: 32, flexShrink: 0, background: "#111", border: "2px solid #222", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem" }}>
+                      {f.emoji}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", gap: 5 }}>
+                        @{f.username}
+                        {f.mutual && <span style={{ fontSize: 8, color: "#00e5ff", fontWeight: 700 }}>· MUTUAL</span>}
+                      </div>
+                      <div style={{ fontSize: 10, color: "#444" }}>LV {f.level} · {f.class} · {f.followedAt}</div>
+                    </div>
+                    {followTab === "followers" ? (
+                      <motion.button
+                        whileTap={{ scale: 0.93 }}
+                        onClick={() => toggleFollow(f.id, isFollowingBack)}
+                        style={{
+                          flexShrink: 0, padding: "6px 10px", borderRadius: 8, fontSize: 10, fontWeight: 800,
+                          background: isFollowingBack ? "#0d0d0d" : "#ff2d8d",
+                          border: `1.5px solid ${isFollowingBack ? "#333" : "#ff2d8d"}`,
+                          color: isFollowingBack ? "#666" : "#000",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {isFollowingBack ? "FÖLJER" : "FÖLJ TILLBAKA"}
+                      </motion.button>
+                    ) : (
+                      <motion.button
+                        whileTap={{ scale: 0.93 }}
+                        onClick={() => toggleFollow(f.id, isFollowingBack)}
+                        style={{
+                          flexShrink: 0, padding: "6px 10px", borderRadius: 8, fontSize: 10, fontWeight: 800,
+                          background: isFollowingBack ? "#0d0d0d" : "#222",
+                          border: `1.5px solid ${isFollowingBack ? "#333" : "#444"}`,
+                          color: isFollowingBack ? "#666" : "#aaa",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {isFollowingBack ? "FÖLJER" : "FÖLJ"}
+                      </motion.button>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
         </div>
 
         {/* ── Spin Wheel ───────────────────────────────────────────────────── */}

@@ -1834,7 +1834,8 @@ export default function DeepCatch({ onCatch, petEmoji = "🐟" }: Props) {
           ref={canvasRef}
           width={CW}
           height={CH}
-          style={{ display: "block", width: "100%", height: "auto" }}
+          style={{ display: "block", width: "100%", height: "auto", touchAction: "none" }}
+          onPointerDown={handlePointerDown}
           onClick={handleMainButton}
         />
 
@@ -2144,84 +2145,48 @@ export default function DeepCatch({ onCatch, petEmoji = "🐟" }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, paddingInline: 2 }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: "#4488ff" }}>
-          Caught: {score}  |  Best: {best}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6, paddingInline: 2, gap: 6 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "#4488ff", flexShrink: 0 }}>
+          Caught: {score} | Best: {best}
         </span>
+        {/* Compact zone pills — replaces old full-width zone box row */}
+        <div style={{ display: "flex", gap: 3 }}>
+          {([1, 2, 3] as DepthZone[]).map(z => (
+            <div
+              key={z}
+              title={ZONE_LABEL[z]}
+              style={{
+                padding: "2px 5px", borderRadius: 7, fontSize: 9, fontWeight: 800,
+                background: activeZone === z ? `${ZONE_COLOR[z]}cc` : "rgba(10,20,40,0.6)",
+                border: `1.5px solid ${activeZone === z ? ZONE_COLOR[z] : "#1a2a3a"}`,
+                color: activeZone === z ? "#fff" : "#445566",
+                opacity: activeZone === z ? 1 : 0.5,
+              }}
+            >
+              {z === 1 ? "☀️" : z === 2 ? "🌊" : "🌑"}
+            </div>
+          ))}
+        </div>
         {activeFishDef && phase !== "result" && (
           <motion.span
             animate={{ opacity: [0.6, 1, 0.6] }}
             transition={{ repeat: Infinity, duration: 0.7 }}
-            style={{ fontSize: 11, fontWeight: 800, color: RARITY_COLOR[activeFishDef.rarity] }}
+            style={{ fontSize: 10, fontWeight: 800, color: RARITY_COLOR[activeFishDef.rarity], flexShrink: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
           >
             {activeFishDef.emoji} {activeFishDef.name}
           </motion.span>
         )}
       </div>
 
-      {/* ── Zone indicator ───────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-        {([1, 2, 3] as DepthZone[]).map(z => (
-          <div
-            key={z}
-            style={{
-              flex: 1,
-              padding: "8px 4px",
-              textAlign: "center",
-              background: activeZone === z
-                ? `linear-gradient(135deg, ${ZONE_COLOR[z]}cc, ${ZONE_COLOR[z]}88)`
-                : "rgba(10,20,40,0.6)",
-              border: activeZone === z ? `2px solid ${z === 1 ? "#4499ff" : z === 2 ? "#2255aa" : "#1a2a66"}` : "2px solid #1a2a3a",
-              borderRadius: 12,
-              color: activeZone === z ? "#fff" : "#445566",
-              fontSize: 9,
-              fontWeight: 800,
-              letterSpacing: "0.04em",
-              boxShadow: activeZone === z ? `0 0 12px ${ZONE_COLOR[z]}88` : "none",
-              opacity: activeZone === z ? 1 : 0.5,
-            }}
-          >
-            {z === 1 ? "☀️" : z === 2 ? "🌊" : "🌑"} {ZONE_LABEL[z]}
-          </div>
-        ))}
-      </div>
-      <p style={{ textAlign: "center", fontSize: 9, color: "#445", marginTop: 4, letterSpacing: "0.04em" }}>
-        HOLD THE CAST BUTTON LONGER TO REACH DEEPER ZONES
-      </p>
-
-      {/* ── Social recent catches ────────────────────────────────────────────── */}
-      <div style={{ display: "flex", gap: 8, marginTop: 10, overflowX: "auto", paddingBottom: 2 }}>
-        {SOCIAL_CATCHES.map((s, i) => (
-          <div
-            key={i}
-            style={{
-              flexShrink: 0, display: "flex", alignItems: "center", gap: 6,
-              background: "#0a1a2a", border: `1.5px solid ${RARITY_COLOR[s.rarity]}44`,
-              borderRadius: 12, padding: "6px 10px",
-            }}
-          >
-            <span style={{ fontSize: 14 }}>{s.emoji}</span>
-            <div>
-              <div style={{ fontSize: 8, color: "#556", fontWeight: 700 }}>{s.username}</div>
-              <div style={{ fontSize: 11 }}>{s.fishEmoji} <span style={{ fontSize: 9, color: RARITY_COLOR[s.rarity] }}>{s.fishName}</span></div>
-            </div>
-            <div style={{ textAlign: "right", marginLeft: 4 }}>
-              <div style={{ fontSize: 9, color: "#c8ff00", fontWeight: 700 }}>+{s.karma}⚡</div>
-              <div style={{ fontSize: 8, color: "#445" }}>{s.ago}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
       {/* ── Bait selector ────────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
         {(["worm", "cricket", "golden"] as BaitType[]).map(b => (
           <button
             key={b}
             onClick={() => handleBaitSelect(b)}
             style={{
               flex: 1,
-              padding: "8px 4px",
+              padding: "6px 4px",
               background: bait === b ? "rgba(40,80,20,0.85)" : "rgba(10,20,40,0.7)",
               border: bait === b ? "2px solid #44cc44" : "2px solid #1a2a3a",
               borderRadius: 10,
@@ -2249,8 +2214,8 @@ export default function DeepCatch({ onCatch, petEmoji = "🐟" }: Props) {
         disabled={btnDisabled}
         style={{
           width: "100%",
-          marginTop: 10,
-          padding: "16px",
+          marginTop: 8,
+          padding: "14px",
           background: btnBg,
           border: `3px solid ${btnBorder}`,
           borderRadius: 16,
@@ -2279,6 +2244,33 @@ export default function DeepCatch({ onCatch, petEmoji = "🐟" }: Props) {
       >
         {btnLabel}
       </button>
+      <p style={{ textAlign: "center", fontSize: 9, color: "#445", marginTop: 6, letterSpacing: "0.04em" }}>
+        HOLD ANYWHERE ON THE WATER — LONGER HOLDS REACH DEEPER ZONES
+      </p>
+
+      {/* ── Social recent catches (decorative, placed below the fold on purpose) ── */}
+      <div style={{ display: "flex", gap: 8, marginTop: 10, overflowX: "auto", paddingBottom: 2 }}>
+        {SOCIAL_CATCHES.map((s, i) => (
+          <div
+            key={i}
+            style={{
+              flexShrink: 0, display: "flex", alignItems: "center", gap: 6,
+              background: "#0a1a2a", border: `1.5px solid ${RARITY_COLOR[s.rarity]}44`,
+              borderRadius: 12, padding: "6px 10px",
+            }}
+          >
+            <span style={{ fontSize: 14 }}>{s.emoji}</span>
+            <div>
+              <div style={{ fontSize: 8, color: "#556", fontWeight: 700 }}>{s.username}</div>
+              <div style={{ fontSize: 11 }}>{s.fishEmoji} <span style={{ fontSize: 9, color: RARITY_COLOR[s.rarity] }}>{s.fishName}</span></div>
+            </div>
+            <div style={{ textAlign: "right", marginLeft: 4 }}>
+              <div style={{ fontSize: 9, color: "#c8ff00", fontWeight: 700 }}>+{s.karma}⚡</div>
+              <div style={{ fontSize: 8, color: "#445" }}>{s.ago}</div>
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* Pulse keyframe injection */}
       <style>{`
