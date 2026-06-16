@@ -46,72 +46,157 @@ export default function FeedPage() {
   const liveActivities = activities.filter(a => Date.now() - a.timestamp < 3600000).slice(0, 3);
 
   return (
-    <div style={{ background: "var(--bg)", minHeight: "100dvh", position: "relative" }}>
+    <div style={{ background: "#0a0a0a", minHeight: "100dvh", position: "relative" }}>
       {/* Notification drawer */}
       <AnimatePresence>
         {showNotifs && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 200, background: "#fff", border: "3px solid #0a0a0a", borderTop: "none", borderRadius: "0 0 20px 20px", padding: "16px", boxShadow: "0 8px 30px rgba(0,0,0,0.15)" }}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: "0.06em" }}>NOTIFICATIONS</span>
-              <button onClick={() => setShowNotifs(false)} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} /></button>
-            </div>
-            {NOTIFS.map((n, i) => (
-              <div key={i} className="flex items-center gap-3 py-2" style={{ borderBottom: i < NOTIFS.length-1 ? "1px solid #f0ebe0" : "none" }}>
-                <div style={{ width: 36, height: 36, background: `${n.color}18`, border: `2px solid ${n.color}`, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", flexShrink: 0 }}>{n.emoji}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{n.text}</div>
-                  <div style={{ fontSize: 10, color: "#aaa" }}>{n.time}</div>
-                </div>
+          <>
+            {/* Dark overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowNotifs(false)}
+              style={{ position: "fixed", inset: 0, zIndex: 199, background: "rgba(0,0,0,0.6)" }}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              style={{
+                position: "fixed", top: 0, left: 0, right: 0, zIndex: 200,
+                background: "#0f0f0f",
+                border: "2px solid #c8ff0044",
+                borderTop: "none", borderRadius: "0 0 20px 20px",
+                padding: "16px",
+                boxShadow: "0 8px 40px rgba(0,0,0,0.6), 0 0 30px #c8ff0011",
+              }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: "0.06em", color: "#fff" }}>NOTIFICATIONS</span>
+                <button onClick={() => setShowNotifs(false)} style={{ background: "none", border: "none", cursor: "pointer" }}>
+                  <X size={18} color="#888" />
+                </button>
               </div>
-            ))}
-          </motion.div>
+              {NOTIFS.map((n, i) => (
+                <div key={i} className="flex items-center gap-3 py-2"
+                  style={{ borderBottom: i < NOTIFS.length - 1 ? "1px solid #1e1e1e" : "none" }}>
+                  <div style={{
+                    width: 36, height: 36, background: `${n.color}18`,
+                    border: `2px solid ${n.color}`, borderRadius: 10,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "1.1rem", flexShrink: 0,
+                  }}>{n.emoji}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{n.text}</div>
+                    <div style={{ fontSize: 10, color: "#555" }}>{n.time}</div>
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
       {/* Header */}
-      <div className="sticky top-0 z-30 px-4 pt-4 pb-3" style={{ background: "var(--bg)", borderBottom: "3px solid #0a0a0a" }}>
+      <div className="sticky top-0 z-30 px-4 pt-4 pb-3" style={{ background: "#0a0a0a", borderBottom: "3px solid #111" }}>
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <h1 style={{ fontSize: "1.9rem", fontWeight: 700, letterSpacing: "-0.04em", lineHeight: 1 }}>KARMA</h1>
+              {/* Epic gradient KARMA title */}
+              <h1 style={{
+                fontSize: "2.4rem", fontWeight: 700, letterSpacing: "-0.04em", lineHeight: 1,
+                background: "linear-gradient(90deg, #c8ff00, #00e5ff, #ff2d8d)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}>KARMA</h1>
               {streak >= 2 && (
                 <motion.div
                   animate={{ scale: [1, 1.08, 1] }}
                   transition={{ duration: 1.4, repeat: Infinity }}
-                  style={{ background: "#ff6b35", border: "2px solid #0a0a0a", borderRadius: 8, padding: "2px 8px", display: "flex", alignItems: "center", gap: 4 }}
+                  style={{
+                    background: "#ff6b35", border: "2px solid #0a0a0a",
+                    borderRadius: 8, padding: "2px 8px",
+                    display: "flex", alignItems: "center", gap: 4,
+                    boxShadow: "0 0 12px #ff6b3566",
+                  }}
                 >
                   <Flame size={12} color="#fff" fill="#fff" />
                   <span style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>{streak}d</span>
                 </motion.div>
               )}
             </div>
-            <p style={{ fontSize: 11, fontWeight: 600, color: "#888", letterSpacing: "0.08em" }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: "#555", letterSpacing: "0.08em" }}>
               REAL-LIFE GAME ENGINE · LV{level}
             </p>
           </div>
 
           <div className="flex items-center gap-2">
+            {/* XP pill with neon glow */}
             <div className="flex items-center gap-1.5 px-3 py-1.5"
-              style={{ background: "#c8ff00", border: "2.5px solid #0a0a0a", borderRadius: 12, boxShadow: "3px 3px 0px #0a0a0a" }}>
+              style={{
+                background: "#c8ff00", border: "2.5px solid #0a0a0a",
+                borderRadius: 12, boxShadow: "3px 3px 0px #0a0a0a, 0 0 16px #c8ff0066",
+              }}>
               <Zap size={14} color="#0a0a0a" fill="#0a0a0a" />
-              <span style={{ fontSize: 13, fontWeight: 700 }}>{formatXP(user.xp)} XP</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#0a0a0a" }}>{formatXP(user.xp)} XP</span>
             </div>
             <div style={{ position: "relative" }}>
               <button onClick={() => setShowNotifs(v => !v)}
-                style={{ width: 40, height: 40, background: showNotifs ? "#0a0a0a" : "#fff", border: "2.5px solid #0a0a0a", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "3px 3px 0px #0a0a0a", cursor: "pointer" }}>
-                <Bell size={18} color={showNotifs ? "#c8ff00" : "#0a0a0a"} />
+                style={{
+                  width: 40, height: 40,
+                  background: showNotifs ? "#1a1a1a" : "#111",
+                  border: "2.5px solid #333",
+                  borderRadius: 12,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: showNotifs ? "0 0 12px #c8ff0044" : "none",
+                  cursor: "pointer",
+                }}>
+                <Bell size={18} color={showNotifs ? "#c8ff00" : "#888"} />
               </button>
               <motion.span animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 2, repeat: Infinity }}
-                style={{ position: "absolute", top: -4, right: -4, width: 18, height: 18, background: "#ff2d8d", border: "2px solid #0a0a0a", borderRadius: "50%", fontSize: 10, fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                style={{
+                  position: "absolute", top: -4, right: -4,
+                  width: 18, height: 18,
+                  background: "#ff2d8d", border: "2px solid #0a0a0a",
+                  borderRadius: "50%", fontSize: 10, fontWeight: 700, color: "#fff",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: "0 0 8px #ff2d8d88",
+                }}>
                 {NOTIFS.length}
               </motion.span>
             </div>
           </div>
+        </div>
+
+        {/* Glowing neon status strip */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12, marginTop: 6,
+          padding: "5px 10px",
+          background: "#0d0d0d", border: "1px solid #c8ff0022",
+          borderRadius: 8,
+        }}>
+          <motion.div
+            animate={{ opacity: [1, 0.3, 1] }}
+            transition={{ duration: 1.2, repeat: Infinity }}
+            style={{ width: 6, height: 6, background: "#c8ff00", borderRadius: "50%", flexShrink: 0, boxShadow: "0 0 6px #c8ff00" }}
+          />
+          <span style={{ fontSize: 10, fontWeight: 700, color: "#c8ff00", letterSpacing: "0.08em" }}>
+            2,341 PLAYERS ONLINE
+          </span>
+          <span style={{ fontSize: 10, color: "#333" }}>·</span>
+          <span style={{ fontSize: 10, fontWeight: 600, color: "#00e5ff", letterSpacing: "0.06em" }}>
+            POT: 249 KR
+          </span>
+          <span style={{ fontSize: 10, color: "#333" }}>·</span>
+          <motion.span
+            animate={{ color: ["#ff2d8d", "#c8ff00", "#ff2d8d"] }}
+            transition={{ duration: 3, repeat: Infinity }}
+            style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em" }}
+          >
+            LIVE
+          </motion.span>
         </div>
 
         {/* Filters */}
@@ -119,13 +204,15 @@ export default function FeedPage() {
           {FILTERS.map((f) => (
             <button key={f} onClick={() => setFilter(f)} className="flex-shrink-0 px-4 py-1.5"
               style={{
-                background: filter === f ? "#0a0a0a" : "#fff",
-                border: "2.5px solid #0a0a0a", borderRadius: 10,
+                background: filter === f ? "#0a0a0a" : "#111",
+                border: filter === f ? "2.5px solid #c8ff0088" : "2.5px solid #222",
+                borderRadius: 10,
                 fontSize: 12, fontWeight: 700,
-                color: filter === f ? "#c8ff00" : "#0a0a0a",
+                color: filter === f ? "#c8ff00" : "#888",
                 letterSpacing: "0.04em",
-                boxShadow: filter === f ? "none" : "2px 2px 0px #0a0a0a",
+                boxShadow: filter === f ? "0 0 12px #c8ff0044" : "none",
                 cursor: "pointer",
+                transition: "all 0.15s ease",
               }}>
               {f === "HOT" ? "🔥 HOT" : f}
             </button>
@@ -143,7 +230,7 @@ export default function FeedPage() {
             background: "linear-gradient(135deg, #ff6b35, #ff2d8d)",
             border: "3px solid #0a0a0a",
             borderRadius: 18, padding: "14px 16px",
-            boxShadow: "4px 4px 0px #0a0a0a",
+            boxShadow: "4px 4px 0px #0a0a0a, 0 0 30px #ff2d8d33",
             position: "relative", overflow: "hidden",
           }}
         >
@@ -173,8 +260,9 @@ export default function FeedPage() {
             <Link key={item.href} href={item.href} style={{ textDecoration: "none", flexShrink: 0 }}>
               <motion.div
                 whileTap={{ scale: 0.93 }}
+                whileHover={{ boxShadow: `0 0 16px ${item.color}33` }}
                 style={{
-                  background: "#111",
+                  background: "linear-gradient(135deg, #111, #0d0d0d)",
                   border: `1.5px solid ${item.color}44`,
                   borderRadius: 14, padding: "10px 14px",
                   textAlign: "center", minWidth: 76,
@@ -199,10 +287,10 @@ export default function FeedPage() {
             className="mx-4 mt-3"
             style={{
               background: "linear-gradient(135deg, #0a0a0a, #111)",
-              border: "2px solid #c8ff0044",
+              border: "2px solid #c8ff0066",
               borderRadius: 16, padding: "12px 14px",
               display: "flex", alignItems: "center", gap: 12,
-              boxShadow: "0 0 20px #c8ff0011",
+              boxShadow: "0 0 30px #c8ff0022",
             }}
           >
             <motion.div
@@ -214,7 +302,7 @@ export default function FeedPage() {
               <div style={{ fontSize: 12, fontWeight: 900, color: "#c8ff00", letterSpacing: "0.04em" }}>
                 DAGLIG POTT — 249 kr
               </div>
-              <div style={{ fontSize: 10, color: "#666", marginTop: 1 }}>
+              <div style={{ fontSize: 10, color: "#555", marginTop: 1 }}>
                 Var aktiv idag → tjäna biljetter → vinn riktiga pengar
               </div>
             </div>
@@ -231,7 +319,7 @@ export default function FeedPage() {
       {liveActivities.length > 0 && filter === "ALL" && (
         <div className="mx-4 mt-3" style={{ background: "#0a0a0a", border: "2px solid #c8ff0033", borderRadius: 14, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10 }}>
           <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1.2, repeat: Infinity }}
-            style={{ width: 8, height: 8, background: "#c8ff00", borderRadius: "50%", flexShrink: 0 }} />
+            style={{ width: 8, height: 8, background: "#c8ff00", borderRadius: "50%", flexShrink: 0, boxShadow: "0 0 6px #c8ff00" }} />
           <div style={{ flex: 1, overflow: "hidden" }}>
             <motion.div
               key={liveActivities[0].id}
@@ -242,21 +330,21 @@ export default function FeedPage() {
               LIVE · {liveActivities[0].emoji} {liveActivities[0].title}
             </motion.div>
           </div>
-          <span style={{ fontSize: 10, color: "#555", flexShrink: 0 }}>{timeAgo(liveActivities[0].timestamp)}</span>
+          <span style={{ fontSize: 10, color: "#444", flexShrink: 0 }}>{timeAgo(liveActivities[0].timestamp)}</span>
         </div>
       )}
 
       {/* Stories */}
-      <div className="px-4 pt-3" style={{ borderBottom: "2px solid #f0ebe0" }}>
+      <div className="px-4 pt-3" style={{ borderBottom: "2px solid #c8ff0022" }}>
         <StoriesBar />
       </div>
 
       {/* Feed */}
-      <div className="px-4 pt-4 pb-24 space-y-3" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="px-4 pt-4 pb-24" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {/* My Activity Cards */}
         {myActivities.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#888", letterSpacing: "0.12em" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#555", letterSpacing: "0.12em" }}>
               ⚡ YOUR RECENT ACTIVITY
             </div>
             {myActivities.map((act, i) => {
@@ -268,10 +356,12 @@ export default function FeedPage() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.05 }}
                   style={{
-                    background: "#fff",
-                    border: `2.5px solid ${act.rarity && act.rarity !== "common" ? rarityColor : "#0a0a0a"}`,
+                    background: "#111",
+                    border: `2.5px solid ${act.rarity && act.rarity !== "common" ? rarityColor : "#222"}`,
                     borderRadius: 16, padding: "12px 14px",
-                    boxShadow: act.rarity && act.rarity !== "common" ? `3px 3px 0px #0a0a0a, 0 0 12px ${rarityColor}22` : "3px 3px 0px #0a0a0a",
+                    boxShadow: act.rarity && act.rarity !== "common"
+                      ? `3px 3px 0px #000, 0 0 20px ${rarityColor}33, 0 0 12px ${rarityColor}44`
+                      : "3px 3px 0px #000",
                     display: "flex", alignItems: "center", gap: 12,
                   }}>
                   <div style={{
@@ -283,15 +373,15 @@ export default function FeedPage() {
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       {isRecent && (
                         <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1.2, repeat: Infinity }}
-                          style={{ width: 6, height: 6, background: "#4caf50", borderRadius: "50%", flexShrink: 0 }} />
+                          style={{ width: 6, height: 6, background: "#4caf50", borderRadius: "50%", flexShrink: 0, boxShadow: "0 0 4px #4caf50" }} />
                       )}
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#0a0a0a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{act.title}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{act.title}</div>
                     </div>
-                    {act.detail && <div style={{ fontSize: 11, color: "#888", marginTop: 1 }}>{act.detail}</div>}
+                    {act.detail && <div style={{ fontSize: 11, color: "#555", marginTop: 1 }}>{act.detail}</div>}
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    {act.karma ? <div style={{ fontSize: 12, fontWeight: 700, color: "#c8ff00", background: "#0a0a0a", borderRadius: 8, padding: "2px 7px" }}>+{act.karma}⚡</div> : null}
-                    <div style={{ fontSize: 10, color: "#aaa", marginTop: 3 }}>{timeAgo(act.timestamp)}</div>
+                    {act.karma ? <div style={{ fontSize: 12, fontWeight: 700, color: "#c8ff00", background: "#0a0a0a", borderRadius: 8, padding: "2px 7px", boxShadow: "0 0 8px #c8ff0033" }}>+{act.karma}⚡</div> : null}
+                    <div style={{ fontSize: 10, color: "#444", marginTop: 3 }}>{timeAgo(act.timestamp)}</div>
                   </div>
                 </motion.div>
               );
@@ -308,7 +398,7 @@ export default function FeedPage() {
             style={{ position: "relative" }}>
             {filter === "HOT" && i < 3 && (
               <motion.div animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 2, repeat: Infinity }}
-                style={{ position: "absolute", top: -2, right: -2, background: "#ff6b35", color: "#fff", fontSize: 9, fontWeight: 700, borderRadius: "0 14px 0 8px", padding: "3px 8px", zIndex: 1 }}>
+                style={{ position: "absolute", top: -2, right: -2, background: "#ff6b35", color: "#fff", fontSize: 9, fontWeight: 700, borderRadius: "0 14px 0 8px", padding: "3px 8px", zIndex: 1, boxShadow: "0 0 10px #ff6b3566" }}>
                 🔥 HOT
               </motion.div>
             )}
@@ -319,7 +409,7 @@ export default function FeedPage() {
         {posts.length === 0 && (
           <div className="text-center py-16">
             <div style={{ fontSize: "3rem" }}>🔍</div>
-            <p style={{ fontSize: 15, fontWeight: 600, color: "#888", marginTop: 8 }}>No posts matching this filter</p>
+            <p style={{ fontSize: 15, fontWeight: 600, color: "#555", marginTop: 8 }}>No posts matching this filter</p>
           </div>
         )}
       </div>

@@ -544,13 +544,36 @@ export default function SocialPage() {
   return (
     <div style={{ background: "var(--bg)", minHeight: "100dvh" }}>
       {/* Header */}
-      <div className="sticky top-0 z-30 px-4 pt-4 pb-0" style={{ background: "var(--bg)", borderBottom: `3px solid ${world.accent}` }}>
+      <div className="sticky top-0 z-30 px-4 pt-4 pb-0" style={{ background: "var(--bg)", borderBottom: `3px solid ${world.accent}`, boxShadow: `0 2px 20px ${world.accent}33` }}>
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 style={{ fontSize: "1.9rem", fontWeight: 700, letterSpacing: "-0.04em", lineHeight: 1 }}>SOCIAL</h1>
-            <p style={{ fontSize: 11, color: "#888", fontWeight: 600, marginTop: 2 }}>
-              <span style={{ color: "#4caf50", fontWeight: 700 }}>● {onlineFriends.length} online</span> · {FRIENDS.length} friends
-            </p>
+            <h1 style={{
+              fontSize: "2.4rem",
+              fontWeight: 900,
+              letterSpacing: "-0.04em",
+              lineHeight: 1,
+              background: "linear-gradient(135deg, #c8ff00, #ff2d8d)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}>SOCIAL</h1>
+            {/* Live community stats bar */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 11, color: "#4caf50", fontWeight: 700 }}>● {onlineFriends.length} online</span>
+              <span style={{ fontSize: 11, color: "#555" }}>·</span>
+              <span style={{ fontSize: 11, color: "#888", fontWeight: 600 }}>{FRIENDS.length} friends</span>
+              <span style={{ fontSize: 11, color: "#555" }}>·</span>
+              <span style={{
+                fontSize: 10,
+                fontWeight: 800,
+                color: "#c8ff00",
+                background: "#c8ff0011",
+                border: "1px solid #c8ff0033",
+                borderRadius: 20,
+                padding: "2px 8px",
+                letterSpacing: "0.06em",
+              }}>⚡ 847,291 COMMUNITY KARMA</span>
+            </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Link href="/chat" style={{ textDecoration: "none" }}>
@@ -561,7 +584,7 @@ export default function SocialPage() {
                 fontSize: 13, fontWeight: 700, color: "#c8ff00",
               }}>💬</div>
             </Link>
-            <div style={{ background: world.accent, border: "2.5px solid #0a0a0a", borderRadius: 12, padding: "8px 14px", boxShadow: "3px 3px 0px #0a0a0a" }}>
+            <div style={{ background: world.accent, border: "2.5px solid #0a0a0a", borderRadius: 12, padding: "8px 14px", boxShadow: `3px 3px 0px #0a0a0a, 0 0 20px ${world.accent}44` }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: "#000" }}>{user.avatarEmoji} @{user.username}</span>
             </div>
           </div>
@@ -577,12 +600,13 @@ export default function SocialPage() {
                 fontSize: 10, fontWeight: 700, color: tab === t ? world.accent : "#666",
                 letterSpacing: "0.06em", cursor: "pointer", transition: "all 0.15s",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+                boxShadow: tab === t ? `0 2px 8px ${world.accent}55` : "none",
               }}>
               {t === "LIVE" && (
                 <motion.span
                   animate={{ opacity: [1, 0.2, 1] }}
                   transition={{ duration: 1.2, repeat: Infinity }}
-                  style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#4caf50" }}
+                  style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#4caf50", boxShadow: tab === "LIVE" ? "0 0 6px #4caf50" : "none" }}
                 />
               )}
               {t}
@@ -625,7 +649,7 @@ export default function SocialPage() {
               background: world.accent,
               border: "2.5px solid #0a0a0a",
               borderRadius: "50%",
-              boxShadow: `0 0 20px ${world.accent}66, 3px 3px 0px #0a0a0a`,
+              boxShadow: `0 0 20px ${world.accent}99, 0 0 30px ${world.accent}66, 3px 3px 0px #0a0a0a`,
               fontSize: "1.4rem",
               cursor: "pointer",
               display: "flex",
@@ -645,21 +669,22 @@ export default function SocialPage() {
           {/* Online story-bar */}
           {onlineFriends.length > 0 && (
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#4caf50", letterSpacing: "0.1em", marginBottom: 10 }}>● ACTIVE NOW</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#4caf50", letterSpacing: "0.1em", marginBottom: 10, textShadow: "0 0 8px #4caf50" }}>● ACTIVE NOW</div>
               <div style={{ display: "flex", gap: 14, overflowX: "auto", paddingBottom: 8 }}>
                 {onlineFriends.map(f => (
                   <div key={f.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flexShrink: 0 }}>
                     <div style={{
                       width: 58,
                       height: 58,
-                      background: "linear-gradient(135deg, #4caf50, #00e5ff)",
+                      background: "linear-gradient(135deg, #4caf50, #00e5ff, #c8ff00)",
                       borderRadius: "50%",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       fontSize: "1.6rem",
-                      padding: 3,
+                      padding: 4,
                       position: "relative",
+                      boxShadow: "0 0 20px #4caf5033",
                     }}>
                       <div style={{ width: "100%", height: "100%", background: "#111", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem" }}>
                         {f.emoji}
@@ -667,7 +692,7 @@ export default function SocialPage() {
                       <motion.div
                         animate={{ scale: [1, 1.2, 1], opacity: [1, 0.6, 1] }}
                         transition={{ duration: 2, repeat: Infinity }}
-                        style={{ position: "absolute", bottom: 2, right: 2, width: 12, height: 12, background: "#4caf50", border: "2px solid #0a0a0a", borderRadius: "50%" }}
+                        style={{ position: "absolute", bottom: 2, right: 2, width: 12, height: 12, background: "#4caf50", border: "2px solid #0a0a0a", borderRadius: "50%", boxShadow: "0 0 8px #4caf50" }}
                       />
                     </div>
                     <span style={{ fontSize: 10, fontWeight: 600, color: "#ccc", maxWidth: 60, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -694,7 +719,7 @@ export default function SocialPage() {
                       display: "flex",
                       alignItems: "center",
                       gap: 12,
-                      boxShadow: "0 0 20px #ff6b3522",
+                      boxShadow: "0 0 30px #ff6b3544",
                     }}>
                       <div style={{ fontSize: "2rem" }}>{f.emoji}</div>
                       <div style={{ flex: 1 }}>
@@ -714,7 +739,7 @@ export default function SocialPage() {
                           fontWeight: 800,
                           color: "#000",
                           textDecoration: "none",
-                          boxShadow: "2px 2px 0px #0a0a0a",
+                          boxShadow: "2px 2px 0px #0a0a0a, 0 0 16px #ff6b3566",
                           letterSpacing: "0.04em",
                         }}>
                         JOIN ⚡
@@ -733,20 +758,20 @@ export default function SocialPage() {
               <div className="space-y-2">
                 {onlineFriends.filter(f => !f.currentGame).map((f, i) => (
                   <motion.div key={f.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}>
-                    <div style={{ background: "#fff", border: "2.5px solid #0a0a0a", borderRadius: 16, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: "3px 3px 0px #0a0a0a" }}>
+                    <div style={{ background: "#111", border: "2.5px solid #4caf5044", borderRadius: 16, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 0 20px #4caf5022" }}>
                       <div style={{ position: "relative" }}>
-                        <div style={{ width: 46, height: 46, background: "#faf7f2", border: "2.5px solid #0a0a0a", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.4rem" }}>{f.emoji}</div>
-                        <div style={{ position: "absolute", bottom: 1, right: 1, width: 11, height: 11, background: "#4caf50", border: "2px solid #fff", borderRadius: "50%" }} />
+                        <div style={{ width: 46, height: 46, background: "#1a1a1a", border: "2.5px solid #4caf5044", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.4rem" }}>{f.emoji}</div>
+                        <div style={{ position: "absolute", bottom: 1, right: 1, width: 11, height: 11, background: "#4caf50", border: "2px solid #111", borderRadius: "50%", boxShadow: "0 0 8px #4caf50" }} />
                       </div>
                       <div style={{ flex: 1 }}>
                         <div className="flex items-center gap-2">
-                          <span style={{ fontSize: 14, fontWeight: 700 }}>@{f.username}</span>
-                          <span style={{ fontSize: 10, fontWeight: 700, background: "#c8ff00", border: "2px solid #0a0a0a", borderRadius: 6, padding: "1px 5px" }}>LV{f.level}</span>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>@{f.username}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, background: "#c8ff00", border: "2px solid #0a0a0a", borderRadius: 6, padding: "1px 5px", color: "#000", boxShadow: "0 0 8px #c8ff0066" }}>LV{f.level}</span>
                         </div>
                         <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{f.lastActivity} · {f.petEmoji} {f.petName}</div>
                       </div>
                       <Link href="/games"
-                        style={{ padding: "8px 14px", background: "#0a0a0a", border: "2px solid #0a0a0a", borderRadius: 10, fontSize: 11, fontWeight: 700, color: "#c8ff00", textDecoration: "none" }}>
+                        style={{ padding: "8px 14px", background: "#0a0a0a", border: "2px solid #c8ff0033", borderRadius: 10, fontSize: 11, fontWeight: 700, color: "#c8ff00", textDecoration: "none", boxShadow: "0 0 8px #c8ff0044" }}>
                         CHALLENGE
                       </Link>
                     </div>
@@ -761,14 +786,14 @@ export default function SocialPage() {
             <div style={{ fontSize: 11, fontWeight: 700, color: "#555", letterSpacing: "0.1em", marginBottom: 10 }}>OFFLINE</div>
             <div className="space-y-2">
               {FRIENDS.filter(f => !f.online).map(f => (
-                <div key={f.id} style={{ background: "#f5f0e8", border: "2px solid #e0dbd0", borderRadius: 14, padding: "10px 12px", display: "flex", alignItems: "center", gap: 10, opacity: 0.7 }}>
+                <div key={f.id} style={{ background: "#111", border: "2px solid #333", borderRadius: 14, padding: "10px 12px", display: "flex", alignItems: "center", gap: 10, opacity: 0.7 }}>
                   <div style={{ position: "relative" }}>
-                    <div style={{ width: 40, height: 40, background: "#faf7f2", border: "2px solid #ccc", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem" }}>{f.emoji}</div>
-                    <div style={{ position: "absolute", bottom: 1, right: 1, width: 10, height: 10, background: "#aaa", border: "2px solid #fff", borderRadius: "50%" }} />
+                    <div style={{ width: 40, height: 40, background: "#1a1a1a", border: "2px solid #333", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem" }}>{f.emoji}</div>
+                    <div style={{ position: "absolute", bottom: 1, right: 1, width: 10, height: 10, background: "#555", border: "2px solid #111", borderRadius: "50%" }} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>@{f.username}</div>
-                    <div style={{ fontSize: 11, color: "#999" }}>{f.lastActivity} · {f.petEmoji} {f.petName}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#ccc" }}>@{f.username}</div>
+                    <div style={{ fontSize: 11, color: "#666" }}>{f.lastActivity} · {f.petEmoji} {f.petName}</div>
                   </div>
                 </div>
               ))}
@@ -815,9 +840,9 @@ export default function SocialPage() {
           {/* Podium top 3 */}
           {LEADERBOARD.filter(e => e.rank <= 3).map((entry, i) => {
             const podiumColors = [
-              { bg: "linear-gradient(135deg, #2a1c00, #5a3d00)", border: "#ffcc00", crown: "👑", glow: "#ffcc0044" },
-              { bg: "linear-gradient(135deg, #1a1a1a, #333)", border: "#c0c0c0", crown: "🥈", glow: "#c0c0c022" },
-              { bg: "linear-gradient(135deg, #1a0c00, #3a1800)", border: "#cd7f32", crown: "🥉", glow: "#cd7f3222" },
+              { bg: "linear-gradient(135deg, #2a1c00, #5a3d00)", border: "#ffcc00", crown: "👑", glow: "#ffcc0044", extraGlow: "0 0 40px #ffcc0044" },
+              { bg: "linear-gradient(135deg, #1a1a1a, #333)", border: "#c0c0c0", crown: "🥈", glow: "#c0c0c022", extraGlow: "" },
+              { bg: "linear-gradient(135deg, #1a0c00, #3a1800)", border: "#cd7f32", crown: "🥉", glow: "#cd7f3222", extraGlow: "" },
             ];
             const c = podiumColors[i];
             const isMe = entry.username === user.username;
@@ -869,23 +894,23 @@ export default function SocialPage() {
               return (
                 <motion.div key={entry.username} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 + i * 0.06 }}>
                   <div style={{
-                    background: isMe ? `${world.accent}18` : "#fff",
-                    border: `2px solid ${isMe ? world.accent : "#e8e3d8"}`,
+                    background: isMe ? `${world.accent}18` : "#111",
+                    border: `2px solid ${isMe ? world.accent : "#2a2a2a"}`,
                     borderRadius: 14,
                     padding: "10px 14px",
                     display: "flex",
                     alignItems: "center",
                     gap: 10,
-                    boxShadow: isMe ? `0 0 12px ${world.glowColor}` : "2px 2px 0px #e8e3d8",
+                    boxShadow: isMe ? `0 0 12px ${world.glowColor}` : "none",
                   }}>
                     <div style={{ fontSize: 12, fontWeight: 800, color: indicatorColor, width: 16, textAlign: "center" }}>{indicator}</div>
-                    <div style={{ width: 28, height: 28, background: "#f5f0e8", border: "2px solid #0a0a0a", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800 }}>#{entry.rank}</div>
-                    <div style={{ width: 36, height: 36, background: "#faf7f2", border: "2px solid #0a0a0a", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem" }}>{entry.emoji}</div>
+                    <div style={{ width: 28, height: 28, background: "#1a1a1a", border: "2px solid #333", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#ccc" }}>#{entry.rank}</div>
+                    <div style={{ width: 36, height: 36, background: "#1a1a1a", border: "2px solid #333", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem" }}>{entry.emoji}</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700 }}>@{entry.username} {isMe && <span style={{ color: "#888", fontSize: 11 }}>(you)</span>}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>@{entry.username} {isMe && <span style={{ color: "#888", fontSize: 11 }}>(you)</span>}</div>
                       <div style={{ fontSize: 11, color: "#888" }}>LV {entry.level} · {entry.class}</div>
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: isMe ? world.accent : "#0a0a0a" }}>{entry.karma.toLocaleString()} ⚡</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: isMe ? world.accent : "#ccc" }}>{entry.karma.toLocaleString()} ⚡</div>
                   </div>
                 </motion.div>
               );
@@ -938,6 +963,7 @@ export default function SocialPage() {
                   cursor: "pointer",
                   letterSpacing: "0.06em",
                   transition: "all 0.12s",
+                  boxShadow: liveFilter === f ? `0 0 12px ${world.accent}66` : "none",
                 }}
               >
                 {f}
@@ -946,10 +972,10 @@ export default function SocialPage() {
           </div>
 
           {filteredActivity.length === 0 && (
-            <div style={{ textAlign: "center", padding: 40, color: "#888" }}>
+            <div style={{ textAlign: "center", padding: 40 }}>
               <div style={{ fontSize: "2.5rem", marginBottom: 8 }}>📡</div>
-              <div style={{ fontWeight: 600 }}>No activity yet</div>
-              <div style={{ fontSize: 12, marginTop: 4 }}>Play games and complete bounties!</div>
+              <div style={{ fontWeight: 700, color: "#c8ff00", fontSize: 14 }}>No activity yet</div>
+              <div style={{ fontSize: 12, marginTop: 4, color: "#555" }}>Play games and complete bounties!</div>
             </div>
           )}
 
@@ -957,21 +983,22 @@ export default function SocialPage() {
             {filteredActivity.map((a, i) => (
               <motion.div key={a.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
                 <div style={{
-                  background: a.isYou ? `${world.accent}10` : "#fff",
-                  border: `2px solid ${a.isYou ? world.accent + "44" : "#e8e3d8"}`,
+                  background: a.isYou ? `${world.accent}10` : "#111",
+                  border: a.isYou ? `2px solid ${world.accent}66` : "2px solid #2a2a2a",
                   borderLeft: `4px solid ${borderColor[a.category]}`,
                   borderRadius: 14,
                   padding: "10px 12px",
                   display: "flex",
                   alignItems: "flex-start",
                   gap: 10,
+                  boxShadow: a.isYou ? `0 0 16px ${world.accent}22` : "none",
                 }}>
-                  <div style={{ width: 36, height: 36, background: a.isYou ? `${world.accent}22` : "#faf7f2", border: `2px solid ${a.isYou ? world.accent : "#0a0a0a"}`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", flexShrink: 0 }}>
+                  <div style={{ width: 36, height: 36, background: a.isYou ? `${world.accent}22` : "#1a1a1a", border: `2px solid ${a.isYou ? world.accent : "#333"}`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", flexShrink: 0 }}>
                     {a.emoji}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>
-                      <span style={{ color: a.isYou ? world.accent : "#0a0a0a" }}>@{a.username} </span>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>
+                      <span style={{ color: a.isYou ? world.accent : "#ccc" }}>@{a.username} </span>
                       {a.title.replace(`@${a.username} `, "")}
                     </div>
                     {a.detail && <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{a.detail}</div>}

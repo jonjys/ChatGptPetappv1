@@ -298,20 +298,20 @@ export default function PetPage() {
 
       {/* ── Sticky Header ── */}
       <div className="sticky top-0 z-30 px-4 pt-4 pb-3 flex items-center justify-between"
-        style={{ background: "var(--bg)", borderBottom: "3px solid #0a0a0a" }}>
+        style={{ background: "var(--bg)", borderBottom: "3px solid #c8ff0044", boxShadow: "0 2px 24px #c8ff0011" }}>
         <div>
-          <h1 style={{ fontSize: "1.7rem", fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1 }}>
-            {pet.name}
-            <span style={{ fontSize: "1rem", color: "#888", marginLeft: 8 }}>· {evolLabel}</span>
+          <h1 style={{ fontSize: "2rem", fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 1 }}>
+            <span style={{ background: "linear-gradient(135deg, #c8ff00, #00e5ff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>{pet.name}</span>
+            <span style={{ fontSize: "1rem", color: "#888", marginLeft: 8, WebkitTextFillColor: "#888" }}>· {evolLabel}</span>
           </h1>
-          <p style={{ fontSize: 11, color: "#888", fontWeight: 600, letterSpacing: "0.06em" }}>
+          <p style={{ fontSize: 12, color: classColor, fontWeight: 600, letterSpacing: "0.06em" }}>
             {pet.class.toUpperCase()}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {isCritical && (
             <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ repeat: Infinity, duration: 1 }}
-              style={{ background: "#ff2d2d", color: "#fff", border: "2px solid #0a0a0a", borderRadius: 8, padding: "3px 8px", fontSize: 11, fontWeight: 700 }}>
+              style={{ background: "#ff2d2d", color: "#fff", border: "2px solid #0a0a0a", borderRadius: 8, padding: "3px 8px", fontSize: 11, fontWeight: 700, boxShadow: "0 0 20px #ff2d2daa" }}>
               ⚠️ NEEDS CARE
             </motion.div>
           )}
@@ -347,16 +347,17 @@ export default function PetPage() {
             <button key={t} onClick={() => setTab(t)}
               style={{
                 flex: 1, padding: "9px 4px",
-                background: tab === t ? "#0a0a0a" : "#f5f0e8",
-                border: "2.5px solid #0a0a0a",
+                background: tab === t ? "#0a0a0a" : "#111",
+                border: tab === t ? "2.5px solid #0a0a0a" : "2.5px solid #222",
                 borderRadius: 12,
                 fontSize: t === "squad" ? 10 : 11, fontWeight: 700,
-                color: tab === t ? (t === "squad" ? "#06b6d4" : "#c8ff00") : "#0a0a0a",
+                color: tab === t ? (t === "squad" ? "#06b6d4" : "#c8ff00") : "#666",
                 letterSpacing: "0.03em",
                 cursor: "pointer",
                 textTransform: "uppercase",
                 whiteSpace: "nowrap",
                 minWidth: 0,
+                boxShadow: tab === t ? (t === "squad" ? "0 0 14px #06b6d444" : "0 0 14px #c8ff0044") : "none",
               }}>
               {t === "squad" ? "👥 SQUAD" : t}
             </button>
@@ -368,7 +369,7 @@ export default function PetPage() {
           <div className="space-y-4">
 
             {/* Immersive pet room */}
-            <div className="neo-card" style={{ overflow: "hidden", position: "relative" }}>
+            <div className="neo-card" style={{ overflow: "hidden", position: "relative", boxShadow: `0 0 30px ${world.accent}22` }}>
 
               {/* World badge top-right */}
               <div style={{ position: "absolute", top: 10, right: 10, zIndex: 10,
@@ -547,13 +548,13 @@ export default function PetPage() {
                         : { duration: petMoodComputed === "excited" ? 1.8 : 3, repeat: Infinity, ease: "easeInOut" }
                     }
                     style={{
-                      width: 80, height: 80,
+                      width: 96, height: 96,
                       background: "#fff",
                       border: `3px solid #0a0a0a`,
                       borderRadius: "50%",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: "2.8rem",
-                      boxShadow: `4px 4px 0px ${petColor}, 0 0 16px ${world.glowColor}`,
+                      fontSize: "3.2rem",
+                      boxShadow: `4px 4px 0px ${petColor}, 0 0 30px ${world.glowColor}, 0 0 60px ${world.glowColor}44`,
                       position: "relative",
                     }}
                   >
@@ -636,7 +637,7 @@ export default function PetPage() {
               <div className="p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Flame size={15} color="#ff6b35" fill="#ff6b35" />
-                  <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em" }}>PET VITALS</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.05em", color: "#c8ff00" }}>PET VITALS</span>
                   <span style={{ marginLeft: "auto", fontSize: 11, color: "#888" }}>Tap pet to love! 💗</span>
                 </div>
                 <PetNeedsBar needs={pet.needs} />
@@ -645,52 +646,52 @@ export default function PetPage() {
 
             {/* Action bar */}
             <div className="neo-card p-4">
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", marginBottom: 10, color: "#555" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", marginBottom: 10, color: "#c8ff00" }}>
                 ACTIONS
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
                 {/* FEED */}
                 <button onClick={() => handleFeed("basic")}
-                  style={{ padding: "10px 4px", background: "#fff3ee", border: "2.5px solid #ff6b35", borderRadius: 12, cursor: "pointer", textAlign: "center" }}>
-                  <div style={{ fontSize: "1.3rem" }}>🍖</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#ff6b35", marginTop: 3 }}>FEED</div>
+                  style={{ padding: "12px 4px", background: "#fff3ee", border: "2.5px solid #ff6b35", borderRadius: 12, cursor: "pointer", textAlign: "center", boxShadow: "0 0 12px #ff6b3544" }}>
+                  <div style={{ fontSize: "1.6rem" }}>🍖</div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#ff6b35", marginTop: 3 }}>FEED</div>
                   <div style={{ fontSize: 10, color: "#888" }}>-50 ⚡</div>
                 </button>
                 {/* FEAST */}
                 <button onClick={() => handleFeed("premium")}
-                  style={{ padding: "10px 4px", background: "#fff0e0", border: "2.5px solid #ffde00", borderRadius: 12, cursor: "pointer", textAlign: "center", position: "relative" }}>
-                  <div style={{ fontSize: "1.3rem" }}>🥩</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#e6a000", marginTop: 3 }}>FEAST</div>
+                  style={{ padding: "12px 4px", background: "#fff0e0", border: "2.5px solid #ffde00", borderRadius: 12, cursor: "pointer", textAlign: "center", position: "relative", boxShadow: "0 0 12px #ffde0044" }}>
+                  <div style={{ fontSize: "1.6rem" }}>🥩</div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#e6a000", marginTop: 3 }}>FEAST</div>
                   <div style={{ fontSize: 10, color: "#888" }}>-150 ⚡</div>
                   <span style={{ position: "absolute", top: -6, right: -6, background: "#ff2d8d", color: "#fff", borderRadius: 4, fontSize: 8, fontWeight: 700, padding: "1px 4px", border: "1.5px solid #0a0a0a" }}>BEST</span>
                 </button>
                 {/* PLAY */}
                 <button onClick={handlePlay}
-                  style={{ padding: "10px 4px", background: "#f0fff0", border: "2.5px solid #4caf50", borderRadius: 12, cursor: "pointer", textAlign: "center" }}>
-                  <div style={{ fontSize: "1.3rem" }}>🎾</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#2e7d32", marginTop: 3 }}>PLAY</div>
+                  style={{ padding: "12px 4px", background: "#f0fff0", border: "2.5px solid #4caf50", borderRadius: 12, cursor: "pointer", textAlign: "center", boxShadow: "0 0 12px #4caf5044" }}>
+                  <div style={{ fontSize: "1.6rem" }}>🎾</div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#2e7d32", marginTop: 3 }}>PLAY</div>
                   <div style={{ fontSize: 10, color: "#888" }}>-18 ⚡</div>
                 </button>
                 {/* REST */}
                 <button onClick={handleRest}
-                  style={{ padding: "10px 4px", background: "#f0f4ff", border: "2.5px solid #3b82f6", borderRadius: 12, cursor: "pointer", textAlign: "center" }}>
-                  <div style={{ fontSize: "1.3rem" }}>💤</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#1d4ed8", marginTop: 3 }}>REST</div>
+                  style={{ padding: "12px 4px", background: "#f0f4ff", border: "2.5px solid #3b82f6", borderRadius: 12, cursor: "pointer", textAlign: "center", boxShadow: "0 0 12px #3b82f644" }}>
+                  <div style={{ fontSize: "1.6rem" }}>💤</div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#1d4ed8", marginTop: 3 }}>REST</div>
                   <div style={{ fontSize: 10, color: "#888" }}>+45 ⚡</div>
                 </button>
                 {/* BATTLE */}
                 <Link href="/games/battle" style={{ textDecoration: "none" }}>
-                  <div style={{ padding: "10px 4px", background: "#fff5ee", border: "2.5px solid #ff6b35", borderRadius: 12, cursor: "pointer", textAlign: "center" }}>
-                    <div style={{ fontSize: "1.3rem" }}>⚔️</div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#ff6b35", marginTop: 3 }}>BATTLE</div>
+                  <div style={{ padding: "12px 4px", background: "#fff5ee", border: "2.5px solid #ff6b35", borderRadius: 12, cursor: "pointer", textAlign: "center", boxShadow: "0 0 12px #ff6b3544" }}>
+                    <div style={{ fontSize: "1.6rem" }}>⚔️</div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "#ff6b35", marginTop: 3 }}>BATTLE</div>
                     <div style={{ fontSize: 10, color: "#888" }}>+karma</div>
                   </div>
                 </Link>
                 {/* HEAL / SHOP */}
                 <Link href="/shop" style={{ textDecoration: "none" }}>
-                  <div style={{ padding: "10px 4px", background: "#f5f0ff", border: "2.5px solid #8b5cf6", borderRadius: 12, cursor: "pointer", textAlign: "center" }}>
-                    <div style={{ fontSize: "1.3rem" }}>💊</div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#6d28d9", marginTop: 3 }}>HEAL</div>
+                  <div style={{ padding: "12px 4px", background: "#f5f0ff", border: "2.5px solid #8b5cf6", borderRadius: 12, cursor: "pointer", textAlign: "center", boxShadow: "0 0 12px #8b5cf644" }}>
+                    <div style={{ fontSize: "1.6rem" }}>💊</div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "#6d28d9", marginTop: 3 }}>HEAL</div>
                     <div style={{ fontSize: 10, color: "#888" }}>shop</div>
                   </div>
                 </Link>
@@ -785,7 +786,7 @@ export default function PetPage() {
 
             {/* Results */}
             {trainDone && (
-              <div style={{ background: "#f5f0e8", border: "2.5px solid #0a0a0a", borderRadius: 14, padding: 16, textAlign: "center" }}>
+              <div style={{ background: "#0f0f0f", border: "2.5px solid #c8ff0044", borderRadius: 14, padding: 16, textAlign: "center" }}>
                 <div style={{ fontSize: "2rem", marginBottom: 4 }}>🏆</div>
                 <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Training Complete!</div>
                 <div style={{ display: "flex", justifyContent: "center", gap: 16, marginBottom: 12 }}>
@@ -794,7 +795,7 @@ export default function PetPage() {
                     <div style={{ fontSize: 10, color: "#888" }}>ACCURACY</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 22, fontWeight: 700, color: "#4caf50" }}>+{trainXP}</div>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: "#4caf50", textShadow: "0 0 10px #4caf5088" }}>+{trainXP}</div>
                     <div style={{ fontSize: 10, color: "#888" }}>XP EARNED</div>
                   </div>
                   <div>
@@ -1017,17 +1018,17 @@ export default function PetPage() {
                   { label: "SPD", value: statSPD, color: "#00e5ff", icon: "💨" },
                   { label: "LCK", value: statLCK, color: "#a855f7", icon: "🍀" },
                 ].map(stat => (
-                  <div key={stat.label} style={{ background: "#f5f0e8", border: "2px solid #e8e3d8", borderRadius: 12, padding: "10px 12px" }}>
+                  <div key={stat.label} style={{ background: "#111", border: `2px solid #222`, borderRadius: 12, padding: "10px 12px", boxShadow: `0 0 16px ${stat.color}33` }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                       <span style={{ fontSize: 12, fontWeight: 700 }}>{stat.icon} {stat.label}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: stat.color }}>{stat.value}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: stat.color, textShadow: `0 0 8px ${stat.color}` }}>{stat.value}</span>
                     </div>
-                    <div style={{ height: 6, background: "#e8e3d8", borderRadius: 6, overflow: "hidden" }}>
+                    <div style={{ height: 8, background: "#222", borderRadius: 6, overflow: "hidden" }}>
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${stat.value}%` }}
                         transition={{ duration: 0.9, ease: "easeOut", delay: 0.1 }}
-                        style={{ height: "100%", background: stat.color, borderRadius: 6 }}
+                        style={{ height: "100%", background: stat.color, borderRadius: 6, boxShadow: `0 0 6px ${stat.color}` }}
                       />
                     </div>
                   </div>
