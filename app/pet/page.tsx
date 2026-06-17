@@ -3,10 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { Flame, Gamepad2 } from "lucide-react";
+import { Gamepad2 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { FRIENDS } from "@/lib/mock-data";
-import PetNeedsBar from "@/components/pet/PetNeeds";
 import XPBar from "@/components/ui/XPBar";
 import { xpProgress, xpToNextLevel } from "@/lib/xp-system";
 import {
@@ -346,6 +345,13 @@ export default function PetPage() {
   const statSPD = Math.min(100, pet.level * 4);
   const statLCK = Math.min(100, pet.level * 2 + (pet.class === "Merchant King" ? 20 : 0));
 
+  // ─── Time of day ─────────────────────────────────────────────────────────
+  const hour = new Date().getHours();
+  const timeOfDay = hour >= 22 || hour < 6 ? "night" : hour < 12 ? "morning" : hour < 18 ? "day" : "evening";
+  const timeOverlay = { night: "rgba(10,20,60,0.32)", morning: "rgba(255,180,60,0.10)", day: "rgba(0,0,0,0)", evening: "rgba(255,90,10,0.16)" }[timeOfDay];
+  const timeMood   = { night: "🌙", morning: "🌅", day: "☀️", evening: "🌆" }[timeOfDay];
+  const timeLabel  = { night: "Night", morning: "Morning", day: "Day", evening: "Evening" }[timeOfDay];
+
   // ─── Evolution progress ────────────────────────────────────────────────────
   const currentStageIdx = EVO_STAGES.findLastIndex(s => pet.xp >= s.xpReq);
   const nextStage = EVO_STAGES[currentStageIdx + 1];
@@ -444,153 +450,130 @@ export default function PetPage() {
 
         {/* ══════════════════ ROOM TAB ══════════════════ */}
         {tab === "room" && (
-          <div className="space-y-4">
+          <div className="space-y-3">
 
-            {/* Immersive pet room */}
-            <div className="neo-card" style={{ overflow: "hidden", position: "relative", boxShadow: `0 0 30px ${world.accent}22` }}>
+            {/* ── IMMERSIVE PET ROOM ── */}
+            <div style={{
+              borderRadius: 24, overflow: "hidden",
+              border: `2.5px solid ${world.accent}55`,
+              boxShadow: `0 0 50px ${world.accent}22, 0 0 100px ${world.accent}0a`,
+            }}>
+              {/* Room viewport */}
+              <div style={{ height: 400, background: world.petRoomBg, position: "relative", overflow: "hidden" }}>
 
-              {/* World badge top-right */}
-              <div style={{ position: "absolute", top: 10, right: 10, zIndex: 10,
-                background: `${world.accent}22`, border: `1.5px solid ${world.accent}`,
-                borderRadius: 8, padding: "3px 8px", display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ fontSize: "0.85rem" }}>{world.emoji}</span>
-                <span style={{ fontSize: 10, fontWeight: 700, color: world.accent, letterSpacing: "0.06em" }}>{world.name}</span>
-              </div>
+                {/* Time-of-day tint */}
+                <div style={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none", background: timeOverlay }} />
 
-              {/* Weather badge top-left */}
-              <div style={{ position: "absolute", top: 10, left: 10, zIndex: 10,
-                background: "rgba(0,0,0,0.35)", borderRadius: 8, padding: "3px 8px",
-                display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ fontSize: "0.85rem" }}>{weather.icon}</span>
-                <span style={{ fontSize: 10, fontWeight: 600, color: "#fff" }}>{weather.label}</span>
-              </div>
+                {/* Perspective floor */}
+                <div style={{
+                  position: "absolute", bottom: 0, left: 0, right: 0, height: 88,
+                  background: `${world.accent}18`, borderTop: `2px solid ${world.accent}55`,
+                  zIndex: 2,
+                }}>
+                  {[...Array(7)].map((_, i) => (
+                    <div key={i} style={{
+                      position: "absolute", bottom: 0,
+                      left: `${(i + 1) * 13}%`, width: 1, height: "100%",
+                      background: `linear-gradient(0deg, ${world.accent}55, transparent)`,
+                    }} />
+                  ))}
+                </div>
 
-              {/* Room area */}
-              <div
-                style={{
-                  height: 280,
-                  background: world.petRoomBg,
-                  position: "relative",
-                  overflow: "hidden",
-                }}
-              >
-                {/* Floating dust particles */}
-                {[...Array(6)].map((_, i) => (
+                {/* Ambient glow particles */}
+                {[...Array(8)].map((_, i) => (
                   <motion.div key={i}
-                    animate={{ y: [0, -18, 0], x: [0, (i % 2 === 0 ? 4 : -4), 0], opacity: [0.15, 0.4, 0.15] }}
-                    transition={{ duration: 3.5 + i * 0.7, repeat: Infinity, delay: i * 0.5, ease: "easeInOut" }}
+                    animate={{ y: [0, -22, 0], x: [0, i % 2 === 0 ? 6 : -6, 0], opacity: [0.08, 0.4, 0.08] }}
+                    transition={{ duration: 3 + i * 0.55, repeat: Infinity, delay: i * 0.38, ease: "easeInOut" }}
                     style={{
-                      position: "absolute",
-                      width: 4, height: 4,
-                      borderRadius: "50%",
+                      position: "absolute", borderRadius: "50%",
+                      width: i < 3 ? 6 : 3, height: i < 3 ? 6 : 3,
                       background: world.accent,
-                      top: `${20 + i * 12}%`,
-                      left: `${10 + i * 14}%`,
-                      pointerEvents: "none",
+                      top: `${10 + i * 9}%`, left: `${7 + i * 11}%`,
+                      zIndex: 2, pointerEvents: "none",
+                      filter: `blur(1px)`,
                     }}
                   />
                 ))}
 
-                {/* World ambient emojis */}
+                {/* Floating world emojis */}
                 {world.petRoomEmojis.slice(0, 3).map((emoji, i) => (
                   <motion.div key={i}
-                    animate={{ y: [0, -5, 0], opacity: [0.5, 0.7, 0.5] }}
-                    transition={{ duration: 4 + i, repeat: Infinity, delay: i * 0.8 }}
+                    animate={{ y: [0, -8, 0], opacity: [0.55, 0.85, 0.55] }}
+                    transition={{ duration: 3.5 + i, repeat: Infinity, delay: i * 0.7 }}
                     style={{
                       position: "absolute",
-                      top: 14 + i * 16,
-                      left: i === 0 ? 18 : i === 1 ? "38%" : undefined,
-                      right: i === 2 ? 18 : undefined,
-                      fontSize: ["1.4rem", "1.1rem", "1rem"][i],
-                      pointerEvents: "none",
+                      top: 14 + i * 20,
+                      left: i === 0 ? 14 : i === 1 ? "38%" : undefined,
+                      right: i === 2 ? 14 : undefined,
+                      fontSize: ["1.8rem", "1.3rem", "1.1rem"][i],
+                      zIndex: 3, pointerEvents: "none",
                     }}>
                     {emoji}
                   </motion.div>
                 ))}
 
-                {/* Ground items */}
+                {/* Ground decor */}
                 {world.petRoomEmojis.slice(3).map((emoji, i) => (
                   <div key={i} style={{
-                    position: "absolute",
-                    bottom: 36,
-                    left: i === 0 ? 14 : i === 1 ? "30%" : undefined,
-                    right: i === 2 ? 14 : undefined,
-                    fontSize: ["1.8rem", "1.3rem", "1.6rem"][i],
-                    opacity: 0.75,
-                  }}>
-                    {emoji}
-                  </div>
+                    position: "absolute", bottom: 92,
+                    left: i === 0 ? 10 : i === 1 ? "25%" : undefined,
+                    right: i === 2 ? 10 : undefined,
+                    fontSize: ["2.2rem", "1.6rem", "2rem"][i],
+                    opacity: 0.8, zIndex: 3, pointerEvents: "none",
+                  }}>{emoji}</div>
                 ))}
 
-                {/* Food bowl (drag target visual) */}
-                <div style={{ position: "absolute", bottom: 38, left: "50%", transform: "translateX(-50%)" }}>
-                  <div style={{ fontSize: "1.5rem", opacity: 0.6 }}>🍜</div>
-                </div>
-
-                {/* Ground strip */}
+                {/* Food bowl */}
                 <div style={{
-                  position: "absolute", bottom: 0, left: 0, right: 0, height: 36,
-                  background: `${world.accent}22`,
-                  borderTop: `2px solid ${world.accent}44`,
-                }} />
+                  position: "absolute", bottom: 92, left: "50%", transform: "translateX(-50%)",
+                  zIndex: 3, pointerEvents: "none", fontSize: "1.8rem", opacity: 0.6,
+                }}>🍜</div>
 
-                {/* Glow pulse behind pet */}
+                {/* Giant glow orb */}
                 <motion.div
-                  animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.15, 0.3] }}
-                  transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+                  animate={{ scale: [1, 1.3, 1], opacity: [0.4, 0.18, 0.4] }}
+                  transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
                   style={{
-                    position: "absolute",
-                    bottom: 52, left: "50%", transform: "translateX(-50%)",
-                    width: 120, height: 120, borderRadius: "50%",
+                    position: "absolute", bottom: 88, left: "50%", transform: "translateX(-50%)",
+                    width: 230, height: 230, borderRadius: "50%",
                     background: `radial-gradient(circle, ${world.glowColor} 0%, transparent 70%)`,
-                    pointerEvents: "none",
+                    zIndex: 3, pointerEvents: "none",
                   }}
                 />
 
-                {/* Critical ring */}
+                {/* Critical warning ring */}
                 {isCritical && (
                   <motion.div
-                    animate={{ scale: [1, 1.35, 1], opacity: [0.9, 0, 0.9] }}
-                    transition={{ duration: 1.1, repeat: Infinity }}
+                    animate={{ scale: [1, 1.55, 1], opacity: [1, 0, 1] }}
+                    transition={{ duration: 0.9, repeat: Infinity }}
                     style={{
-                      position: "absolute",
-                      bottom: 44, left: "50%", transform: "translateX(-50%)",
-                      width: 100, height: 100, borderRadius: "50%",
-                      border: "3px solid #ff2d2d",
-                      pointerEvents: "none",
+                      position: "absolute", bottom: 86, left: "50%", transform: "translateX(-50%)",
+                      width: 175, height: 175, borderRadius: "50%",
+                      border: "3px solid #ff2d2d", zIndex: 4, pointerEvents: "none",
                     }}
                   />
                 )}
 
-                {/* Pet container with hat + tap */}
+                {/* PET — big tap zone */}
                 <div
                   style={{
-                    position: "absolute",
-                    bottom: 36,
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    cursor: "pointer",
+                    position: "absolute", bottom: 86, left: "50%", transform: "translateX(-50%)",
+                    display: "flex", flexDirection: "column", alignItems: "center",
+                    cursor: "pointer", zIndex: 10,
                   }}
                   onClick={handlePetTap}
                 >
-                  {/* Tap particles */}
+                  {/* Tap heart particles */}
                   <AnimatePresence>
                     {particles.map(p => (
                       <motion.div key={p.id}
-                        initial={{ opacity: 1, y: 0, x: 0, scale: 1 }}
-                        animate={{ opacity: 0, y: -50, scale: 1.4 }}
+                        initial={{ opacity: 1, y: 0, scale: 1 }}
+                        animate={{ opacity: 0, y: -80, scale: 1.8 }}
                         exit={{ opacity: 0 }}
-                        transition={{ duration: 0.85, ease: "easeOut" }}
+                        transition={{ duration: 0.9, ease: "easeOut" }}
                         style={{
-                          position: "absolute",
-                          left: p.x - 10,
-                          top: p.y - 60,
-                          fontSize: "1.2rem",
-                          pointerEvents: "none",
-                          zIndex: 20,
+                          position: "absolute", left: p.x - 14, top: p.y - 90,
+                          fontSize: "1.6rem", pointerEvents: "none", zIndex: 20,
                         }}>
                         💗
                       </motion.div>
@@ -600,39 +583,37 @@ export default function PetPage() {
                   {/* Hat */}
                   {equippedHat && (
                     <div style={{
-                      fontSize: "1.4rem",
-                      lineHeight: 1,
-                      marginBottom: -4,
-                      filter: `drop-shadow(0 2px 4px ${world.glowColor})`,
+                      fontSize: "2rem", lineHeight: 1, marginBottom: -8,
+                      filter: `drop-shadow(0 3px 8px ${world.glowColor})`,
                     }}>
                       {equippedHat}
                     </div>
                   )}
 
-                  {/* Pet emoji */}
+                  {/* PET CIRCLE — 140px */}
                   <motion.div
                     animate={
-                      petAction === "petting"  ? { scale: [1, 1.25, 0.95, 1.1, 1], rotate: [0, -8, 8, 0] } :
-                      petAction === "eating"   ? { scale: [1, 1.2, 0.9, 1.1, 1], rotate: [0, -5, 5, 0] } :
-                      petAction === "playing"  ? { y: [0, -22, 0, -14, 0], rotate: [0, 12, -12, 0] } :
-                      petAction === "sleeping" ? { rotate: [0, 6, 6] } :
+                      petAction === "petting"  ? { scale: [1, 1.3, 0.93, 1.12, 1], rotate: [0, -10, 10, 0] } :
+                      petAction === "eating"   ? { scale: [1, 1.22, 0.9, 1.12, 1], y: [0, -10, 0] } :
+                      petAction === "playing"  ? { y: [0, -32, 0, -18, 0], rotate: [0, 14, -14, 0] } :
+                      petAction === "sleeping" ? { rotate: [0, 8, 8], scale: [1, 0.94, 0.94] } :
                       petMoodComputed === "excited"
-                        ? { y: [0, -14, 0], scale: [1, 1.05, 1], rotate: [0, -3, 3, 0] }
-                        : { y: [0, -10, 0], rotate: [0, -2, 2, 0] }
+                        ? { y: [0, -20, 0], scale: [1, 1.08, 1], rotate: [0, -4, 4, 0] }
+                        : { y: [0, -10, 0], scale: [1, 1.02, 1] }
                     }
                     transition={
                       petAction
-                        ? { duration: 0.8 }
-                        : { duration: petMoodComputed === "excited" ? 1.8 : 3, repeat: Infinity, ease: "easeInOut" }
+                        ? { duration: 0.85, ease: "easeInOut" }
+                        : { duration: petMoodComputed === "excited" ? 1.6 : 3.2, repeat: Infinity, ease: "easeInOut" }
                     }
                     style={{
-                      width: 96, height: 96,
+                      width: 140, height: 140,
                       background: "#fff",
-                      border: `3px solid #0a0a0a`,
+                      border: "3px solid #0a0a0a",
                       borderRadius: "50%",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: "3.2rem",
-                      boxShadow: `4px 4px 0px ${petColor}, 0 0 30px ${world.glowColor}, 0 0 60px ${world.glowColor}44`,
+                      fontSize: "4.2rem",
+                      boxShadow: `5px 5px 0px ${petColor}, 0 0 50px ${world.glowColor}, 0 0 100px ${world.glowColor}44`,
                       position: "relative",
                     }}
                   >
@@ -643,22 +624,16 @@ export default function PetPage() {
                       {loveBubble && (
                         <motion.div
                           key="love"
-                          initial={{ opacity: 0, scale: 0.6, y: 0 }}
-                          animate={{ opacity: 1, scale: 1, y: -44 }}
+                          initial={{ opacity: 0, scale: 0.5, y: 0 }}
+                          animate={{ opacity: 1, scale: 1, y: -68 }}
                           exit={{ opacity: 0, scale: 0.8 }}
-                          transition={{ duration: 0.4 }}
+                          transition={{ duration: 0.35 }}
                           style={{
-                            position: "absolute",
-                            top: 0, left: "50%",
-                            transform: "translateX(-50%)",
-                            background: "#fff",
-                            border: "2px solid #0a0a0a",
-                            borderRadius: 10,
-                            padding: "3px 8px",
-                            fontSize: 12, fontWeight: 700,
-                            whiteSpace: "nowrap",
-                            boxShadow: "2px 2px 0px #0a0a0a",
-                            zIndex: 30,
+                            position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)",
+                            background: "#fff", border: "2px solid #0a0a0a",
+                            borderRadius: 12, padding: "4px 12px",
+                            fontSize: 13, fontWeight: 700,
+                            whiteSpace: "nowrap", boxShadow: "2px 2px 0px #0a0a0a", zIndex: 30,
                           }}>
                           Love! 💗
                         </motion.div>
@@ -668,113 +643,176 @@ export default function PetPage() {
 
                   {/* Nameplate */}
                   <div style={{
-                    marginTop: 4,
-                    background: "rgba(0,0,0,0.5)",
-                    color: "#fff",
-                    borderRadius: 6,
-                    padding: "2px 8px",
-                    fontSize: 10, fontWeight: 700,
-                    letterSpacing: "0.06em",
+                    marginTop: 6,
+                    background: "rgba(0,0,0,0.65)",
+                    color: "#fff", borderRadius: 8,
+                    padding: "3px 12px",
+                    fontSize: 11, fontWeight: 700, letterSpacing: "0.08em",
+                    border: "1.5px solid rgba(255,255,255,0.08)",
                   }}>
-                    {pet.name}
+                    {pet.name} · Lv.{pet.level}
                   </div>
                 </div>
 
-                {/* Speech bubble */}
+                {/* Speech bubble — bottom-left */}
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={`speech-${speechIdx}`}
-                    initial={{ opacity: 0, scale: 0.8, y: 8 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    initial={{ opacity: 0, scale: 0.8, x: -8 }}
+                    animate={{ opacity: 1, scale: 1, x: 0 }}
                     exit={{ opacity: 0, scale: 0.85 }}
-                    transition={{ duration: 0.3 }}
+                    transition={{ duration: 0.22 }}
                     style={{
-                      position: "absolute",
-                      top: 48, right: 14,
-                      background: "#fff",
-                      border: "2px solid #0a0a0a",
-                      borderRadius: 12,
-                      padding: "5px 10px",
-                      fontSize: 11, fontWeight: 600,
-                      maxWidth: 120,
-                      boxShadow: "2px 2px 0px #0a0a0a",
-                      lineHeight: 1.3,
-                      zIndex: 5,
+                      position: "absolute", bottom: 180, left: 10,
+                      background: "#fff", border: "2px solid #0a0a0a",
+                      borderRadius: 14, padding: "6px 10px",
+                      fontSize: 11, fontWeight: 600, maxWidth: 120,
+                      boxShadow: "2px 2px 0px #0a0a0a", lineHeight: 1.35, zIndex: 12,
                     }}>
+                    <div style={{ fontSize: "1.1rem", marginBottom: 2 }}>{moodEmoji}</div>
                     {currentSpeech}
                   </motion.div>
                 </AnimatePresence>
 
-                {/* Mood emoji top-left */}
-                <div style={{ position: "absolute", top: 46, left: 12, fontSize: "1.3rem", zIndex: 5 }}>
-                  {moodEmoji}
+                {/* World + weather + time — top-right column */}
+                <div style={{ position: "absolute", top: 10, right: 10, zIndex: 12, display: "flex", flexDirection: "column", gap: 5 }}>
+                  {[
+                    { bg: `${world.accent}22`, border: world.accent, content: <><span style={{ fontSize: "0.85rem" }}>{world.emoji}</span><span style={{ fontSize: 10, fontWeight: 700, color: world.accent, letterSpacing: "0.06em" }}>{world.name}</span></> },
+                    { bg: "rgba(0,0,0,0.45)", border: "transparent", content: <><span style={{ fontSize: "0.85rem" }}>{weather.icon}</span><span style={{ fontSize: 10, fontWeight: 600, color: "#ccc" }}>{weather.label}</span></> },
+                    { bg: "rgba(0,0,0,0.45)", border: "transparent", content: <><span style={{ fontSize: "0.8rem" }}>{timeMood}</span><span style={{ fontSize: 10, fontWeight: 600, color: "#ccc" }}>{timeLabel}</span></> },
+                  ].map((b, i) => (
+                    <div key={i} style={{
+                      background: b.bg, border: `1.5px solid ${b.border}`,
+                      borderRadius: 8, padding: "3px 8px",
+                      display: "flex", alignItems: "center", gap: 4,
+                    }}>{b.content}</div>
+                  ))}
+                </div>
+
+                {/* Needs meters — overlaid at very bottom of room */}
+                <div style={{
+                  position: "absolute", bottom: 2, left: 0, right: 0,
+                  zIndex: 13, padding: "0 10px 6px",
+                  display: "flex", gap: 6,
+                }}>
+                  {[
+                    { label: "HUNGER", icon: "🍖", color: "#ff6b35", val: pet.needs.hunger },
+                    { label: "HAPPY",  icon: "😊", color: "#ff2d8d", val: pet.needs.happiness },
+                    { label: "ENERGY", icon: "⚡", color: "#c8ff00", val: pet.needs.energy },
+                  ].map(n => {
+                    const crit = n.val < 30;
+                    return (
+                      <div key={n.label} style={{ flex: 1 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                          <span style={{ fontSize: 9, fontWeight: 700, color: crit ? "#ff2d2d" : n.color, letterSpacing: "0.05em" }}>
+                            {n.icon} {crit && "⚠"}
+                          </span>
+                          <span style={{ fontSize: 9, color: "#666", fontWeight: 600 }}>{n.val}%</span>
+                        </div>
+                        <div style={{ height: 5, background: "#0008", borderRadius: 999, overflow: "hidden", boxShadow: crit ? `0 0 6px #ff2d2d` : "none" }}>
+                          <motion.div
+                            animate={{ width: `${n.val}%` }}
+                            transition={{ duration: 0.8 }}
+                            style={{
+                              height: "100%", borderRadius: 999,
+                              background: crit
+                                ? "linear-gradient(90deg,#ff2d2d,#ff6b35)"
+                                : `linear-gradient(90deg,${n.color}88,${n.color})`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Needs bar under room */}
-              <div className="p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Flame size={15} color="#ff6b35" fill="#ff6b35" />
-                  <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.05em", color: "#c8ff00" }}>PET VITALS</span>
-                  <span style={{ marginLeft: "auto", fontSize: 11, color: "#888" }}>Tap pet to love! 💗</span>
+              {/* Status strip */}
+              <div style={{
+                background: "#080808", borderTop: `2px solid ${world.accent}33`,
+                padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between",
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#333", letterSpacing: "0.06em" }}>
+                  💗 TAP PET TO LOVE
                 </div>
-                <PetNeedsBar needs={pet.needs} />
+                <div style={{ display: "flex", gap: 16 }}>
+                  <span style={{ fontSize: 13, fontWeight: 900, color: "#ff6b35" }}>🔥 {streak}d</span>
+                  <span style={{ fontSize: 13, fontWeight: 900, color: "#ffde00" }}>⭐ Lv.{pet.level}</span>
+                  <span style={{ fontSize: 13, fontWeight: 900, color: "#c8ff00" }}>⚡ {user.karma.toLocaleString()}</span>
+                </div>
               </div>
             </div>
 
-            {/* Action bar */}
-            <div className="neo-card p-4">
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", marginBottom: 10, color: "#c8ff00" }}>
-                ACTIONS
+            {/* ── CARE ACTIONS ── */}
+            <div style={{
+              background: "#080808", border: "2.5px solid #1a1a1a",
+              borderRadius: 22, padding: "14px 12px",
+            }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#444", letterSpacing: "0.12em", marginBottom: 10 }}>
+                CARE ACTIONS
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-                {/* FEED */}
-                <button onClick={() => handleFeed("basic")}
-                  style={{ padding: "12px 4px", background: "#fff3ee", border: "2.5px solid #ff6b35", borderRadius: 12, cursor: "pointer", textAlign: "center", boxShadow: "0 0 12px #ff6b3544" }}>
-                  <div style={{ fontSize: "1.6rem" }}>🍖</div>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: "#ff6b35", marginTop: 3 }}>FEED</div>
-                  <div style={{ fontSize: 10, color: "#888" }}>-50 ⚡</div>
-                </button>
-                {/* FEAST */}
-                <button onClick={() => handleFeed("premium")}
-                  style={{ padding: "12px 4px", background: "#fff0e0", border: "2.5px solid #ffde00", borderRadius: 12, cursor: "pointer", textAlign: "center", position: "relative", boxShadow: "0 0 12px #ffde0044" }}>
-                  <div style={{ fontSize: "1.6rem" }}>🥩</div>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: "#e6a000", marginTop: 3 }}>FEAST</div>
-                  <div style={{ fontSize: 10, color: "#888" }}>-150 ⚡</div>
-                  <span style={{ position: "absolute", top: -6, right: -6, background: "#ff2d8d", color: "#fff", borderRadius: 4, fontSize: 8, fontWeight: 700, padding: "1px 4px", border: "1.5px solid #0a0a0a" }}>BEST</span>
-                </button>
-                {/* PLAY */}
-                <button onClick={handlePlay}
-                  style={{ padding: "12px 4px", background: "#f0fff0", border: "2.5px solid #4caf50", borderRadius: 12, cursor: "pointer", textAlign: "center", boxShadow: "0 0 12px #4caf5044" }}>
-                  <div style={{ fontSize: "1.6rem" }}>🎾</div>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: "#2e7d32", marginTop: 3 }}>PLAY</div>
-                  <div style={{ fontSize: 10, color: "#888" }}>-18 ⚡</div>
-                </button>
-                {/* REST */}
-                <button onClick={handleRest}
-                  style={{ padding: "12px 4px", background: "#f0f4ff", border: "2.5px solid #3b82f6", borderRadius: 12, cursor: "pointer", textAlign: "center", boxShadow: "0 0 12px #3b82f644" }}>
-                  <div style={{ fontSize: "1.6rem" }}>💤</div>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: "#1d4ed8", marginTop: 3 }}>REST</div>
-                  <div style={{ fontSize: 10, color: "#888" }}>+45 ⚡</div>
-                </button>
-                {/* BATTLE */}
-                <Link href="/games/battle" style={{ textDecoration: "none" }}>
-                  <div style={{ padding: "12px 4px", background: "#fff5ee", border: "2.5px solid #ff6b35", borderRadius: 12, cursor: "pointer", textAlign: "center", boxShadow: "0 0 12px #ff6b3544" }}>
-                    <div style={{ fontSize: "1.6rem" }}>⚔️</div>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: "#ff6b35", marginTop: 3 }}>BATTLE</div>
-                    <div style={{ fontSize: 10, color: "#888" }}>+karma</div>
-                  </div>
-                </Link>
-                {/* HEAL / SHOP */}
-                <Link href="/shop" style={{ textDecoration: "none" }}>
-                  <div style={{ padding: "12px 4px", background: "#f5f0ff", border: "2.5px solid #8b5cf6", borderRadius: 12, cursor: "pointer", textAlign: "center", boxShadow: "0 0 12px #8b5cf644" }}>
-                    <div style={{ fontSize: "1.6rem" }}>💊</div>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: "#6d28d9", marginTop: 3 }}>HEAL</div>
-                    <div style={{ fontSize: 10, color: "#888" }}>shop</div>
-                  </div>
-                </Link>
+                {[
+                  { label: "FEED",   emoji: "🍖", color: "#ff6b35", bg: "#1a0800", sub: "-50 ⚡", onClick: () => handleFeed("basic"), badge: null },
+                  { label: "FEAST",  emoji: "🥩", color: "#ffde00", bg: "#1a1200", sub: "-150 ⚡", onClick: () => handleFeed("premium"), badge: "BEST" },
+                  { label: "PLAY",   emoji: "🎾", color: "#4caf50", bg: "#081808", sub: "-18 nrg", onClick: handlePlay, badge: null },
+                  { label: "REST",   emoji: "💤", color: "#3b82f6", bg: "#081018", sub: "+45 nrg", onClick: handleRest, badge: null },
+                  { label: "BATTLE", emoji: "⚔️", color: "#ff2d8d", bg: "#1a0012", sub: "+karma", href: "/games/battle", badge: null },
+                  { label: "SHOP",   emoji: "💊", color: "#8b5cf6", bg: "#100820", sub: "heal+items", href: "/shop", badge: null },
+                ].map(a => {
+                  const inner = (
+                    <div style={{
+                      padding: "14px 4px",
+                      background: `linear-gradient(160deg, ${a.bg}, #050505)`,
+                      border: `2px solid ${a.color}`,
+                      borderRadius: 16, textAlign: "center",
+                      boxShadow: `0 0 16px ${a.color}28`,
+                      position: "relative", cursor: "pointer",
+                    }}>
+                      {a.badge && (
+                        <span style={{ position: "absolute", top: -6, right: -4, background: "#ff2d8d", color: "#fff", borderRadius: 5, fontSize: 8, fontWeight: 700, padding: "1px 4px", border: "1.5px solid #050505" }}>
+                          {a.badge}
+                        </span>
+                      )}
+                      <div style={{ fontSize: "2rem" }}>{a.emoji}</div>
+                      <div style={{ fontSize: 11, fontWeight: 900, color: a.color, marginTop: 5, letterSpacing: "0.06em" }}>{a.label}</div>
+                      <div style={{ fontSize: 9, color: "#444", marginTop: 1 }}>{a.sub}</div>
+                    </div>
+                  );
+                  return a.href
+                    ? <Link key={a.label} href={a.href} style={{ textDecoration: "none" }}>{inner}</Link>
+                    : <div key={a.label} onClick={a.onClick}>{inner}</div>;
+                })}
               </div>
             </div>
+
+            {/* ── PET STATS ── */}
+            <div style={{ background: "#080808", border: "2px solid #1a1a1a", borderRadius: 22, padding: "14px 14px" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#444", letterSpacing: "0.12em", marginBottom: 10 }}>PET STATS</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {[
+                  { label: "HP",  val: statHP,  color: "#ff6b35", icon: "❤️" },
+                  { label: "ATK", val: statATK, color: "#ff2d8d", icon: "⚔️" },
+                  { label: "SPD", val: statSPD, color: "#c8ff00", icon: "💨" },
+                  { label: "LCK", val: statLCK, color: "#ffde00", icon: "🍀" },
+                ].map(s => (
+                  <div key={s.label} style={{ background: "#111", borderRadius: 14, padding: "10px 12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                      <span style={{ fontSize: 10, color: "#444", fontWeight: 700, letterSpacing: "0.08em" }}>{s.icon} {s.label}</span>
+                      <span style={{ fontSize: 14, fontWeight: 900, color: s.color }}>{s.val}</span>
+                    </div>
+                    <div style={{ height: 5, background: "#1a1a1a", borderRadius: 999, overflow: "hidden" }}>
+                      <motion.div
+                        animate={{ width: `${s.val}%` }}
+                        transition={{ duration: 1.2, ease: "easeOut" }}
+                        style={{ height: "100%", background: `linear-gradient(90deg,${s.color}77,${s.color})`, borderRadius: 999 }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
           </div>
         )}
 
