@@ -1555,7 +1555,7 @@ export default function DeepCatch({ onCatch, petEmoji = "🐟" }: Props) {
         // Reel complete → timing phase
         markerRef.current = 50;
         markerDirRef.current = 1;
-        const baseSpeed = tf.def.rarity === "rare" ? 2.0 : 1.5;
+        const baseSpeed = tf.def.rarity === "rare" ? 1.4 : 1.0;
         const weatherMod = weather === "stormy" ? 1.4 : weather === "rainy" ? 1.1 : 1;
         markerSpeedRef.current = baseSpeed * weatherMod;
         phaseRef.current = "timing";
@@ -1791,7 +1791,7 @@ export default function DeepCatch({ onCatch, petEmoji = "🐟" }: Props) {
 
   return (
     <div
-      style={{ fontFamily: "var(--font-space-grotesk,monospace)", userSelect: "none" }}
+      style={{ fontFamily: "var(--font-space-grotesk,monospace)", userSelect: "none", WebkitUserSelect: "none" }}
       onTouchStart={phase === "bite" ? handleBiteTap : phase === "reeling" ? handleReel : phase === "timing" ? handleTiming : phase === "battle" ? handleBattleTap : undefined}
     >
       {/* ── Top HUD ─────────────────────────────────────────────────────────── */}

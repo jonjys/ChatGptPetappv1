@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { ChevronLeft, Trophy } from "lucide-react";
 import DeepCatch from "@/components/games/DeepCatch";
@@ -22,7 +23,7 @@ export default function FishingPage() {
   }
 
   return (
-    <div style={{ background: "#010d1a", minHeight: "100dvh", color: "#fff" }}>
+    <div style={{ background: "#010d1a", minHeight: "100dvh", color: "#fff", userSelect: "none", WebkitUserSelect: "none" } as React.CSSProperties}>
       <div className="sticky top-0 z-30 px-4 pt-4 pb-3 flex items-center gap-3" style={{ background: "#010d1a", borderBottom: "2px solid #4488ff" }}>
         <Link href="/games">
           <div style={{ width: 36, height: 36, background: "#0d1a2a", border: "2px solid #4488ff", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>

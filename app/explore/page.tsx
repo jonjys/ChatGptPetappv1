@@ -650,13 +650,13 @@ export default function ExplorePage() {
       </div>
 
       {/* Content */}
-      <AnimatePresence mode="wait">
+      <AnimatePresence>
         <motion.div
           key={activeTab}
           initial={{ opacity: 0, x: 14 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -14 }}
-          transition={{ duration: 0.15 }}
+          transition={{ duration: 0.12 }}
         >
           {activeTab === "trending" && <TrendingTab search={search} />}
           {activeTab === "nearby"   && <NearbyTab />}

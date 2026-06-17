@@ -3,20 +3,22 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { FRIENDS } from "@/lib/mock-data";
 
-// ── Geometry Dash-style Karma Runner — Neo-brutalist, Social Ghosts, 5 obstacle types ──
+// ── Geometry Dash-style Karma Runner — Neo-brutalist, Social Ghosts, 5 obstacle types, Boss, Worlds ──
 
 const GW = 390, GH = 420, GROUND = 320;
 const PET_X = 68, PET_H = 44, GRAVITY = 0.72, JUMP_V = -15.5;
 const BASE_SPD = 4, MAX_SPD = 12;
 
 type ObstacleType = "wall" | "spike" | "pit" | "ceiling" | "gate";
-type PwupKind = "shield" | "boost" | "magnet" | "star" | "beat" | "warp";
+type PwupKind = "shield" | "boost" | "magnet" | "star" | "beat" | "warp" | "rocket" | "time_slow" | "karma_rain";
 
-type Obs = { id: number; x: number; w: number; h: number; kind: ObstacleType; yOff: number };
+type Obs = { id: number; x: number; w: number; h: number; kind: ObstacleType; yOff: number; lane: number };
 type Gem = { id: number; x: number; yOff: number; done: boolean; risky: boolean };
 type Pwup = { id: number; x: number; type: PwupKind; done: boolean };
 type Ptcl = { id: number; x: number; y: number; vx: number; vy: number; life: number; color: string; size: number };
 type TrailPt = { x: number; y: number };
+type BossBullet = { x: number; y: number; vx: number; vy: number; phase: number };
+type KarmaRainGem = { x: number; y: number; vy: number; done: boolean };
 
 interface Ghost {
   name: string;
@@ -42,6 +44,38 @@ type GS = {
   ghosts: Ghost[];
   deathGhostName: string;
   deathGhostDist: number;
+  // New fields
+  world: number;
+  bossActive: boolean; bossHp: number; bossX: number; bossY: number;
+  bossBullets: BossBullet[];
+  bossTimer: number;
+  hasRocket: boolean; rocketTimer: number; rocketX: number;
+  hasTimeSlow: boolean; timeSlowTimer: number;
+  karmaRainActive: boolean; karmaRainTimer: number; karmaRainGems: KarmaRainGem[];
+  beatPulse: number;
+  inKarmaZone: boolean; nxtKarmaZone: number; karmaZoneStart: number; karmaZoneEnd: number;
+  lane: number; laneY: number;
+  worldFlash: number; worldFlashName: string;
+  bossSpawnDist: number;
+};
+
+// ── World palette data ────────────────────────────────────────────────────────
+const WORLDS = [
+  { name: "NEON CITY",    bgTop: "#050510", bgBot: "#0a0020", ground: "#c8ff00", grid: "rgba(200,255,0,0.04)",   cloudAlpha: 0.07, bossEmoji: "🔥", ripEmoji: "💀" },
+  { name: "LAVA CORE",    bgTop: "#1a0000", bgBot: "#2a0800", ground: "#ff4400", grid: "rgba(255,100,0,0.05)",   cloudAlpha: 0.05, bossEmoji: "🔥", ripEmoji: "☠️" },
+  { name: "ICE REALM",    bgTop: "#000a1a", bgBot: "#001a2a", ground: "#00e5ff", grid: "rgba(0,200,255,0.05)",   cloudAlpha: 0.07, bossEmoji: "❄️", ripEmoji: "🧊" },
+  { name: "VOID SPACE",   bgTop: "#000000", bgBot: "#0a0010", ground: "#8b00ff", grid: "rgba(180,0,255,0.06)",   cloudAlpha: 0.04, bossEmoji: "🌑", ripEmoji: "👻" },
+  { name: "KARMA HEAVEN", bgTop: "#1a1400", bgBot: "#2a2000", ground: "#ffd700", grid: "rgba(255,215,0,0.07)",   cloudAlpha: 0.08, bossEmoji: "👑", ripEmoji: "✨" },
+];
+const LANE_OFFSETS = [0, 80, 160]; // pixels above ground for each lane
+
+// Obstacle colors by type
+const OBS_COLORS: Record<ObstacleType, string> = {
+  wall: "#ff2d8d",
+  spike: "#ff6b35",
+  pit: "#000000",
+  ceiling: "#00e5ff",
+  gate: "#8b5cf6",
 };
 
 function buildGhosts(): Ghost[] {
@@ -72,6 +106,19 @@ function mkGS(): GS {
     ghosts: buildGhosts(),
     deathGhostName: "",
     deathGhostDist: 0,
+    // New fields
+    world: 0,
+    bossActive: false, bossHp: 0, bossX: 0, bossY: 60,
+    bossBullets: [],
+    bossTimer: 0,
+    hasRocket: false, rocketTimer: 0, rocketX: 0,
+    hasTimeSlow: false, timeSlowTimer: 0,
+    karmaRainActive: false, karmaRainTimer: 0, karmaRainGems: [],
+    beatPulse: 0,
+    inKarmaZone: false, nxtKarmaZone: 700, karmaZoneStart: 0, karmaZoneEnd: 0,
+    lane: 0, laneY: 0,
+    worldFlash: 0, worldFlashName: "",
+    bossSpawnDist: 500,
   };
 }
 
@@ -87,15 +134,6 @@ function spawnPtcls(g: GS, x: number, y: number, color: string, count = 5, size 
   }
 }
 
-// Obstacle colors by type
-const OBS_COLORS: Record<ObstacleType, string> = {
-  wall: "#ff2d8d",
-  spike: "#ff6b35",
-  pit: "#000000",
-  ceiling: "#00e5ff",
-  gate: "#8b5cf6",
-};
-
 export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: string; onEnd?: (score: number, gems: number) => void }) {
   const cvs = useRef<HTMLCanvasElement>(null);
   const gs = useRef<GS>(mkGS());
@@ -103,9 +141,10 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
   const [phase, setPhase] = useState<"idle" | "on" | "over">("idle");
   const [fin, setFin] = useState({ score: 0, karma: 0, maxCombo: 0, timeSec: 0, dist: 0 });
   const [best, setBest] = useState(0);
-  const [ui, setUi] = useState({ combo: 0, karmaChain: 0, shield: false, speed: BASE_SPD });
+  const [ui, setUi] = useState({ combo: 0, karmaChain: 0, shield: false, speed: BASE_SPD, lane: 0, world: 0 });
   const [copied, setCopied] = useState(false);
   const [shaking, setShaking] = useState(false);
+  const swipeStartY = useRef<number | null>(null);
 
   useEffect(() => {
     try { setBest(parseInt(localStorage.getItem("karma_runner_best_v2") ?? "0") || 0); } catch {}
@@ -115,22 +154,33 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     const c = cvs.current; if (!c) return;
     const ctx = c.getContext("2d")!;
     const g = gs.current;
+    const wIdx = Math.min(g.world, WORLDS.length - 1);
+    const world = WORLDS[wIdx];
 
     ctx.save();
     if (g.screenShake > 0) {
       ctx.translate((Math.random() - 0.5) * g.screenShake, (Math.random() - 0.5) * g.screenShake);
     }
 
-    // ── Background: dark gradient ────────────────────────────────────────────
+    // ── Background: world-themed gradient ────────────────────────────────────
     const bg = ctx.createLinearGradient(0, 0, 0, GH);
-    bg.addColorStop(0, "#050510");
-    bg.addColorStop(1, "#0a0020");
+    bg.addColorStop(0, world.bgTop);
+    bg.addColorStop(1, world.bgBot);
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, GW, GH);
 
+    // time_slow overlay
+    if (g.hasTimeSlow) {
+      ctx.fillStyle = "rgba(100,100,120,0.15)";
+      ctx.fillRect(0, 0, GW, GH);
+    }
+
     // Neon grid lines (parallax background)
     const gridOff = (g.frame * g.speed * 0.15) % 40;
-    ctx.strokeStyle = "rgba(200,255,0,0.04)";
+    const gridBaseAlpha = parseFloat(world.grid.match(/[\d.]+\)$/)?.[0]?.replace(")", "") ?? "0.04");
+    const gridAlpha = g.beatPulse > 0 ? gridBaseAlpha + (0.12 - gridBaseAlpha) * (g.beatPulse / 15) : gridBaseAlpha;
+    const gridColor = world.grid.replace(/[\d.]+\)$/, `${gridAlpha})`);
+    ctx.strokeStyle = gridColor;
     ctx.lineWidth = 1;
     for (let gx = -gridOff; gx < GW; gx += 40) {
       ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, GROUND); ctx.stroke();
@@ -145,15 +195,19 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       ctx.fillStyle = `rgba(255,255,255,${tw})`; ctx.beginPath(); ctx.arc(sx!, sy!, 1, 0, Math.PI * 2); ctx.fill();
     });
 
-    // Clouds (faint)
+    // Clouds (world-tinted)
     ctx.font = "16px serif";
-    g.cx.forEach((cx, i) => { ctx.globalAlpha = 0.07 + i * 0.02; ctx.fillText("☁️", cx, g.cy[i]); });
+    g.cx.forEach((cx, i) => {
+      ctx.globalAlpha = world.cloudAlpha + i * 0.01;
+      ctx.fillText("☁️", cx, g.cy[i]!);
+    });
     ctx.globalAlpha = 1;
 
     // ── Speed lines at high speed ────────────────────────────────────────────
     if (g.speed > 7) {
-      const alpha = Math.min(0.25, (g.speed - 7) / 5 * 0.25);
-      ctx.strokeStyle = `rgba(200,255,0,${alpha})`; ctx.lineWidth = 1;
+      const sAlpha = Math.min(0.25, (g.speed - 7) / 5 * 0.25);
+      const lineAlpha = g.beatPulse > 0 ? sAlpha * 1.8 : sAlpha;
+      ctx.strokeStyle = `rgba(200,255,0,${lineAlpha})`; ctx.lineWidth = 1;
       for (let li = 0; li < 10; li++) {
         const ly = 20 + li * 28;
         const lineLen = 20 + (g.speed - 7) * 8;
@@ -162,32 +216,73 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       }
     }
 
+    // ── Karma Zone ───────────────────────────────────────────────────────────
+    if (g.inKarmaZone) {
+      ctx.save();
+      ctx.strokeStyle = "#00e5ff";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([10, 6]);
+      ctx.globalAlpha = 0.4 + 0.15 * Math.sin(g.frame * 0.1);
+      ctx.strokeRect(2, 42, GW - 4, GROUND - 44);
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 0.18 + 0.08 * Math.sin(g.frame * 0.08);
+      ctx.fillStyle = "#00e5ff";
+      ctx.fillRect(2, 42, GW - 4, GROUND - 44);
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
     // ── Ground ───────────────────────────────────────────────────────────────
-    // Ground fill (black below neon line)
     ctx.fillStyle = "#060606";
     ctx.fillRect(0, GROUND + 3, GW, GH - GROUND - 3);
 
-    // Neon ground line
-    ctx.strokeStyle = "#c8ff00";
-    ctx.lineWidth = 3;
-    ctx.shadowColor = "#c8ff00";
-    ctx.shadowBlur = 8;
+    // Perspective grid lines below ground (3D runway effect)
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.strokeStyle = world.ground;
+    ctx.lineWidth = 1;
+    const vanishX = GW / 2;
+    const perspLines = [0.1, 0.3, 0.5, 0.7, 0.9];
+    perspLines.forEach(frac => {
+      const groundX = frac * GW;
+      ctx.beginPath(); ctx.moveTo(vanishX, GROUND); ctx.lineTo(groundX, GH); ctx.stroke();
+    });
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    // Neon ground line (beat-enhanced)
+    const groundLineWidth = g.beatPulse > 0 ? 3 + 2 * (g.beatPulse / 15) : 3;
+    const groundLineColor = g.beatPulse > 0 ? "#ffffff" : world.ground;
+    ctx.strokeStyle = groundLineColor;
+    ctx.lineWidth = groundLineWidth;
+    ctx.shadowColor = world.ground;
+    ctx.shadowBlur = g.beatPulse > 0 ? 16 : 8;
     ctx.beginPath(); ctx.moveTo(0, GROUND); ctx.lineTo(GW, GROUND); ctx.stroke();
     ctx.shadowBlur = 0;
 
+    // Lane guide lines
+    if (g.lane > 0) {
+      ctx.strokeStyle = `rgba(200,255,0,0.12)`;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([8, 8]);
+      for (let ln = 1; ln <= 2; ln++) {
+        const laneLineY = GROUND - LANE_OFFSETS[ln]!;
+        ctx.beginPath(); ctx.moveTo(0, laneLineY); ctx.lineTo(GW, laneLineY); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+
     // Moving ground tiles
     const tileOff = (g.frame * g.speed) % 30;
-    ctx.strokeStyle = "rgba(200,255,0,0.15)"; ctx.lineWidth = 1;
+    ctx.strokeStyle = `rgba(200,255,0,0.15)`; ctx.lineWidth = 1;
     for (let tx = -tileOff; tx < GW; tx += 30) {
       ctx.beginPath(); ctx.moveTo(tx, GROUND); ctx.lineTo(tx, GROUND + 6); ctx.stroke();
     }
 
     // ── Pit obstacles (draw dark gaps) ───────────────────────────────────────
     g.obs.filter(o => o.kind === "pit").forEach(o => {
-      // Draw dark gap in ground
       ctx.fillStyle = "#000000";
       ctx.fillRect(o.x, GROUND, o.w, GH - GROUND);
-      // Neon edges
       ctx.strokeStyle = "#ff2d8d";
       ctx.lineWidth = 2;
       ctx.shadowColor = "#ff2d8d";
@@ -205,27 +300,23 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       ctx.shadowBlur = 10;
 
       if (o.kind === "wall") {
-        // Tall wall — jump over
-        ctx.fillRect(o.x, GROUND - o.h, o.w, o.h);
-        // Neon border
+        const wallGroundY = GROUND - (LANE_OFFSETS[Math.min(o.lane, 2)] ?? 0);
+        ctx.fillRect(o.x, wallGroundY - o.h, o.w, o.h);
         ctx.strokeStyle = "#ffffff44";
         ctx.lineWidth = 1;
-        ctx.strokeRect(o.x, GROUND - o.h, o.w, o.h);
-        // Label
+        ctx.strokeRect(o.x, wallGroundY - o.h, o.w, o.h);
         ctx.font = "bold 8px monospace";
         ctx.fillStyle = "#fff";
         ctx.textAlign = "center";
         ctx.shadowBlur = 0;
-        ctx.fillText("WALL", o.x + o.w / 2, GROUND - o.h - 4);
+        ctx.fillText("WALL", o.x + o.w / 2, wallGroundY - o.h - 4);
       } else if (o.kind === "spike") {
-        // Low spike triangle
         ctx.beginPath();
         ctx.moveTo(o.x, GROUND);
         ctx.lineTo(o.x + o.w / 2, GROUND - o.h);
         ctx.lineTo(o.x + o.w, GROUND);
         ctx.closePath();
         ctx.fill();
-        // Second spike
         ctx.beginPath();
         ctx.moveTo(o.x + o.w / 2, GROUND);
         ctx.lineTo(o.x + o.w, GROUND - o.h * 0.7);
@@ -233,7 +324,6 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
         ctx.closePath();
         ctx.fill();
       } else if (o.kind === "ceiling") {
-        // Hangs from top — duck under
         ctx.fillRect(o.x, 0, o.w, o.h);
         ctx.strokeStyle = "#ffffff44";
         ctx.lineWidth = 1;
@@ -244,12 +334,9 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
         ctx.textAlign = "center";
         ctx.fillText("DUCK", o.x + o.w / 2, o.h + 12);
       } else if (o.kind === "gate") {
-        // Two walls with gap — must jump to correct height
         const gapTop = GROUND - o.h;
         const gapBot = GROUND - o.yOff;
-        // Bottom wall
         ctx.fillRect(o.x, gapBot, o.w, GH - gapBot);
-        // Top wall (ceiling part)
         ctx.fillRect(o.x, 0, o.w, gapTop);
         ctx.strokeStyle = "#ffffff44";
         ctx.lineWidth = 1;
@@ -265,16 +352,70 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       ctx.textAlign = "left";
     });
 
+    // ── Boss ─────────────────────────────────────────────────────────────────
+    if (g.bossActive) {
+      const bEmoji = world.bossEmoji;
+      ctx.font = "80px serif";
+      ctx.fillText(bEmoji, g.bossX - 40, g.bossY + 80);
+
+      // Health bar
+      const hpBarW = 200;
+      const hpBarX = GW / 2 - 100;
+      const hpBarY = g.bossY + 90;
+      ctx.fillStyle = "#330000";
+      ctx.fillRect(hpBarX, hpBarY, hpBarW, 8);
+      ctx.fillStyle = "#ff2200";
+      ctx.shadowColor = "#ff2200";
+      ctx.shadowBlur = 6;
+      ctx.fillRect(hpBarX, hpBarY, hpBarW * (g.bossHp / 20), 8);
+      ctx.shadowBlur = 0;
+      ctx.font = "bold 9px monospace";
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.fillText(`BOSS ❤️ ${g.bossHp}/20`, GW / 2, hpBarY + 20);
+      ctx.textAlign = "left";
+
+      // Boss bullets
+      const bulletColor = wIdx === 2 ? "#00ccff" : wIdx === 3 ? "#cc00ff" : wIdx === 4 ? "#ffd700" : "#ff4400";
+      g.bossBullets.forEach(b => {
+        ctx.fillStyle = bulletColor;
+        ctx.shadowColor = bulletColor;
+        ctx.shadowBlur = 8;
+        ctx.beginPath(); ctx.arc(b.x, b.y, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+    }
+
+    // ── Rocket ───────────────────────────────────────────────────────────────
+    if (g.hasRocket) {
+      ctx.font = "24px serif";
+      ctx.fillText("🚀", g.rocketX, GROUND - 80);
+    }
+
+    // ── Karma Rain gems ──────────────────────────────────────────────────────
+    g.karmaRainGems.forEach(rg => {
+      if (rg.done) return;
+      ctx.font = "16px serif";
+      ctx.globalAlpha = 0.9;
+      ctx.fillText("⚡", rg.x, rg.y);
+      ctx.globalAlpha = 1;
+    });
+
     // ── Gems (karma ⚡ collectibles) ─────────────────────────────────────────
     g.gms.forEach(gem => {
       if (gem.done) return;
       const yy = GROUND + gem.yOff - 10 + Math.sin(g.frame * 0.12 + gem.id * 0.5) * 3;
-      // Pulsing yellow circle background
+      const gemScale = g.beatPulse > 0 ? 1.0 + 0.4 * (g.beatPulse / 15) : 1.0;
       const pulse = 0.6 + 0.4 * Math.sin(g.frame * 0.15 + gem.id);
-      ctx.fillStyle = `rgba(255,220,0,${pulse * 0.3})`;
-      ctx.beginPath(); ctx.arc(gem.x + 8, yy - 8, 12, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = g.inKarmaZone ? `rgba(0,229,255,${pulse * 0.4})` : `rgba(255,220,0,${pulse * 0.3})`;
+      ctx.beginPath(); ctx.arc(gem.x + 8, yy - 8, 12 * gemScale, 0, Math.PI * 2); ctx.fill();
+      ctx.save();
+      ctx.translate(gem.x + 8, yy - 8);
+      ctx.scale(gemScale, gemScale);
+      ctx.translate(-gem.x - 8, -(yy - 8));
       ctx.font = "16px serif";
       ctx.fillText("⚡", gem.x, yy);
+      ctx.restore();
       if (gem.risky) {
         ctx.font = "bold 7px monospace";
         ctx.fillStyle = "#ffdd00";
@@ -285,8 +426,8 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     });
 
     // ── Powerups ─────────────────────────────────────────────────────────────
-    const pwupEmoji: Record<PwupKind, string> = { shield:"🛡️", boost:"💨", magnet:"🧲", star:"⭐", beat:"🎵", warp:"🌀" };
-    const pwupColor: Record<PwupKind, string> = { shield:"#00e5ff", boost:"#c8ff00", magnet:"#ff44cc", star:"#ffdd00", beat:"#ff6600", warp:"#aa44ff" };
+    const pwupEmoji: Record<PwupKind, string> = { shield:"🛡️", boost:"💨", magnet:"🧲", star:"⭐", beat:"🎵", warp:"🌀", rocket:"🚀", time_slow:"🐢", karma_rain:"🌧️" };
+    const pwupColor: Record<PwupKind, string> = { shield:"#00e5ff", boost:"#c8ff00", magnet:"#ff44cc", star:"#ffdd00", beat:"#ff6600", warp:"#aa44ff", rocket:"#ff8800", time_slow:"#aaaaff", karma_rain:"#00ffcc" };
     ctx.font = "18px serif";
     g.pwups.forEach(p => {
       if (p.done) return;
@@ -334,9 +475,19 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     });
     ctx.globalAlpha = 1;
 
+    // Beat pulse ring
+    if (g.beatPulse > 10) {
+      const ringAlpha = (g.beatPulse - 10) / 5;
+      const ringR = 28 + (15 - g.beatPulse) * 4;
+      const petScreenY = GROUND - g.laneY - g.petY;
+      ctx.strokeStyle = `rgba(255,255,100,${ringAlpha})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(PET_X + 22, petScreenY - PET_H / 2, ringR, 0, Math.PI * 2); ctx.stroke();
+    }
+
     // ── Pet ──────────────────────────────────────────────────────────────────
     ctx.save();
-    const petScreenY = GROUND - g.petY;
+    const petScreenY = GROUND - g.laneY - g.petY;
     if (g.over) {
       ctx.translate(PET_X + 22, petScreenY - PET_H / 2);
       ctx.rotate(Math.PI / 2);
@@ -360,12 +511,22 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       ctx.shadowBlur = 0; ctx.globalAlpha = 1;
     }
 
-    ctx.font = `${PET_H}px serif`;
-    ctx.fillText(petEmoji, PET_X, petScreenY);
+    // Speed blur: squish horizontally when fast
+    if (g.speed > 8 && !g.over) {
+      ctx.save();
+      ctx.translate(PET_X + 22, petScreenY - PET_H / 2);
+      ctx.scale(0.85, 1);
+      ctx.translate(-(PET_X + 22), -(petScreenY - PET_H / 2));
+      ctx.font = `${PET_H}px serif`;
+      ctx.fillText(petEmoji, PET_X, petScreenY);
+      ctx.restore();
+    } else {
+      ctx.font = `${PET_H}px serif`;
+      ctx.fillText(petEmoji, PET_X, petScreenY);
+    }
     ctx.restore();
 
     // ── HUD ──────────────────────────────────────────────────────────────────
-    // Top bar background
     ctx.fillStyle = "rgba(0,0,0,0.55)";
     ctx.fillRect(0, 0, GW, 46);
 
@@ -379,8 +540,8 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     ctx.fillText(`⚡ ×${speedMult}`, GW - 8, 18);
 
     if (g.comboCount > 1 || g.karmaChain > 0) {
-      ctx.fillStyle = "#ff6600";
-      ctx.fillText(`🔥 ×${Math.max(g.comboCount, g.karmaChain)}`, GW - 8, 34);
+      ctx.fillStyle = g.inKarmaZone ? "#cc00ff" : "#ff6600";
+      ctx.fillText(`🔥 ×${Math.max(g.comboCount, g.karmaChain)}${g.inKarmaZone ? " ×3" : ""}`, GW - 8, 34);
     }
 
     if (g.karmaChain >= 5) {
@@ -391,10 +552,59 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
 
     // Active powerup icons
     let iconX = GW / 2 - 20;
-    if (g.hasShield)  { ctx.font = "13px serif"; ctx.fillText("🛡️", iconX, 20); iconX += 20; }
-    if (g.hasMagnet)  { ctx.font = "13px serif"; ctx.fillText("🧲", iconX, 20); iconX += 20; }
-    if (g.hasStar)    { ctx.font = "13px serif"; ctx.fillText("⭐", iconX, 20); }
-    if (g.hasBeat)    { ctx.font = "13px serif"; ctx.fillText("🎵", iconX + 20, 20); }
+    if (g.hasShield)    { ctx.font = "13px serif"; ctx.fillText("🛡️", iconX, 20); iconX += 20; }
+    if (g.hasMagnet)    { ctx.font = "13px serif"; ctx.fillText("🧲", iconX, 20); iconX += 20; }
+    if (g.hasStar)      { ctx.font = "13px serif"; ctx.fillText("⭐", iconX, 20); iconX += 20; }
+    if (g.hasBeat)      { ctx.font = "13px serif"; ctx.fillText("🎵", iconX, 20); iconX += 20; }
+    if (g.hasRocket)    { ctx.font = "13px serif"; ctx.fillText("🚀", iconX, 20); iconX += 20; }
+    if (g.hasTimeSlow)  { ctx.font = "13px serif"; ctx.fillText("🐢", iconX, 20); iconX += 20; }
+    if (g.karmaRainActive) { ctx.font = "13px serif"; ctx.fillText("🌧️", iconX, 20); iconX += 20; }
+
+    // Lane indicator
+    ctx.font = "bold 10px monospace";
+    ctx.fillStyle = "rgba(200,255,0,0.7)";
+    ctx.textAlign = "right";
+    ctx.fillText(`LN ${g.lane + 1}/3`, GW - 8, 44);
+    ctx.textAlign = "left";
+
+    // World indicator (bottom-left)
+    ctx.font = "bold 9px monospace";
+    ctx.fillStyle = "rgba(255,255,255,0.4)";
+    ctx.fillText(`W${g.world + 1}: ${world.name}`, 6, GH - 8);
+
+    // Karma zone banner
+    if (g.inKarmaZone) {
+      ctx.font = "bold 11px monospace";
+      ctx.fillStyle = "#00e5ff";
+      ctx.textAlign = "center";
+      ctx.shadowColor = "#00e5ff";
+      ctx.shadowBlur = 8;
+      ctx.fillText("✦ KARMA ZONE ×3 ✦", GW / 2, 58);
+      ctx.shadowBlur = 0;
+      ctx.textAlign = "left";
+    }
+
+    // World flash banner
+    if (g.worldFlash > 0) {
+      const flashT = g.worldFlash / 60;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, flashT * 2);
+      ctx.fillStyle = "rgba(0,0,0,0.7)";
+      ctx.fillRect(0, GH / 2 - 36, GW, 72);
+      ctx.font = "bold 20px monospace";
+      ctx.fillStyle = world.ground;
+      ctx.shadowColor = world.ground;
+      ctx.shadowBlur = 18;
+      ctx.textAlign = "center";
+      ctx.fillText(`WORLD ${g.world + 1}: ${g.worldFlashName}`, GW / 2, GH / 2 - 4);
+      ctx.font = "bold 11px monospace";
+      ctx.fillStyle = "#ffffff99";
+      ctx.shadowBlur = 0;
+      ctx.fillText("NEW WORLD ENTERED", GW / 2, GH / 2 + 18);
+      ctx.globalAlpha = 1;
+      ctx.textAlign = "left";
+      ctx.restore();
+    }
 
     // ── Screen flash ─────────────────────────────────────────────────────────
     if (g.flashAlpha > 0) {
@@ -414,76 +624,172 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     g.frame++;
     g.distance += g.speed * 0.1;
 
+    // Effective speed (time_slow)
+    const effSpeed = g.hasTimeSlow ? g.speed * 0.4 : g.speed;
+
     // Speed progression: every 500m +0.5, cap at MAX_SPD
     g.speed = Math.min(BASE_SPD + Math.floor(g.distance / 500) * 0.5, MAX_SPD);
+
+    // ── World system ──────────────────────────────────────────────────────────
+    const newWorld = Math.min(Math.floor(g.distance / 1000), WORLDS.length - 1);
+    if (newWorld > g.world) {
+      g.world = newWorld;
+      g.worldFlash = 60;
+      g.worldFlashName = WORLDS[newWorld]?.name ?? "";
+      g.flashColor = "255,215,0"; g.flashAlpha = 0.2;
+    }
+    if (g.worldFlash > 0) g.worldFlash--;
 
     const beatMult = g.hasBeat ? 2 : 1;
     g.score = Math.floor(g.frame * g.speed * 0.09 * beatMult) + g.karma * 10 * Math.max(1, g.comboCount) + g.scoreBonus;
 
+    // Beat pulse every 60 frames
+    if (g.frame % 60 === 0) g.beatPulse = 15;
+    if (g.beatPulse > 0) g.beatPulse--;
+
     // Update clouds
-    g.cx = g.cx.map((cx, i) => { const nx = cx - g.cspd[i]; return nx < -40 ? GW + 30 : nx; });
+    g.cx = g.cx.map((cx, i) => { const nx = cx - g.cspd[i]!; return nx < -40 ? GW + 30 : nx; });
 
     // Timer powerups
-    if (g.shieldTimer > 0) { g.shieldTimer--; if (g.shieldTimer === 0) g.hasShield = false; }
-    if (g.magnetTimer > 0) { g.magnetTimer--; if (g.magnetTimer === 0) g.hasMagnet = false; }
-    if (g.starTimer   > 0) { g.starTimer--;   if (g.starTimer   === 0) g.hasStar   = false; }
-    if (g.beatTimer   > 0) { g.beatTimer--;   if (g.beatTimer   === 0) g.hasBeat   = false; }
-    if (g.screenShake > 0) g.screenShake = Math.max(0, g.screenShake - 0.6);
+    if (g.shieldTimer > 0)   { g.shieldTimer--;   if (g.shieldTimer === 0)   g.hasShield   = false; }
+    if (g.magnetTimer > 0)   { g.magnetTimer--;   if (g.magnetTimer === 0)   g.hasMagnet   = false; }
+    if (g.starTimer   > 0)   { g.starTimer--;     if (g.starTimer   === 0)   g.hasStar     = false; }
+    if (g.beatTimer   > 0)   { g.beatTimer--;     if (g.beatTimer   === 0)   g.hasBeat     = false; }
+    if (g.timeSlowTimer > 0) { g.timeSlowTimer--; if (g.timeSlowTimer === 0) g.hasTimeSlow = false; }
+    if (g.screenShake > 0)   g.screenShake = Math.max(0, g.screenShake - 0.6);
 
-    // Physics
-    g.petVY += GRAVITY; g.petY = Math.max(0, g.petY - g.petVY);
-    if (g.petY === 0) { g.petVY = 0; g.jumpsLeft = 2; }
+    // ── Lane interpolation ────────────────────────────────────────────────────
+    const targetLaneY = LANE_OFFSETS[Math.min(g.lane, 2)] ?? 0;
+    g.laneY += (targetLaneY - g.laneY) * 0.15;
+
+    // Physics (applied on top of lane floor)
+    g.petVY += GRAVITY;
+    g.petY = Math.max(0, g.petY - g.petVY);
+    if (g.petY <= 0) { g.petY = 0; g.petVY = 0; g.jumpsLeft = 2; }
 
     // Trail
-    g.trail.unshift({ x: PET_X, y: GROUND - g.petY });
+    const trailY = GROUND - g.laneY - g.petY;
+    g.trail.unshift({ x: PET_X, y: trailY });
     if (g.trail.length > 5) g.trail.length = 5;
 
     // Trail neon particles
     if (g.frame % 3 === 0 && g.petY > 5) {
-      spawnPtcls(g, PET_X + 10, GROUND - g.petY, "#00ff88", 1, 2);
+      spawnPtcls(g, PET_X + 10, GROUND - g.laneY - g.petY, "#00ff88", 1, 2);
+    }
+
+    // ── Karma Zone check ─────────────────────────────────────────────────────
+    if (!g.inKarmaZone && g.distance > g.nxtKarmaZone) {
+      g.inKarmaZone = true;
+      g.karmaZoneStart = g.distance;
+      g.karmaZoneEnd = g.distance + 300;
+      g.flashColor = "0,229,255"; g.flashAlpha = 0.25;
+    }
+    if (g.inKarmaZone && g.distance > g.karmaZoneEnd) {
+      g.inKarmaZone = false;
+      g.nxtKarmaZone += 700;
     }
 
     // ── Ghost visibility check ────────────────────────────────────────────────
     g.ghosts.forEach(ghost => {
-      if (!ghost.visible && g.distance >= ghost.diedAt) {
-        ghost.visible = true;
-      }
+      if (!ghost.visible && g.distance >= ghost.diedAt) ghost.visible = true;
     });
+
+    // ── Boss wave ─────────────────────────────────────────────────────────────
+    if (!g.bossActive && g.distance >= g.bossSpawnDist) {
+      g.bossActive = true;
+      g.bossHp = 20;
+      g.bossX = 380;
+      g.bossY = 60;
+      g.bossBullets = [];
+      g.bossTimer = 0;
+      g.flashColor = "255,100,0"; g.flashAlpha = 0.35;
+    }
+
+    if (g.bossActive) {
+      g.bossTimer++;
+
+      // Boss moves left, stops at 250
+      if (g.bossX > 250) g.bossX -= 0.8;
+
+      // Fire bullets every 60 frames
+      if (g.bossTimer % 60 === 0) {
+        const phases = [0, 2.09, 4.18];
+        phases.forEach(phase => {
+          g.bossBullets.push({ x: g.bossX, y: g.bossY + 40, vx: -2.5, vy: Math.sin(phase) * 1.5, phase });
+        });
+      }
+
+      // Move bullets
+      g.bossBullets = g.bossBullets.map(b => ({ ...b, x: b.x + b.vx, y: b.y + b.vy })).filter(b => b.x > -20 && b.y > 0 && b.y < GH);
+
+      // Despawn after 480 frames
+      if (g.bossTimer >= 480) {
+        g.bossActive = false;
+        g.bossBullets = [];
+        g.bossSpawnDist += 1000;
+      }
+    }
+
+    // ── Rocket powerup ────────────────────────────────────────────────────────
+    if (g.hasRocket) {
+      g.rocketX += 8;
+      // Destroy obstacles in rocket path
+      g.obs = g.obs.filter(o => Math.abs(o.x - g.rocketX) > 30);
+      g.rocketTimer--;
+      if (g.rocketTimer <= 0 || g.rocketX > GW + 50) {
+        g.hasRocket = false;
+        g.rocketTimer = 0;
+      }
+    }
+
+    // ── Karma rain ───────────────────────────────────────────────────────────
+    if (g.karmaRainActive) {
+      g.karmaRainTimer--;
+      g.karmaRainGems = g.karmaRainGems.map(rg => ({ ...rg, y: rg.y + rg.vy }));
+      // Auto-collect at GROUND level
+      g.karmaRainGems.forEach(rg => {
+        if (!rg.done && rg.y > GROUND - 30) {
+          rg.done = true;
+          g.karma++;
+          g.scoreBonus += 5;
+          spawnPtcls(g, rg.x, GROUND - 20, "#ffdd00", 3, 2);
+        }
+      });
+      g.karmaRainGems = g.karmaRainGems.filter(rg => !rg.done && rg.y < GROUND + 20);
+      if (g.karmaRainTimer <= 0 && g.karmaRainGems.length === 0) {
+        g.karmaRainActive = false;
+      }
+    }
 
     // ── Spawn obstacles ───────────────────────────────────────────────────────
     g.nxtObs--;
-    if (g.nxtObs <= 0) {
+    if (g.nxtObs <= 0 && !g.bossActive) {
       const roll = Math.random();
       const distFactor = Math.min(1, g.distance / 400);
       let obs: Obs;
 
       if (roll < 0.28) {
-        // Wall — tall, jump over
         const h = 50 + Math.floor(Math.random() * 30);
-        obs = { id: g.frame, x: GW + 10, w: 22, h, kind: "wall", yOff: 0 };
+        obs = { id: g.frame, x: GW + 10, w: 22, h, kind: "wall", yOff: 0, lane: 0 };
       } else if (roll < 0.50) {
-        // Spike — low, jump over
-        obs = { id: g.frame, x: GW + 10, w: 24, h: 28, kind: "spike", yOff: 0 };
+        obs = { id: g.frame, x: GW + 10, w: 24, h: 28, kind: "spike", yOff: 0, lane: 0 };
       } else if (roll < 0.66 && distFactor > 0.15) {
-        // Pit — gap in ground, jump across
-        obs = { id: g.frame, x: GW + 10, w: 55, h: 0, kind: "pit", yOff: 0 };
+        obs = { id: g.frame, x: GW + 10, w: 55, h: 0, kind: "pit", yOff: 0, lane: 0 };
       } else if (roll < 0.80 && distFactor > 0.3) {
-        // Ceiling — hangs from top
         const h = 120 + Math.floor(Math.random() * 40);
-        obs = { id: g.frame, x: GW + 10, w: 40, h, kind: "ceiling", yOff: 0 };
+        obs = { id: g.frame, x: GW + 10, w: 40, h, kind: "ceiling", yOff: 0, lane: 0 };
       } else if (distFactor > 0.5) {
-        // Gate — gap to jump through at right height
-        const gapH = 80 + Math.floor(Math.random() * 20); // gap height
-        obs = { id: g.frame, x: GW + 10, w: 20, h: GROUND - gapH - 60, kind: "gate", yOff: gapH };
+        const gapH = 80 + Math.floor(Math.random() * 20);
+        obs = { id: g.frame, x: GW + 10, w: 20, h: GROUND - gapH - 60, kind: "gate", yOff: gapH, lane: 0 };
       } else {
-        obs = { id: g.frame, x: GW + 10, w: 22, h: 50, kind: "wall", yOff: 0 };
+        obs = { id: g.frame, x: GW + 10, w: 22, h: 50, kind: "wall", yOff: 0, lane: 0 };
       }
       g.obs.push(obs);
-      g.nxtObs = Math.max(35, 60 + Math.floor(Math.random() * 55) - Math.floor(g.speed * 3));
+      g.nxtObs = Math.max(35, 60 + Math.floor(Math.random() * 55) - Math.floor(effSpeed * 3));
     }
 
-    // Move obstacles
-    g.obs = g.obs.map(o => ({ ...o, x: o.x - g.speed })).filter(o => o.x > -120);
+    // Move obstacles using effective speed
+    g.obs = g.obs.map(o => ({ ...o, x: o.x - effSpeed })).filter(o => o.x > -120);
 
     // ── Karma gems ────────────────────────────────────────────────────────────
     g.nxtGem--;
@@ -493,33 +799,35 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       g.gms.push({ id: g.frame + 99999, x: GW + 10, yOff, done: false, risky });
       g.nxtGem = Math.max(18, 30 + Math.floor(Math.random() * 25));
     }
-    g.gms = g.gms.map(gem => ({ ...gem, x: gem.x - g.speed })).filter(gem => gem.x > -25);
+    g.gms = g.gms.map(gem => ({ ...gem, x: gem.x - effSpeed })).filter(gem => gem.x > -25);
 
     // ── Powerups ──────────────────────────────────────────────────────────────
     g.nxtPwup--;
     if (g.nxtPwup <= 0) {
-      const types: PwupKind[] = ["shield", "boost", "magnet", "star", "beat", "warp"];
-      const weights = [3, 3, 3, 1, 1, 1.5];
+      const types: PwupKind[] = ["shield", "boost", "magnet", "star", "beat", "warp", "rocket", "time_slow", "karma_rain"];
+      const weights =           [3,        3,       3,        1,      1,      1.5,    1.5,      1.5,          1.5];
       const total = weights.reduce((a, b) => a + b, 0);
       let rnd = Math.random() * total;
       let chosen: PwupKind = "boost";
-      for (let ti = 0; ti < types.length; ti++) { rnd -= weights[ti]; if (rnd <= 0) { chosen = types[ti]; break; } }
+      for (let ti = 0; ti < types.length; ti++) { rnd -= weights[ti]!; if (rnd <= 0) { chosen = types[ti]!; break; } }
       g.pwups.push({ id: g.frame, x: GW + 10, type: chosen, done: false });
       g.nxtPwup = 260 + Math.floor(Math.random() * 160);
     }
-    g.pwups = g.pwups.map(p => ({ ...p, x: p.x - g.speed })).filter(p => p.x > -30);
+    g.pwups = g.pwups.map(p => ({ ...p, x: p.x - effSpeed })).filter(p => p.x > -30);
 
     // ── Collision detection ───────────────────────────────────────────────────
+    const pFloorY = GROUND - g.laneY; // screen Y of player's current floor
     const pL = PET_X + 6, pR = PET_X + PET_H - 6;
-    const pT = GROUND - g.petY - PET_H + 8, pB = GROUND - g.petY - 8;
-    const petCenterY = GROUND - g.petY - PET_H / 2;
+    const playerScreenY = GROUND - g.laneY - g.petY;
+    const pT = playerScreenY - PET_H + 8;
+    const pB = playerScreenY - 8;
+    const petCenterY = playerScreenY - PET_H / 2;
 
     function triggerDeath() {
       g.over = true; g.on = false;
       g.flashAlpha = 0.9; g.flashColor = "255,50,50"; g.screenShake = 12;
       const timeSec = Math.floor((g.frame - g.startFrame) / 60);
       g.maxCombo = Math.max(g.maxCombo, g.comboCount);
-      // Find nearest ghost
       let nearest = { name: "", dist: 9999 };
       g.ghosts.forEach(gh => {
         const diff = Math.abs(gh.diedAt - g.distance);
@@ -540,17 +848,36 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       setPhase("over");
     }
 
+    // Boss bullet collision
+    if (g.bossActive) {
+      const bHitX = PET_X + 22;
+      const bHitY = petCenterY;
+      for (let bi = g.bossBullets.length - 1; bi >= 0; bi--) {
+        const b = g.bossBullets[bi]!;
+        const dx = b.x - bHitX, dy = b.y - bHitY;
+        if (Math.sqrt(dx * dx + dy * dy) < 20) {
+          if (g.hasShield) {
+            g.hasShield = false; g.shieldTimer = 0;
+            spawnPtcls(g, bHitX, bHitY, "#00e5ff", 6, 3);
+            g.screenShake = 4; g.comboCount = 0;
+            g.bossBullets.splice(bi, 1);
+          } else {
+            triggerDeath(); return;
+          }
+        }
+      }
+    }
+
     for (const o of g.obs) {
       if (g.hasStar) continue;
 
       if (o.kind === "pit") {
-        // Pit: player falls in if x is over gap AND on the ground
-        if (pR > o.x && pL < o.x + o.w && g.petY < 5) {
+        // Pit: player falls in if on ground level (lane 0) and over gap
+        if (g.lane === 0 && pR > o.x && pL < o.x + o.w && g.petY < 5) {
           if (g.hasShield) {
             g.hasShield = false; g.shieldTimer = 0;
             spawnPtcls(g, PET_X + 22, petCenterY, "#00e5ff", 6, 3);
             g.screenShake = 4; g.comboCount = 0;
-            // Push player up slightly to escape pit
             g.petVY = JUMP_V * 0.6; g.petY = 10; g.jumpsLeft = 1;
             g.obs = g.obs.filter(x => x !== o);
             continue;
@@ -558,7 +885,6 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
           triggerDeath(); return;
         }
       } else if (o.kind === "ceiling") {
-        // Ceiling: collision if player is in air and hits it
         const cT = 0, cB = o.h;
         if (pR > o.x && pL < o.x + o.w && pT < cB && pB > cT) {
           if (g.hasShield) {
@@ -571,24 +897,20 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
           triggerDeath(); return;
         }
       } else if (o.kind === "gate") {
-        // Gate: must be in the gap (not hitting top or bottom walls)
         const gapBottom = GROUND - o.yOff;
         const gapTop = GROUND - o.h;
-        // Check if player is horizontally inside gate
         if (pR > o.x && pL < o.x + o.w) {
-          // Hit bottom wall
-          if (pB > gapBottom && pT < GROUND) {
+          if (pB > gapBottom && pT < pFloorY) {
             if (g.hasShield) { g.hasShield = false; g.shieldTimer = 0; spawnPtcls(g, PET_X + 22, petCenterY, "#00e5ff", 6, 3); g.screenShake = 4; g.comboCount = 0; g.obs = g.obs.filter(x => x !== o); continue; }
             triggerDeath(); return;
           }
-          // Hit top wall
           if (pT < gapTop && pB > 0) {
             if (g.hasShield) { g.hasShield = false; g.shieldTimer = 0; spawnPtcls(g, PET_X + 22, petCenterY, "#00e5ff", 6, 3); g.screenShake = 4; g.comboCount = 0; g.obs = g.obs.filter(x => x !== o); continue; }
             triggerDeath(); return;
           }
         }
       } else {
-        // wall / spike — standard AABB
+        // wall / spike — standard AABB; lanes: lane > 0 naturally avoids ground obstacles
         const oL = o.x + 3, oR = o.x + o.w - 3;
         const oT = GROUND - o.h + 3, oB = GROUND - 3;
         if (pR > oL && pL < oR && pB > oT && pT < oB) {
@@ -614,13 +936,14 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       if (inRange) {
         gem.done = true;
         const bonus = gem.risky ? 2 : 1;
-        g.karma += bonus;
+        const zoneMult = g.inKarmaZone ? 3 : 1;
+        g.karma += bonus * zoneMult;
         g.karmaChain++;
         g.comboCount++;
         g.maxCombo = Math.max(g.maxCombo, g.comboCount);
         const chainMult = g.karmaChain >= 10 ? 2 : 1;
-        g.scoreBonus += 5 * bonus * chainMult;
-        spawnPtcls(g, gem.x, gy, "#ffdd00", 4, 3);
+        g.scoreBonus += 5 * bonus * chainMult * zoneMult;
+        spawnPtcls(g, gem.x, gy, g.inKarmaZone ? "#00e5ff" : "#ffdd00", 4, 3);
         if (g.karmaChain === 10) {
           g.flashColor = "255,220,0"; g.flashAlpha = 0.3;
         }
@@ -633,27 +956,62 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       const py = GROUND - 68;
       if (Math.abs(p.x - (PET_X + 22)) < 28 && Math.abs(py - petCenterY) < 48) {
         p.done = true;
-        const pwupEmoji: Record<PwupKind, string> = { shield:"🛡️", boost:"💨", magnet:"🧲", star:"⭐", beat:"🎵", warp:"🌀" };
         spawnPtcls(g, p.x, py, "#ffffff", 5, 3);
         switch (p.type) {
-          case "shield": g.hasShield = true; g.shieldTimer = 300; break;
-          case "boost":  g.scoreBonus += 80; g.flashColor = "200,255,0"; g.flashAlpha = 0.25; break;
-          case "magnet": g.hasMagnet = true; g.magnetTimer = 400; break;
-          case "star":   g.hasStar = true; g.starTimer = 180; g.flashColor = "255,220,0"; g.flashAlpha = 0.3;
-            spawnPtcls(g, PET_X + 22, petCenterY, "#ffdd00", 8, 4); break;
-          case "beat":   g.hasBeat = true; g.beatTimer = 300; g.flashColor = "255,100,0"; g.flashAlpha = 0.2; break;
+          case "shield":
+            g.hasShield = true; g.shieldTimer = 300;
+            break;
+          case "boost":
+            g.scoreBonus += 80; g.flashColor = "200,255,0"; g.flashAlpha = 0.25;
+            break;
+          case "magnet":
+            g.hasMagnet = true; g.magnetTimer = 400;
+            break;
+          case "star":
+            g.hasStar = true; g.starTimer = 180; g.flashColor = "255,220,0"; g.flashAlpha = 0.3;
+            spawnPtcls(g, PET_X + 22, petCenterY, "#ffdd00", 8, 4);
+            break;
+          case "beat":
+            g.hasBeat = true; g.beatTimer = 300; g.flashColor = "255,100,0"; g.flashAlpha = 0.2;
+            break;
           case "warp":
             g.obs = g.obs.filter(o => o.x < PET_X + 50 || o.x > PET_X + 250);
             g.warpActive = true; g.warpFrame = g.frame;
             g.flashColor = "170,68,255"; g.flashAlpha = 0.3;
             spawnPtcls(g, PET_X + 22, petCenterY, "#aa44ff", 8, 4);
             break;
+          case "rocket":
+            g.hasRocket = true; g.rocketTimer = 120; g.rocketX = PET_X + 50;
+            g.flashColor = "255,136,0"; g.flashAlpha = 0.25;
+            spawnPtcls(g, PET_X + 22, petCenterY, "#ff8800", 6, 3);
+            break;
+          case "time_slow":
+            g.hasTimeSlow = true; g.timeSlowTimer = 240;
+            g.flashColor = "170,170,255"; g.flashAlpha = 0.2;
+            spawnPtcls(g, PET_X + 22, petCenterY, "#aaaaff", 6, 3);
+            break;
+          case "karma_rain":
+            g.karmaRainActive = true; g.karmaRainTimer = 180;
+            // Spawn 20 rain gems
+            for (let ri = 0; ri < 20; ri++) {
+              g.karmaRainGems.push({
+                x: Math.random() * (GW - 20) + 10,
+                y: -10 - Math.random() * 80,
+                vy: 3,
+                done: false,
+              });
+            }
+            g.flashColor = "0,255,204"; g.flashAlpha = 0.2;
+            spawnPtcls(g, PET_X + 22, petCenterY, "#00ffcc", 6, 3);
+            break;
         }
-        void pwupEmoji;
       }
     });
 
     if (g.warpActive && g.frame - g.warpFrame > 30) g.warpActive = false;
+
+    // ── Boss damage on tap (handled via jump/click, tracked via bossHit) ─────
+    // Done in jump() — bossHp decremented there
 
     // ── Particles ─────────────────────────────────────────────────────────────
     g.particles = g.particles
@@ -661,7 +1019,7 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       .filter(p => p.life > 0);
 
     if (g.frame % 4 === 0) {
-      setUi({ combo: g.comboCount, karmaChain: g.karmaChain, shield: g.hasShield, speed: g.speed });
+      setUi({ combo: g.comboCount, karmaChain: g.karmaChain, shield: g.hasShield, speed: g.speed, lane: g.lane, world: g.world });
     }
 
     draw(); raf.current = requestAnimationFrame(loop);
@@ -673,9 +1031,61 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       g.on = true; g.startFrame = g.frame;
       setPhase("on"); raf.current = requestAnimationFrame(loop); return;
     }
+    // Boss damage on tap
+    if (g.bossActive && !g.over) {
+      g.bossHp--;
+      if (g.bossHp <= 0) {
+        // Boss defeated
+        g.bossActive = false;
+        g.bossBullets = [];
+        g.bossSpawnDist += 1000;
+        g.scoreBonus += 200;
+        g.flashColor = "255,215,0"; g.flashAlpha = 0.5;
+        // Spawn 15 karma gems as reward
+        for (let bi = 0; bi < 15; bi++) {
+          g.gms.push({
+            id: g.frame + 88888 + bi,
+            x: 100 + bi * 18,
+            yOff: -20 - Math.floor(Math.random() * 40),
+            done: false,
+            risky: false,
+          });
+        }
+        spawnPtcls(g, GW / 2, GH / 2, "#ffd700", 20, 5);
+        return;
+      }
+      spawnPtcls(g, g.bossX, g.bossY + 40, "#ff4400", 4, 3);
+      g.screenShake = 2;
+      return;
+    }
     if (g.jumpsLeft > 0 && !g.over) {
       g.petVY = g.jumpsLeft === 2 ? JUMP_V : JUMP_V * 0.82; g.jumpsLeft--;
       g.karmaChain = 0; // reset chain on jump (forces skill)
+    }
+  }
+
+  function handlePointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
+    swipeStartY.current = e.clientY;
+  }
+
+  function handlePointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
+    const g = gs.current;
+    if (swipeStartY.current === null) return;
+    const deltaY = e.clientY - swipeStartY.current;
+    swipeStartY.current = null;
+
+    if (Math.abs(deltaY) > 30) {
+      // Swipe detected — change lane
+      if (deltaY > 30) {
+        // Swipe down: decrease lane (move to lower lane)
+        g.lane = Math.max(0, g.lane - 1);
+      } else if (deltaY < -30) {
+        // Swipe up: increase lane (move to higher lane)
+        g.lane = Math.min(2, g.lane + 1);
+      }
+    } else {
+      // Short tap: jump
+      jump();
     }
   }
 
@@ -683,7 +1093,7 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     cancelAnimationFrame(raf.current);
     gs.current = mkGS(); setPhase("idle");
     setFin({ score: 0, karma: 0, maxCombo: 0, timeSec: 0, dist: 0 });
-    setUi({ combo: 0, karmaChain: 0, shield: false, speed: BASE_SPD });
+    setUi({ combo: 0, karmaChain: 0, shield: false, speed: BASE_SPD, lane: 0, world: 0 });
     setCopied(false); setShaking(false);
     requestAnimationFrame(draw);
   }
@@ -695,15 +1105,20 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
 
   useEffect(() => { requestAnimationFrame(draw); return () => cancelAnimationFrame(raf.current); }, [draw]);
   useEffect(() => {
-    const fn = (e: KeyboardEvent) => { if (e.code === "Space" || e.code === "ArrowUp") { e.preventDefault(); jump(); } };
+    const fn = (e: KeyboardEvent) => {
+      if (e.code === "Space" || e.code === "ArrowUp") { e.preventDefault(); jump(); }
+      if (e.code === "ArrowDown") { const g = gs.current; g.lane = Math.max(0, g.lane - 1); }
+      if (e.code === "ArrowUp" && e.shiftKey) { const g = gs.current; g.lane = Math.min(2, g.lane + 1); }
+    };
     window.addEventListener("keydown", fn); return () => window.removeEventListener("keydown", fn);
   });
 
   const formatTime = (s: number) => `${Math.floor(s / 60)}m ${s % 60}s`;
   const speedMult = (ui.speed / BASE_SPD).toFixed(1);
 
-  // Get the nearest ghost for death screen
   const deathGhost = gs.current.ghosts.find(gh => gh.name === gs.current.deathGhostName);
+  const wIdx = Math.min(gs.current.world, WORLDS.length - 1);
+  const currentWorld = WORLDS[wIdx]!;
 
   return (
     <div
@@ -715,16 +1130,20 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     >
       <canvas ref={cvs} width={GW} height={GH}
         style={{ width: "100%", height: "auto", borderRadius: 18, border: "2px solid #1a002a", display: "block", cursor: "pointer", boxShadow: "0 0 40px #c8ff0033, 0 0 80px #8b5cf611" }}
-        onClick={jump} onTouchStart={e => { e.preventDefault(); jump(); }} />
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onClick={() => {/* handled by pointerUp tap detection */}}
+        onTouchStart={e => e.preventDefault()}
+      />
 
       {/* IDLE SCREEN */}
       {phase === "idle" && (
         <div onClick={jump} style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(5,5,16,0.88)", borderRadius: 16, gap: 8, cursor: "pointer" }}>
           <div style={{ fontSize: "3.2rem" }}>{petEmoji}</div>
           <div style={{ color: "#c8ff00", fontSize: 22, fontWeight: 900, letterSpacing: 3, textShadow: "0 0 20px #c8ff00" }}>KARMA RUNNER</div>
-          <div style={{ color: "#666", fontSize: 11 }}>GEOMETRY DASH STYLE • LIFE CHALLENGES</div>
+          <div style={{ color: "#666", fontSize: 11 }}>GEOMETRY DASH STYLE • 5 WORLDS • BOSS WAVES</div>
           <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap", justifyContent: "center", maxWidth: 340 }}>
-            {([["🧱","WALL"],["⬆️","SPIKE"],["⬇️","PIT"],["🚧","CEILING"],["🚪","GATE"],["⚡","KARMA"]] as [string,string][]).map(([e, t]) => (
+            {([["🧱","WALL"],["⬆️","SPIKE"],["⬇️","PIT"],["🚧","CEILING"],["🚪","GATE"],["⚡","KARMA"],["👑","BOSS"],["🛤️","LANES"]] as [string,string][]).map(([e, t]) => (
               <div key={t} style={{ textAlign: "center", background: "#0a0010", borderRadius: 8, padding: "5px 9px", border: "1px solid #2a0a3a" }}>
                 <div style={{ fontSize: "1rem" }}>{e}</div>
                 <div style={{ fontSize: 8, color: "#666", fontWeight: 700 }}>{t}</div>
@@ -732,27 +1151,27 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
             ))}
           </div>
           {best > 0 && <div style={{ color: "#888", fontSize: 11, marginTop: 2 }}>BEST: <span style={{ color: "#c8ff00", fontWeight: 700 }}>{best}</span></div>}
-          <div style={{ color: "#444", fontSize: 10, marginTop: 2 }}>TAP / SPACE TO START • DOUBLE JUMP • GHOST RUNNERS</div>
+          <div style={{ color: "#444", fontSize: 10, marginTop: 2 }}>TAP / SPACE TO START • SWIPE UP/DOWN TO CHANGE LANE</div>
+          <div style={{ color: "#333", fontSize: 9 }}>5 WORLDS • BOSS WAVES • KARMA ZONES • DOUBLE JUMP</div>
         </div>
       )}
 
       {/* GAME OVER SCREEN */}
       {phase === "over" && (
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(5,5,16,0.95)", borderRadius: 16, gap: 7 }}>
-          <div style={{ fontSize: "2.8rem", animation: "pulse 0.7s ease-in-out infinite alternate" }}>💀</div>
+          <div style={{ fontSize: "2.8rem", animation: "pulse 0.7s ease-in-out infinite alternate" }}>{currentWorld.ripEmoji}</div>
           <div style={{ color: "#ff2d8d", fontSize: 22, fontWeight: 900, letterSpacing: 3, textShadow: "0 0 18px #ff2d8d" }}>GAME OVER</div>
+          <div style={{ color: currentWorld.ground, fontSize: 11, fontWeight: 700, opacity: 0.7 }}>{currentWorld.name}</div>
           <div style={{ color: "#c8ff00", fontSize: 40, fontWeight: 900, textShadow: "0 0 24px #c8ff0077", lineHeight: 1 }}>{fin.score}</div>
           {fin.score > best && <div style={{ color: "#ffdd00", fontSize: 12, fontWeight: 700 }}>🏆 NEW BEST!</div>}
           {fin.score <= best && best > 0 && <div style={{ color: "#555", fontSize: 11 }}>BEST: <span style={{ color: "#c8ff00" }}>{best}</span></div>}
 
-          {/* Ghost nearest info */}
           {gs.current.deathGhostName && (
             <div style={{ color: "#ffffff88", fontSize: 10, fontStyle: "italic", background: "#ffffff11", borderRadius: 8, padding: "4px 10px" }}>
               {deathGhost?.emoji} @{gs.current.deathGhostName} died {gs.current.deathGhostDist}m {gs.current.deathGhostDist < 10 ? "away" : "from here"} 👻
             </div>
           )}
 
-          {/* Stats */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 18px", marginTop: 2, marginBottom: 4 }}>
             <div style={{ textAlign: "center" }}>
               <div style={{ color: "#ffdd00", fontSize: 16, fontWeight: 700 }}>⚡ {fin.karma}</div>
@@ -793,7 +1212,8 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
           {ui.combo > 1 && <span style={{ color: "#ff6600", fontSize: 11, fontWeight: 700 }}>🔥 ×{ui.combo}</span>}
           {ui.karmaChain >= 5 && <span style={{ color: "#ffdd00", fontSize: 11, fontWeight: 700 }}>CHAIN ×{ui.karmaChain}</span>}
           {ui.shield && <span style={{ fontSize: 13 }}>🛡️</span>}
-          <span style={{ color: "#444", fontSize: 9 }}>TAP TO JUMP</span>
+          <span style={{ color: "#666", fontSize: 10 }}>LN {ui.lane + 1}/3</span>
+          <span style={{ color: "#444", fontSize: 9 }}>TAP JUMP • SWIPE LANE</span>
         </div>
       )}
 

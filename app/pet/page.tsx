@@ -48,6 +48,28 @@ const DIARY_ENTRIES = [
 const HAT_OPTIONS = ["🎩", "🎪", "🎓", "👑", "🎭", "🪖"];
 const COLOR_OPTIONS = ["#ff6b35", "#a855f7", "#22c55e", "#ff2d8d"];
 
+// ─── Karma Ville (integrated) ─────────────────────────────────────────────────
+type VBuildingDef = { id: string; emoji: string; name: string; desc: string; cost: number; karmaPerHour: number; xpBonus: number; unlockLevel: number; color: string };
+type VPlaced = { buildingId: string; col: number; row: number };
+const VILLE_BUILDINGS: VBuildingDef[] = [
+  { id: "house",   emoji: "🏠", name: "Karma Huset",  desc: "Din bas. Ger basic karma varje timme.",      cost: 0,    karmaPerHour: 2,  xpBonus: 0,  unlockLevel: 1,  color: "#c8ff00" },
+  { id: "school",  emoji: "🏫", name: "XP Skolan",    desc: "+20% XP på alla aktiviteter.",               cost: 200,  karmaPerHour: 5,  xpBonus: 20, unlockLevel: 2,  color: "#4488ff" },
+  { id: "gym",     emoji: "🏋️", name: "Karma Gym",    desc: "Stärker ditt husdjur dagligen.",             cost: 350,  karmaPerHour: 8,  xpBonus: 0,  unlockLevel: 3,  color: "#ff6b35" },
+  { id: "cafe",    emoji: "☕", name: "Social Café",  desc: "Vänner kan besöka dig. +karma vid besök.",  cost: 500,  karmaPerHour: 10, xpBonus: 5,  unlockLevel: 4,  color: "#8b5cf6" },
+  { id: "market",  emoji: "🏪", name: "Karma Market", desc: "Sälj items till vänner. Passiv inkomst.",    cost: 750,  karmaPerHour: 15, xpBonus: 0,  unlockLevel: 5,  color: "#ff2d8d" },
+  { id: "lab",     emoji: "🔬", name: "DNA Lab",      desc: "Boostar DNA Breaker score med 2x.",         cost: 1000, karmaPerHour: 12, xpBonus: 10, unlockLevel: 7,  color: "#00e5ff" },
+  { id: "stadium", emoji: "🏟️", name: "Battle Arena", desc: "Host Pet Battles. Vinn turnering karma.",   cost: 1500, karmaPerHour: 20, xpBonus: 15, unlockLevel: 10, color: "#ffde00" },
+  { id: "bank",    emoji: "🏦", name: "Karma Bank",   desc: "Biljetter till KARMA POTTEN ×2.",           cost: 2000, karmaPerHour: 25, xpBonus: 0,  unlockLevel: 12, color: "#c8ff00" },
+  { id: "tower",   emoji: "🗼", name: "Legend Tower", desc: "Syns på leaderboard. Flex status.",         cost: 3000, karmaPerHour: 35, xpBonus: 25, unlockLevel: 15, color: "#ff8c00" },
+  { id: "castle",  emoji: "🏰", name: "KARMA CASTLE", desc: "Maximal prestige. Allt boostat.",            cost: 5000, karmaPerHour: 60, xpBonus: 50, unlockLevel: 20, color: "#e040fb" },
+];
+const VILLE_COLS = 4, VILLE_ROWS = 3, VILLE_KEY = "karma_ville_v1";
+function loadVille(): VPlaced[] { try { return JSON.parse(localStorage.getItem(VILLE_KEY) ?? "[]"); } catch { return []; } }
+function saveVille(p: VPlaced[]) { try { localStorage.setItem(VILLE_KEY, JSON.stringify(p)); } catch {} }
+function calcVillePassive(placed: VPlaced[]): number {
+  return placed.reduce((s, p) => { const b = VILLE_BUILDINGS.find(b => b.id === p.buildingId); return s + (b?.karmaPerHour ?? 0); }, 0);
+}
+
 // ─── Particle type ───────────────────────────────────────────────────────────
 type Particle = { id: number; x: number; y: number };
 
@@ -65,11 +87,16 @@ const WORLD_WEATHER: Record<string, { icon: string; label: string }> = {
 export default function PetPage() {
   const {
     pet, petMoodComputed, feedPet, playWithPet, restPet,
-    user, addXP, addKarma, worldId, streak, activities,
+    user, addXP, addKarma, spendKarma, worldId, streak, activities,
   } = useApp();
 
   // ── Core UI state ──────────────────────────────────────────────────────────
-  const [tab, setTab] = useState<"room" | "train" | "bond" | "grow" | "squad">("room");
+  const [tab, setTab] = useState<"room" | "train" | "bond" | "grow" | "squad" | "ville">("room");
+  // ── Ville state ─────────────────────────────────────────────────────────────
+  const [villePlaced, setVillePlaced] = useState<VPlaced[]>([]);
+  const [villeSelectedCell, setVilleSelectedCell] = useState<{ col: number; row: number } | null>(null);
+  const [villeShopOpen, setVilleShopOpen] = useState(false);
+  const [villeCollecting, setVilleCollecting] = useState(false);
   const [challengedFriend, setChallengedFriend] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [petAction, setPetAction] = useState<string | null>(null);
@@ -268,6 +295,51 @@ export default function PetPage() {
     }
   }
 
+  // ─── Ville init & handlers ────────────────────────────────────────────────
+  useEffect(() => {
+    const p = loadVille();
+    if (p.length === 0) {
+      const init: VPlaced[] = [{ buildingId: "house", col: 1, row: 1 }];
+      setVillePlaced(init); saveVille(init);
+    } else { setVillePlaced(p); }
+  }, []);
+
+  const villePlacedIds = new Set(villePlaced.map(p => p.buildingId));
+  const villePassiveKarma = calcVillePassive(villePlaced);
+  const villeUserLevel = Math.max(1, Math.floor(user.xp / 500) + 1);
+  const villeGetCell = (col: number, row: number) => villePlaced.find(p => p.col === col && p.row === row);
+
+  function villeBuild(building: VBuildingDef) {
+    if (!villeSelectedCell) return;
+    if (villePlacedIds.has(building.id)) { showToast("Redan byggt! 🚫"); return; }
+    if (building.cost > 0 && !spendKarma(building.cost)) { showToast(`Behöver ${building.cost} ⚡`); return; }
+    const next = [...villePlaced, { buildingId: building.id, col: villeSelectedCell.col, row: villeSelectedCell.row }];
+    setVillePlaced(next); saveVille(next);
+    if (building.xpBonus) addXP(building.xpBonus * 5);
+    showToast(`${building.emoji} ${building.name} byggd! +${building.karmaPerHour}/h`);
+    setVilleShopOpen(false); setVilleSelectedCell(null);
+  }
+
+  function villeDemolish(col: number, row: number) {
+    const cell = villeGetCell(col, row);
+    if (!cell || cell.buildingId === "house") return;
+    const next = villePlaced.filter(p => !(p.col === col && p.row === row));
+    setVillePlaced(next); saveVille(next);
+    const b = VILLE_BUILDINGS.find(b => b.id === cell.buildingId);
+    const refund = Math.floor((b?.cost ?? 0) * 0.5);
+    if (refund > 0) addKarma(refund, "Ville demolish");
+    showToast(`Rivs! +${refund} ⚡ refund 🏗️`); setVilleSelectedCell(null);
+  }
+
+  function villeCollect() {
+    if (villeCollecting) return;
+    setVilleCollecting(true);
+    const earned = Math.round(villePassiveKarma * 0.5);
+    addKarma(earned, "Ville passiv inkomst");
+    showToast(`+${earned} ⚡ passiv karma! 🏙️`);
+    setTimeout(() => setVilleCollecting(false), 3000);
+  }
+
   // ─── Stats derived from pet ───────────────────────────────────────────────
   const statHP  = Math.min(100, pet.level * 5);
   const statATK = Math.min(100, pet.level * 3 + (pet.class === "Grinder Beast" ? 15 : 5));
@@ -342,26 +414,32 @@ export default function PetPage() {
         </div>
 
         {/* ── Tab Nav ── */}
-        <div style={{ display: "flex", gap: 4, overflowX: "auto" }}>
-          {(["room", "train", "bond", "grow", "squad"] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              style={{
-                flex: 1, padding: "9px 4px",
-                background: tab === t ? "#0a0a0a" : "#111",
-                border: tab === t ? "2.5px solid #0a0a0a" : "2.5px solid #222",
-                borderRadius: 12,
-                fontSize: t === "squad" ? 10 : 11, fontWeight: 700,
-                color: tab === t ? (t === "squad" ? "#06b6d4" : "#c8ff00") : "#666",
-                letterSpacing: "0.03em",
-                cursor: "pointer",
-                textTransform: "uppercase",
-                whiteSpace: "nowrap",
-                minWidth: 0,
-                boxShadow: tab === t ? (t === "squad" ? "0 0 14px #06b6d444" : "0 0 14px #c8ff0044") : "none",
-              }}>
-              {t === "squad" ? "👥 SQUAD" : t}
-            </button>
-          ))}
+        <div style={{ display: "flex", gap: 4, overflowX: "auto", scrollbarWidth: "none" }}>
+          {(["room", "train", "bond", "grow", "squad", "ville"] as const).map(t => {
+            const isVille = t === "ville";
+            const isSquad = t === "squad";
+            const activeColor = isVille ? "#ff9d00" : isSquad ? "#06b6d4" : "#c8ff00";
+            const activeShadow = isVille ? "0 0 14px #ff9d0055" : isSquad ? "0 0 14px #06b6d444" : "0 0 14px #c8ff0044";
+            const label = isVille ? "🏙️ VILLE" : isSquad ? "👥 SQUAD" : t.toUpperCase();
+            return (
+              <button key={t} onClick={() => setTab(t)}
+                style={{
+                  flex: 1, padding: "9px 4px",
+                  background: tab === t ? "#0a0a0a" : "#111",
+                  border: tab === t ? `2.5px solid ${activeColor}` : "2.5px solid #222",
+                  borderRadius: 12,
+                  fontSize: isVille || isSquad ? 10 : 11, fontWeight: 700,
+                  color: tab === t ? activeColor : "#666",
+                  letterSpacing: "0.03em",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  minWidth: 0,
+                  boxShadow: tab === t ? activeShadow : "none",
+                }}>
+                {label}
+              </button>
+            );
+          })}
         </div>
 
         {/* ══════════════════ ROOM TAB ══════════════════ */}
@@ -1242,6 +1320,211 @@ export default function PetPage() {
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 10, color: "#555", marginLeft: -8,
                 }}>+2</div>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* ══════════════════ VILLE TAB ══════════════════ */}
+        {tab === "ville" && (
+          <div className="space-y-4">
+
+            {/* City header stats */}
+            <div style={{
+              background: "linear-gradient(135deg, #0d0800, #1a1000)",
+              border: "2.5px solid #ff9d00", borderRadius: 20, padding: "14px 16px",
+              boxShadow: "0 0 28px #ff9d0022",
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: "#ff9d00", letterSpacing: "-0.02em" }}>🏙️ {pet.name}&apos;s Ville</div>
+                  <div style={{ fontSize: 11, color: "#666", marginTop: 2 }}>Lv.{villeUserLevel} Stad · {villePlaced.length}/{VILLE_COLS * VILLE_ROWS} byggnader</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 11, color: "#555", fontWeight: 600 }}>PASSIV INKOMST</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: "#c8ff00" }}>+{villePassiveKarma}<span style={{ fontSize: 11, color: "#555" }}>/h</span></div>
+                </div>
+              </div>
+              <button onClick={villeCollect} disabled={villeCollecting}
+                style={{
+                  width: "100%", padding: "10px",
+                  background: villeCollecting ? "#1a1a1a" : "linear-gradient(135deg, #ff9d00, #ffd000)",
+                  border: "2.5px solid #0a0a0a", borderRadius: 12,
+                  fontSize: 14, fontWeight: 900, color: "#0a0a0a",
+                  cursor: villeCollecting ? "not-allowed" : "pointer",
+                  boxShadow: villeCollecting ? "none" : "3px 3px 0 #0a0a0a",
+                  opacity: villeCollecting ? 0.5 : 1,
+                  letterSpacing: "0.04em",
+                }}>
+                {villeCollecting ? "⏳ SAMLAR IN..." : `🪙 SAMLA IN +${Math.round(villePassiveKarma * 0.5)} ⚡`}
+              </button>
+            </div>
+
+            {/* City grid */}
+            <div style={{
+              background: "#060e06", border: "2.5px solid #ff9d00",
+              borderRadius: 20, padding: 14,
+              boxShadow: "0 0 20px #ff9d0018",
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#ff9d00", letterSpacing: "0.08em", marginBottom: 10 }}>
+                🗺️ STADSVY — tryck på en ruta
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${VILLE_COLS}, 1fr)`, gap: 6 }}>
+                {Array.from({ length: VILLE_ROWS }).map((_, row) =>
+                  Array.from({ length: VILLE_COLS }).map((_, col) => {
+                    const placed = villeGetCell(col, row);
+                    const def = placed ? VILLE_BUILDINGS.find(b => b.id === placed.buildingId) : null;
+                    const isSelected = villeSelectedCell?.col === col && villeSelectedCell?.row === row;
+                    return (
+                      <button key={`${col}-${row}`}
+                        onClick={() => {
+                          if (isSelected) { setVilleSelectedCell(null); }
+                          else { setVilleSelectedCell({ col, row }); setVilleShopOpen(false); }
+                        }}
+                        style={{
+                          aspectRatio: "1",
+                          background: def ? `${def.color}18` : "#0a0a0a",
+                          border: isSelected
+                            ? "2.5px solid #ff9d00"
+                            : def ? `2px solid ${def.color}66` : "2px solid #1a1a1a",
+                          borderRadius: 10,
+                          display: "flex", flexDirection: "column",
+                          alignItems: "center", justifyContent: "center",
+                          cursor: "pointer", fontSize: "1.4rem",
+                          boxShadow: isSelected ? "0 0 12px #ff9d0066" : def ? `0 0 8px ${def.color}22` : "none",
+                          transition: "all 0.15s",
+                        }}>
+                        {def ? def.emoji : <span style={{ color: "#222", fontSize: "1rem" }}>+</span>}
+                        {def && <span style={{ fontSize: 8, color: def.color, fontWeight: 700, marginTop: 2 }}>{def.name.slice(0,5)}</span>}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Selected cell info / action panel */}
+            {villeSelectedCell && (() => {
+              const placed = villeGetCell(villeSelectedCell.col, villeSelectedCell.row);
+              const def = placed ? VILLE_BUILDINGS.find(b => b.id === placed.buildingId) : null;
+              return (
+                <div style={{
+                  background: def ? `${def.color}12` : "#0a0a1a",
+                  border: `2.5px solid ${def ? def.color : "#4488ff"}`,
+                  borderRadius: 20, padding: "14px 16px",
+                  boxShadow: def ? `0 0 20px ${def.color}22` : "0 0 20px #4488ff22",
+                }}>
+                  {def ? (
+                    <>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                        <span style={{ fontSize: "2rem" }}>{def.emoji}</span>
+                        <div>
+                          <div style={{ fontSize: 16, fontWeight: 900, color: def.color }}>{def.name}</div>
+                          <div style={{ fontSize: 11, color: "#666" }}>{def.desc}</div>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                        <div style={{ flex: 1, background: "#111", borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
+                          <div style={{ fontSize: 10, color: "#555", fontWeight: 600 }}>INKOMST</div>
+                          <div style={{ fontSize: 15, fontWeight: 900, color: "#c8ff00" }}>+{def.karmaPerHour}/h</div>
+                        </div>
+                        <div style={{ flex: 1, background: "#111", borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
+                          <div style={{ fontSize: 10, color: "#555", fontWeight: 600 }}>XP BONUS</div>
+                          <div style={{ fontSize: 15, fontWeight: 900, color: "#00e5ff" }}>+{def.xpBonus}%</div>
+                        </div>
+                      </div>
+                      <button onClick={() => villeDemolish(villeSelectedCell.col, villeSelectedCell.row)}
+                        style={{
+                          width: "100%", padding: "9px",
+                          background: "#1a0000", border: "2px solid #ff2d2d",
+                          borderRadius: 10, fontSize: 13, fontWeight: 700,
+                          color: "#ff2d2d", cursor: "pointer",
+                        }}>
+                        🏗️ RIV ({def.id === "house" ? "gratis" : `+${Math.round(def.cost * 0.4)}⚡ refund`})
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#4488ff", marginBottom: 10 }}>
+                        📍 Tom tomt — välj en byggnad
+                      </div>
+                      <button onClick={() => setVilleShopOpen(s => !s)}
+                        style={{
+                          width: "100%", padding: "10px",
+                          background: "linear-gradient(135deg, #1a2aff, #4488ff)",
+                          border: "2.5px solid #0a0a0a", borderRadius: 12,
+                          fontSize: 14, fontWeight: 900, color: "#fff",
+                          cursor: "pointer", boxShadow: "3px 3px 0 #0a0a0a",
+                          letterSpacing: "0.04em",
+                        }}>
+                        🏪 {villeShopOpen ? "STÄNG BUTIK" : "ÖPPNA BUTIK"}
+                      </button>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Shop panel */}
+            {villeShopOpen && villeSelectedCell && !villeGetCell(villeSelectedCell.col, villeSelectedCell.row) && (
+              <div style={{ background: "#060610", border: "2.5px solid #4488ff", borderRadius: 20, padding: 14, boxShadow: "0 0 24px #4488ff22" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#4488ff", letterSpacing: "0.08em", marginBottom: 10 }}>
+                  🏪 BYGGNADSBUTIK
+                </div>
+                <div className="space-y-2">
+                  {VILLE_BUILDINGS.map(b => {
+                    const canAfford = user.karma >= b.cost;
+                    const alreadyBuilt = villePlacedIds.has(b.id);
+                    const locked = b.unlockLevel > villeUserLevel;
+                    const disabled = alreadyBuilt || locked || !canAfford;
+                    return (
+                      <button key={b.id} onClick={() => villeBuild(b)} disabled={disabled}
+                        style={{
+                          width: "100%", padding: "10px 12px",
+                          background: alreadyBuilt ? "#0a0a0a" : canAfford && !locked ? `${b.color}14` : "#0d0d0d",
+                          border: `2px solid ${alreadyBuilt ? "#222" : canAfford && !locked ? b.color : "#333"}`,
+                          borderRadius: 12, display: "flex", alignItems: "center", gap: 10,
+                          cursor: disabled ? "not-allowed" : "pointer",
+                          opacity: disabled ? 0.55 : 1,
+                          textAlign: "left",
+                        }}>
+                        <span style={{ fontSize: "1.6rem", flexShrink: 0 }}>{b.emoji}</span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: alreadyBuilt ? "#555" : b.color }}>
+                            {b.name}
+                            {alreadyBuilt && <span style={{ marginLeft: 6, fontSize: 10, color: "#555" }}>✓ BYGGD</span>}
+                            {locked && <span style={{ marginLeft: 6, fontSize: 10, color: "#ff4444" }}>🔒 Lv.{b.unlockLevel}</span>}
+                          </div>
+                          <div style={{ fontSize: 10, color: "#555" }}>{b.desc} · +{b.karmaPerHour}/h</div>
+                        </div>
+                        {!alreadyBuilt && !locked && (
+                          <div style={{ fontSize: 13, fontWeight: 900, color: canAfford ? "#c8ff00" : "#ff4444", flexShrink: 0 }}>
+                            {b.cost === 0 ? "GRATIS" : `⚡${b.cost}`}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* City stats overview */}
+            <div style={{ background: "#0a0a0a", border: "2px solid #222", borderRadius: 20, padding: "14px 16px" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#555", letterSpacing: "0.08em", marginBottom: 10 }}>📊 STADSSTATISTIK</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {[
+                  { label: "BYGGNADER", value: `${villePlaced.length}/${VILLE_COLS * VILLE_ROWS}`, color: "#ff9d00" },
+                  { label: "PASSIV/H", value: `+${villePassiveKarma}⚡`, color: "#c8ff00" },
+                  { label: "STADSNIVÅ", value: `Lv.${villeUserLevel}`, color: "#00e5ff" },
+                  { label: "TOTAL XP", value: user.xp.toLocaleString(), color: "#8b5cf6" },
+                ].map(s => (
+                  <div key={s.label} style={{ background: "#111", borderRadius: 12, padding: "10px 12px" }}>
+                    <div style={{ fontSize: 9, color: "#444", fontWeight: 600, letterSpacing: "0.08em" }}>{s.label}</div>
+                    <div style={{ fontSize: 16, fontWeight: 900, color: s.color, marginTop: 2 }}>{s.value}</div>
+                  </div>
+                ))}
               </div>
             </div>
 
