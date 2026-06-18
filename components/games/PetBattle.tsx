@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import type { Pet } from "@/types/pet";
 
-/* ─── Props ──────────────────────────────────────────────────────────────── */
+// ─── Props ─────────────────────────────────────────────────────────────────────
 interface PetBattleProps {
   pet?: Pet;
   petEmoji?: string;
@@ -11,985 +11,874 @@ interface PetBattleProps {
   onWin?: (karma: number, xp: number, name: string, rarity: string) => void;
 }
 
-/* ─── Constants ──────────────────────────────────────────────────────────── */
+// ─── Constants ─────────────────────────────────────────────────────────────────
 const GW = 390;
-const GH = 500;
-const BATTLEFIELD_H = 420;
-const LANE_Y = [40, 160, 280] as const;
-const LANE_H = 100;
-const SLOT_X = [80, 160, 240] as const;
-const BASE_X = 340;
-const ENEMY_START_X = -20;
+const GH = 448;
+const LANE_COUNT = 4;
+const LANE_Y: number[] = [32, 128, 224, 328];
+const LANE_H = 84;
+const SLOTS: number[] = [48, 100, 152, 204, 256];
+const BASE_X = 346;
+const SPAWN_X = -30;
+const LS_BEST = "karma_defense_best_v1";
 
-/* ─── Tower types ────────────────────────────────────────────────────────── */
-type TowerType = "karma" | "freeze" | "lightning" | "shield_gen";
+// ─── Hero types ────────────────────────────────────────────────────────────────
+type HeroId = "pet" | "frost" | "thunder" | "shadow" | "monk";
+
+interface HeroDef {
+  id: HeroId; emoji: string; name: string; color: string;
+  passiveDesc: string; activeDesc: string; cooldownSec: number;
+}
+
+const HERO_DEFS: Record<HeroId, HeroDef> = {
+  pet:     { id:"pet",     emoji:"🐾", name:"Your Pet",    color:"#c8ff00", passiveDesc:"+25% dmg in lane",    activeDesc:"Karma Burst +150⚡",    cooldownSec:25 },
+  frost:   { id:"frost",   emoji:"❄️", name:"Frost Queen", color:"#38bdf8", passiveDesc:"Frozen take +30% dmg", activeDesc:"Blizzard: freeze ALL",   cooldownSec:30 },
+  thunder: { id:"thunder", emoji:"⚡", name:"Thunder God", color:"#fbbf24", passiveDesc:"Tesla hits +1 lane",   activeDesc:"Storm: 40 dmg ALL",      cooldownSec:22 },
+  shadow:  { id:"shadow",  emoji:"🗡️", name:"Shadow",      color:"#a855f7", passiveDesc:"Enemies slow -20%",   activeDesc:"Assassinate: kill top HP", cooldownSec:20 },
+  monk:    { id:"monk",    emoji:"🧘", name:"Monk",         color:"#ff9d00", passiveDesc:"Towers fire faster",  activeDesc:"Meditate +200⚡ +10❤️",   cooldownSec:35 },
+};
+const HERO_IDS = Object.keys(HERO_DEFS) as HeroId[];
+
+// ─── Tower types ───────────────────────────────────────────────────────────────
+type TowerType = "arrow"|"karma"|"freeze"|"lightning"|"cannon"|"poison"|"sniper"|"laser";
 
 interface TowerDef {
-  type: TowerType;
-  emoji: string;
-  cost: number;
-  label: string;
-  fireRate: number; // frames between shots
-  damage: number;
-  color: string;
+  type: TowerType; emoji: string; name: string;
+  cost: number; fireRate: number; damage: number; color: string; special: string;
 }
 
 const TOWER_DEFS: Record<TowerType, TowerDef> = {
-  karma: {
-    type: "karma",
-    emoji: "🔮",
-    cost: 50,
-    label: "Karma",
-    fireRate: 60,
-    damage: 20,
-    color: "#a855f7",
-  },
-  freeze: {
-    type: "freeze",
-    emoji: "❄️",
-    cost: 120,
-    label: "Freeze",
-    fireRate: 100,
-    damage: 5,
-    color: "#38bdf8",
-  },
-  lightning: {
-    type: "lightning",
-    emoji: "⚡",
-    cost: 200,
-    label: "Lightning",
-    fireRate: 80,
-    damage: 35,
-    color: "#fbbf24",
-  },
-  shield_gen: {
-    type: "shield_gen",
-    emoji: "🛡️",
-    cost: 150,
-    label: "Shield",
-    fireRate: 90,
-    damage: 10,
-    color: "#22d3ee",
-  },
+  arrow:     { type:"arrow",     emoji:"🏹", name:"Archer",  cost:40,  fireRate:28,  damage:15,  color:"#a3e635", special:"none" },
+  karma:     { type:"karma",     emoji:"🔮", name:"Karma",   cost:80,  fireRate:55,  damage:30,  color:"#a855f7", special:"splash" },
+  freeze:    { type:"freeze",    emoji:"❄️", name:"Cryo",    cost:140, fireRate:90,  damage:10,  color:"#38bdf8", special:"freeze" },
+  lightning: { type:"lightning", emoji:"⚡", name:"Tesla",   cost:230, fireRate:75,  damage:50,  color:"#fbbf24", special:"chain" },
+  cannon:    { type:"cannon",    emoji:"💣", name:"Cannon",  cost:200, fireRate:120, damage:100, color:"#f97316", special:"heavy" },
+  poison:    { type:"poison",    emoji:"☠️", name:"Toxin",   cost:160, fireRate:70,  damage:8,   color:"#84cc16", special:"dot" },
+  sniper:    { type:"sniper",    emoji:"🎯", name:"Sniper",  cost:280, fireRate:150, damage:200, color:"#e2e8f0", special:"pierce" },
+  laser:     { type:"laser",     emoji:"🔴", name:"Laser",   cost:350, fireRate:8,   damage:6,   color:"#ef4444", special:"beam" },
 };
+const TOWER_TYPES = Object.keys(TOWER_DEFS) as TowerType[];
 
-/* ─── Enemy types ────────────────────────────────────────────────────────── */
-type EnemyType = "grunt" | "runner" | "tank" | "boss_mini" | "ghost" | "healer";
+// ─── Enemy types ───────────────────────────────────────────────────────────────
+type EnemyType = "grunt"|"runner"|"tank"|"ghost"|"healer"|"exploder"|"shielder"|"boss"|"mega_boss"|"swarm";
 
 interface EnemyDef {
-  type: EnemyType;
-  emoji: string;
-  maxHp: number;
-  speed: number;
-  karmaReward: number;
-  color: string;
+  type: EnemyType; emoji: string; maxHp: number; speed: number;
+  reward: number; armor: number; color: string; shieldAmt: number;
 }
 
 const ENEMY_DEFS: Record<EnemyType, EnemyDef> = {
-  grunt: { type: "grunt", emoji: "👾", maxHp: 80, speed: 1, karmaReward: 8, color: "#f87171" },
-  runner: { type: "runner", emoji: "💨", maxHp: 40, speed: 2.5, karmaReward: 5, color: "#fb923c" },
-  tank: { type: "tank", emoji: "🔷", maxHp: 250, speed: 0.4, karmaReward: 25, color: "#60a5fa" },
-  boss_mini: { type: "boss_mini", emoji: "🔥", maxHp: 500, speed: 0.6, karmaReward: 50, color: "#f43f5e" },
-  ghost: { type: "ghost", emoji: "👻", maxHp: 60, speed: 1.5, karmaReward: 12, color: "#c4b5fd" },
-  healer: { type: "healer", emoji: "💚", maxHp: 100, speed: 0.8, karmaReward: 15, color: "#4ade80" },
+  grunt:     { type:"grunt",     emoji:"👾", maxHp:90,   speed:1.0, reward:8,   armor:0,  color:"#f87171", shieldAmt:0 },
+  runner:    { type:"runner",    emoji:"💨", maxHp:45,   speed:3.0, reward:6,   armor:0,  color:"#fb923c", shieldAmt:0 },
+  tank:      { type:"tank",      emoji:"🔷", maxHp:350,  speed:0.45,reward:30,  armor:15, color:"#60a5fa", shieldAmt:0 },
+  ghost:     { type:"ghost",     emoji:"👻", maxHp:65,   speed:2.0, reward:15,  armor:0,  color:"#c4b5fd", shieldAmt:0 },
+  healer:    { type:"healer",    emoji:"💚", maxHp:130,  speed:0.8, reward:18,  armor:0,  color:"#4ade80", shieldAmt:0 },
+  exploder:  { type:"exploder",  emoji:"💥", maxHp:100,  speed:1.2, reward:12,  armor:0,  color:"#fb923c", shieldAmt:0 },
+  shielder:  { type:"shielder",  emoji:"🛡",  maxHp:200,  speed:0.7, reward:22,  armor:0,  color:"#6366f1", shieldAmt:80 },
+  boss:      { type:"boss",      emoji:"🔥", maxHp:900,  speed:0.5, reward:90,  armor:20, color:"#f43f5e", shieldAmt:0 },
+  mega_boss: { type:"mega_boss", emoji:"💀", maxHp:3000, speed:0.3, reward:300, armor:40, color:"#dc2626", shieldAmt:0 },
+  swarm:     { type:"swarm",     emoji:"🐝", maxHp:18,   speed:2.5, reward:3,   armor:0,  color:"#fbbf24", shieldAmt:0 },
 };
 
-/* ─── Game state interfaces ───────────────────────────────────────────────── */
+// ─── Themes ────────────────────────────────────────────────────────────────────
+const THEMES = [
+  { name:"Dark Forest",  bg1:"#020810", bg2:"#041220", lane:"rgba(34,197,94,0.07)",  acc:"#22c55e" },
+  { name:"Volcano",      bg1:"#150200", bg2:"#200800", lane:"rgba(239,68,68,0.08)",  acc:"#ef4444" },
+  { name:"Ice Realm",    bg1:"#020d18", bg2:"#041828", lane:"rgba(56,189,248,0.08)", acc:"#38bdf8" },
+  { name:"Void Space",   bg1:"#05020f", bg2:"#0a0320", lane:"rgba(168,85,247,0.08)", acc:"#a855f7" },
+  { name:"Karma Heaven", bg1:"#151000", bg2:"#1a1500", lane:"rgba(200,255,0,0.07)",  acc:"#c8ff00" },
+];
+
+// ─── Game state interfaces ─────────────────────────────────────────────────────
 interface Tower {
-  id: string;
-  type: TowerType;
-  lane: number;
-  slot: number;
-  cooldown: number;
+  id: string; type: TowerType;
+  lane: number; slot: number;
+  level: number; cooldown: number; damage: number; fireRate: number;
 }
 
 interface Enemy {
-  id: string;
-  type: EnemyType;
-  lane: number;
-  x: number;
-  hp: number;
-  maxHp: number;
-  frozen: number; // frames remaining frozen
-  ghostPassed: boolean; // ghost ability: already bypassed first tower
-  healTimer: number;
+  id: string; type: EnemyType;
+  lane: number; x: number;
+  hp: number; maxHp: number;
+  shield: number; maxShield: number;
+  frozen: number; poisoned: number; poisonDmg: number;
+  ghostPhased: boolean; healTimer: number; hitFlash: number;
 }
 
-interface Projectile {
-  id: string;
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  color: string;
-  life: number; // frames remaining
+interface Proj {
+  id: string; x1: number; y1: number; x2: number; y2: number;
+  color: string; life: number;
 }
 
-type GamePhase = "idle" | "wave" | "between" | "gameover";
+interface Particle {
+  id: string; x: number; y: number; vx: number; vy: number;
+  life: number; maxLife: number; color: string; size: number;
+}
 
-interface GameState {
-  phase: GamePhase;
-  wave: number;
-  baseHp: number;
-  baseShield: number;
-  localKarma: number;
-  earnedKarma: number;
+type Phase = "idle"|"wave"|"between"|"gameover";
+
+interface GS {
+  phase: Phase; wave: number;
+  baseHp: number; baseShield: number;
+  localKarma: number; earnedKarma: number;
   towers: Tower[];
-  enemies: Enemy[];
-  projectiles: Projectile[];
-  betweenTimer: number; // frames remaining in break
-  enemySpawnQueue: { type: EnemyType; lane: number; delay: number }[];
-  spawnTimer: number;
-  frame: number;
+  heroLane: Record<number, HeroId | undefined>;
+  heroCd: Record<string, number>;
+  enemies: Enemy[]; projectiles: Proj[]; particles: Particle[];
+  betweenTimer: number;
+  spawnQueue: { type: EnemyType; lane: number; delay: number }[];
+  spawnTimer: number; frame: number;
+  killStreak: number; killStreakTimer: number;
+  comboMult: number; comboFlash: number; comboLabel: string;
+  screenShake: number; waveBonus: number; bestWave: number;
 }
 
-/* ─── Helpers ────────────────────────────────────────────────────────────── */
-function laneCenter(lane: number): number {
-  return LANE_Y[lane] + LANE_H / 2;
-}
+// ─── Module-level helpers ──────────────────────────────────────────────────────
+let _uid = 0;
+const mkId = () => `${Date.now()}_${_uid++}`;
+const laneCenter = (l: number) => LANE_Y[l] + LANE_H / 2;
+const slotXY = (lane: number, slot: number) => ({ x: SLOTS[slot], y: laneCenter(lane) });
+const getTheme = (wave: number) => THEMES[Math.floor(wave / 10) % THEMES.length];
 
-function slotPos(lane: number, slot: number): { x: number; y: number } {
-  return { x: SLOT_X[slot], y: LANE_Y[lane] + LANE_H / 2 };
-}
-
-let _idCounter = 0;
-function uid(): string {
-  return `${Date.now()}_${_idCounter++}`;
-}
-
-function buildWaveQueue(
-  wave: number
-): { type: EnemyType; lane: number; delay: number }[] {
-  const queue: { type: EnemyType; lane: number; delay: number }[] = [];
-  const perLane = Math.min(3 + wave, 15);
-  const isBossWave = wave >= 10 && wave % 5 === 0;
-  const types: EnemyType[] = ["grunt", "runner", "tank", "ghost", "healer"];
-  if (wave >= 5) types.push("boss_mini");
-
-  let delay = 0;
-  for (let lane = 0; lane < 3; lane++) {
-    for (let i = 0; i < perLane; i++) {
-      let type: EnemyType;
-      if (isBossWave && i === 0) {
-        type = "boss_mini";
-      } else {
-        type = types[Math.floor(Math.random() * types.length)];
-      }
-      queue.push({ type, lane, delay: delay + i * 60 });
-    }
-    delay += 20;
+function spawnBurst(s: GS, x: number, y: number, color: string, n = 7, spd = 3.5) {
+  for (let i = 0; i < n; i++) {
+    const a = (Math.PI * 2 * i) / n + Math.random() * 0.6;
+    const v = spd * (0.6 + Math.random() * 0.8);
+    const ml = 30 + Math.random() * 30;
+    s.particles.push({ id: mkId(), x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: ml, maxLife: ml, color, size: 2 + Math.random() * 3 });
   }
-  return queue;
 }
 
-function getPetEmoji(pet?: Pet, petEmojiProp?: string): string {
-  if (petEmojiProp) return petEmojiProp;
-  if (!pet) return "🐾";
-  const evolutionMap: Record<string, string> = {
-    egg: "🥚",
-    baby: "🐣",
-    teen: "🐱",
-    adult: "🦁",
-    legendary: "🐉",
-  };
-  return evolutionMap[pet.evolution] ?? "🐾";
+function doKillEnemy(s: GS, enemy: Enemy) {
+  const def = ENEMY_DEFS[enemy.type];
+  s.killStreak++;
+  s.killStreakTimer = 130;
+  const prev = s.comboMult;
+  s.comboMult = s.killStreak >= 20 ? 3 : s.killStreak >= 10 ? 2 : s.killStreak >= 5 ? 1.5 : 1;
+  if (s.comboMult !== prev) { s.comboFlash = 90; s.comboLabel = `x${s.comboMult} COMBO!`; }
+  const earned = Math.floor(def.reward * s.comboMult);
+  s.localKarma += earned; s.earnedKarma += earned; s.waveBonus += earned;
+  if (enemy.type === "exploder") {
+    spawnBurst(s, enemy.x, laneCenter(enemy.lane), "#fb923c", 14, 6);
+    s.baseHp = Math.max(0, s.baseHp - 5);
+    s.screenShake = 8;
+  } else {
+    spawnBurst(s, enemy.x, laneCenter(enemy.lane), def.color, 7, 3.5);
+  }
+  s.enemies = s.enemies.filter(e => e.id !== enemy.id);
+  if (s.baseHp <= 0) s.phase = "gameover";
 }
 
-/* ─── Initial state ──────────────────────────────────────────────────────── */
-function initState(): GameState {
+function applyDmgToEnemy(s: GS, tower: Tower, enemy: Enemy, rawDmg: number, towerDef: TowerDef, pos: {x:number;y:number}): boolean {
+  const frostLane = s.heroLane[enemy.lane] === "frost";
+  const frostBonus = frostLane && enemy.frozen > 0 ? 1.3 : 1;
+  const petBonus = s.heroLane[tower.lane] === "pet" ? 1.25 : 1;
+  const enemyDef = ENEMY_DEFS[enemy.type];
+  let dmg = Math.max(1, Math.floor(rawDmg * petBonus * frostBonus) - enemyDef.armor);
+  if (enemy.type === "ghost" && !enemy.ghostPhased) { enemy.ghostPhased = true; return false; }
+  if (enemy.shield > 0) { enemy.shield = Math.max(0, enemy.shield - dmg); }
+  else { enemy.hp -= dmg; }
+  enemy.hitFlash = 5;
+  s.projectiles.push({ id: mkId(), x1: pos.x, y1: pos.y, x2: enemy.x, y2: laneCenter(enemy.lane), color: towerDef.color, life: 10 });
+  if (enemy.hp <= 0) { doKillEnemy(s, enemy); return true; }
+  return false;
+}
+
+function buildWaveQueue(wave: number): GS["spawnQueue"] {
+  const q: GS["spawnQueue"] = [];
+  const perLane = Math.min(3 + Math.floor(wave * 1.2), 18);
+  const isMega = wave % 10 === 0 && wave > 0;
+  const isBoss = !isMega && wave % 5 === 0 && wave > 0;
+  const pool: EnemyType[] = ["grunt"];
+  if (wave >= 2) pool.push("runner");
+  if (wave >= 3) pool.push("swarm");
+  if (wave >= 4) pool.push("ghost");
+  if (wave >= 5) pool.push("healer");
+  if (wave >= 6) pool.push("tank");
+  if (wave >= 7) pool.push("exploder");
+  if (wave >= 8) pool.push("shielder");
+  for (let lane = 0; lane < LANE_COUNT; lane++) {
+    let d = lane * 15;
+    if (isMega) { q.push({ type:"mega_boss", lane, delay:d }); d += 200; }
+    else if (isBoss) { q.push({ type:"boss", lane, delay:d }); d += 140; }
+    for (let i = 0; i < perLane; i++) {
+      const t = pool[Math.floor(Math.random() * pool.length)];
+      if (t === "swarm") {
+        for (let k = 0; k < 6; k++) q.push({ type:"swarm", lane, delay: d + k * 10 });
+        d += 80;
+      } else {
+        q.push({ type: t, lane, delay: d });
+        d += Math.max(20, 65 - wave * 3);
+      }
+    }
+  }
+  return q;
+}
+
+function mkGS(): GS {
+  const best = typeof window !== "undefined" ? parseInt(localStorage.getItem(LS_BEST) ?? "0", 10) : 0;
   return {
-    phase: "idle",
-    wave: 0,
-    baseHp: 100,
-    baseShield: 0,
-    localKarma: 200,
-    earnedKarma: 0,
-    towers: [],
-    enemies: [],
-    projectiles: [],
-    betweenTimer: 0,
-    enemySpawnQueue: [],
-    spawnTimer: 0,
-    frame: 0,
+    phase:"idle", wave:0, baseHp:100, baseShield:0,
+    localKarma:300, earnedKarma:0,
+    towers:[], heroLane:{}, heroCd:{},
+    enemies:[], projectiles:[], particles:[],
+    betweenTimer:0, spawnQueue:[], spawnTimer:0, frame:0,
+    killStreak:0, killStreakTimer:0, comboMult:1, comboFlash:0, comboLabel:"",
+    screenShake:0, waveBonus:0, bestWave:best,
   };
 }
 
-/* ─── Main component ─────────────────────────────────────────────────────── */
-export default function PetBattle({
-  pet,
-  petEmoji: petEmojiProp,
-  onEnd,
-  onWin,
-}: PetBattleProps) {
+// ─── Component ─────────────────────────────────────────────────────────────────
+export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }: PetBattleProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stateRef = useRef<GameState>(initState());
+  const sRef = useRef<GS>(mkGS());
   const rafRef = useRef<number>(0);
-  const [renderTick, setRenderTick] = useState(0);
-  const [selectedSlot, setSelectedSlot] = useState<{
-    lane: number;
-    slot: number;
-  } | null>(null);
-  const [uiPhase, setUiPhase] = useState<GamePhase>("idle");
+  const speedRef = useRef<1|2>(1);
+  const selSlotRef = useRef<{lane:number;slot:number}|null>(null);
+  const selTowerRef = useRef<Tower|null>(null);
+
+  const [uiPhase, setUiPhase] = useState<Phase>("idle");
   const [uiWave, setUiWave] = useState(0);
+  const [uiKarma, setUiKarma] = useState(300);
   const [uiBaseHp, setUiBaseHp] = useState(100);
-  const [uiKarma, setUiKarma] = useState(200);
-  const [uiBetweenTimer, setUiBetweenTimer] = useState(0);
+  const [uiBetween, setUiBetween] = useState(0);
+  const [gameSpeed, setGameSpeed] = useState<1|2>(1);
+  const [selSlot, setSelSlot] = useState<{lane:number;slot:number}|null>(null);
+  const [selTower, setSelTower] = useState<Tower|null>(null);
+  const [selHero, setSelHero] = useState<HeroId|null>(null);
+  const [heroLaneUI, setHeroLaneUI] = useState<Record<number, HeroId|undefined>>({});
+  const [heroCdUI, setHeroCdUI] = useState<Record<string,number>>({});
+  const [bestWave, setBestWave] = useState(() => typeof window !== "undefined" ? parseInt(localStorage.getItem(LS_BEST)??"0",10) : 0);
+  const [, setTick] = useState(0);
 
-  const petEmoji = getPetEmoji(pet, petEmojiProp);
+  const petEmoji = petEmojiProp ?? (pet ? "🐾" : "🐾");
 
-  /* ─── Game logic tick ──────────────────────────────────────────────────── */
-  const tick = useCallback(() => {
-    const s = stateRef.current;
+  // ─── TICK ──────────────────────────────────────────────────────────────────
+  const doTick = useCallback(() => {
+    const s = sRef.current;
     s.frame++;
 
+    // Hero cooldowns
+    for (const key of Object.keys(s.heroCd)) {
+      if (s.heroCd[key] > 0) s.heroCd[key]--;
+    }
+    // Kill streak timer
+    if (s.killStreakTimer > 0) { s.killStreakTimer--; if (s.killStreakTimer === 0) { s.killStreak = 0; s.comboMult = 1; } }
+    if (s.comboFlash > 0) s.comboFlash--;
+    if (s.screenShake > 0) s.screenShake--;
+
+    // Particles
+    for (const p of s.particles) { p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.life--; }
+    s.particles = s.particles.filter(p => p.life > 0);
+
     if (s.phase === "wave") {
-      // Spawn enemies from queue
+      // Spawn
       s.spawnTimer++;
-      const toSpawn = s.enemySpawnQueue.filter((e) => e.delay <= s.spawnTimer);
-      s.enemySpawnQueue = s.enemySpawnQueue.filter(
-        (e) => e.delay > s.spawnTimer
-      );
-      for (const spawn of toSpawn) {
-        const def = ENEMY_DEFS[spawn.type];
+      const ready = s.spawnQueue.filter(e => e.delay <= s.spawnTimer);
+      s.spawnQueue = s.spawnQueue.filter(e => e.delay > s.spawnTimer);
+      for (const sp of ready) {
+        const def = ENEMY_DEFS[sp.type];
+        const slowed = s.heroLane[sp.lane] === "shadow";
         s.enemies.push({
-          id: uid(),
-          type: spawn.type,
-          lane: spawn.lane,
-          x: ENEMY_START_X - Math.random() * 30,
-          hp: def.maxHp,
-          maxHp: def.maxHp,
-          frozen: 0,
-          ghostPassed: false,
-          healTimer: 0,
+          id: mkId(), type: sp.type, lane: sp.lane,
+          x: SPAWN_X - Math.random() * 20,
+          hp: def.maxHp, maxHp: def.maxHp,
+          shield: def.shieldAmt, maxShield: def.shieldAmt,
+          frozen: 0, poisoned: 0, poisonDmg: 0,
+          ghostPhased: false, healTimer: 0, hitFlash: 0,
         });
+        if (slowed) {
+          const e = s.enemies[s.enemies.length - 1];
+          // shadow passive applied by reducing effective speed at move time
+          e.poisonDmg = -1; // abuse field as "slowed flag" — we check in move
+        }
       }
 
-      // Move enemies
-      const toRemove: string[] = [];
+      // Move & update
+      const reachedBase: string[] = [];
       for (const enemy of s.enemies) {
-        if (enemy.frozen > 0) {
-          enemy.frozen--;
-          continue;
+        enemy.hitFlash = Math.max(0, enemy.hitFlash - 1);
+        // Poison
+        if (enemy.poisoned > 0) {
+          enemy.poisoned--;
+          if (enemy.poisoned % 30 === 0 && enemy.poisoned > 0) {
+            const pdmg = Math.max(1, enemy.poisonDmg);
+            if (enemy.shield > 0) enemy.shield = Math.max(0, enemy.shield - pdmg);
+            else { enemy.hp -= pdmg; enemy.hitFlash = 4; }
+            if (enemy.hp <= 0) { doKillEnemy(s, enemy); continue; }
+          }
         }
-        const def = ENEMY_DEFS[enemy.type];
-        enemy.x += def.speed;
-
-        // Healer heals nearby enemies
+        // Healer aura
         if (enemy.type === "healer") {
           enemy.healTimer++;
           if (enemy.healTimer >= 60) {
             enemy.healTimer = 0;
-            for (const other of s.enemies) {
-              if (
-                other.id !== enemy.id &&
-                other.lane === enemy.lane &&
-                Math.abs(other.x - enemy.x) < 60
-              ) {
-                other.hp = Math.min(other.maxHp, other.hp + 5);
-              }
+            for (const o of s.enemies) {
+              if (o.id !== enemy.id && o.lane === enemy.lane && Math.abs(o.x - enemy.x) < 65 && o.hp < o.maxHp)
+                o.hp = Math.min(o.maxHp, o.hp + 8);
             }
           }
         }
-
-        // Reached base
+        // Move
+        if (enemy.frozen > 0) { enemy.frozen--; continue; }
+        const def = ENEMY_DEFS[enemy.type];
+        const slowMult = (s.heroLane[enemy.lane] === "shadow") ? 0.8 : 1;
+        enemy.x += def.speed * slowMult;
         if (enemy.x >= BASE_X) {
-          const dmg = Math.max(1, Math.floor(def.maxHp / 10));
-          const shieldAbsorb = Math.min(s.baseShield, dmg);
-          s.baseShield -= shieldAbsorb;
-          s.baseHp -= dmg - shieldAbsorb;
-          toRemove.push(enemy.id);
-          if (s.baseHp <= 0) {
-            s.baseHp = 0;
-            s.phase = "gameover";
-          }
+          const dmg = Math.max(1, Math.round(def.maxHp / 12));
+          const sh = Math.min(s.baseShield, dmg);
+          s.baseShield -= sh;
+          s.baseHp = Math.max(0, s.baseHp - (dmg - sh));
+          s.screenShake = 10;
+          spawnBurst(s, BASE_X, laneCenter(enemy.lane), "#f87171", 5, 2.5);
+          reachedBase.push(enemy.id);
+          if (s.baseHp <= 0) { s.phase = "gameover"; break; }
         }
       }
-      s.enemies = s.enemies.filter((e) => !toRemove.includes(e.id));
+      s.enemies = s.enemies.filter(e => !reachedBase.includes(e.id));
 
-      // Tower fire
-      for (const tower of s.towers) {
-        tower.cooldown--;
-        if (tower.cooldown > 0) continue;
-        const def = TOWER_DEFS[tower.type];
-        const pos = slotPos(tower.lane, tower.slot);
+      if (s.phase !== "gameover") {
+        // Tower fire
+        for (const tower of s.towers) {
+          const hasMonk = s.heroLane[tower.lane] === "monk";
+          tower.cooldown -= hasMonk ? 2 : 1;
+          if (tower.cooldown > 0) continue;
+          const def = TOWER_DEFS[tower.type];
+          const pos = slotXY(tower.lane, tower.slot);
+          const laneEn = s.enemies.filter(e => e.lane === tower.lane && e.x > pos.x - 20).sort((a,b) => b.x - a.x);
+          if (laneEn.length === 0) continue;
+          tower.cooldown = tower.fireRate;
 
-        // Find targets in this lane
-        const laneEnemies = s.enemies
-          .filter((e) => e.lane === tower.lane && e.x > pos.x)
-          .sort((a, b) => b.x - a.x); // nearest to base first
-
-        if (laneEnemies.length === 0) continue;
-        tower.cooldown = def.fireRate;
-
-        if (tower.type === "lightning") {
-          // Hit all in lane
-          for (const enemy of laneEnemies) {
-            enemy.hp -= def.damage;
-            s.projectiles.push({
-              id: uid(),
-              x1: pos.x,
-              y1: pos.y,
-              x2: enemy.x,
-              y2: laneCenter(enemy.lane),
-              color: def.color,
-              life: 8,
-            });
-            if (enemy.hp <= 0) {
-              const enemyDef = ENEMY_DEFS[enemy.type];
-              s.localKarma += enemyDef.karmaReward;
-              s.earnedKarma += enemyDef.karmaReward;
-              s.enemies = s.enemies.filter((e) => e.id !== enemy.id);
+          if (tower.type === "lightning") {
+            for (const e of [...laneEn]) applyDmgToEnemy(s, tower, e, tower.damage, def, pos);
+            // Thunder hero: also hit adjacent lane
+            if (s.heroLane[tower.lane] === "thunder") {
+              const adj = tower.lane < LANE_COUNT - 1 ? tower.lane + 1 : tower.lane - 1;
+              const adjEn = s.enemies.filter(e => e.lane === adj && e.x > 0).sort((a,b) => b.x - a.x).slice(0, 3);
+              for (const e of adjEn) applyDmgToEnemy(s, tower, e, Math.floor(tower.damage * 0.45), def, pos);
             }
-          }
-        } else if (tower.type === "freeze") {
-          const target = laneEnemies[0];
-          if (target) {
-            // Ghost bypass check
-            if (target.type === "ghost" && !target.ghostPassed) {
-              target.ghostPassed = true;
-              continue;
-            }
-            target.hp -= def.damage;
-            target.frozen = 120; // 2 seconds at 60fps
-            s.projectiles.push({
-              id: uid(),
-              x1: pos.x,
-              y1: pos.y,
-              x2: target.x,
-              y2: laneCenter(target.lane),
-              color: def.color,
-              life: 10,
-            });
-            if (target.hp <= 0) {
-              const enemyDef = ENEMY_DEFS[target.type];
-              s.localKarma += enemyDef.karmaReward;
-              s.earnedKarma += enemyDef.karmaReward;
-              s.enemies = s.enemies.filter((e) => e.id !== target.id);
-            }
-          }
-        } else {
-          const target = laneEnemies[0];
-          if (target) {
-            if (target.type === "ghost" && !target.ghostPassed) {
-              target.ghostPassed = true;
-              continue;
-            }
-            target.hp -= def.damage;
-            s.projectiles.push({
-              id: uid(),
-              x1: pos.x,
-              y1: pos.y,
-              x2: target.x,
-              y2: laneCenter(target.lane),
-              color: def.color,
-              life: 8,
-            });
-            if (target.hp <= 0) {
-              const enemyDef = ENEMY_DEFS[target.type];
-              s.localKarma += enemyDef.karmaReward;
-              s.earnedKarma += enemyDef.karmaReward;
-              s.enemies = s.enemies.filter((e) => e.id !== target.id);
-            }
+          } else if (tower.type === "freeze") {
+            const t = laneEn[0];
+            if (t) { applyDmgToEnemy(s, tower, t, tower.damage, def, pos); if (s.enemies.find(e => e.id === t.id)) t.frozen = 180; }
+          } else if (tower.type === "cannon") {
+            const t = laneEn[0];
+            if (t) { for (const e of laneEn.filter(e => Math.abs(e.x - t.x) < 55)) applyDmgToEnemy(s, tower, e, tower.damage, def, pos); }
+          } else if (tower.type === "poison") {
+            const t = laneEn[0];
+            if (t) { applyDmgToEnemy(s, tower, t, tower.damage, def, pos); if (s.enemies.find(e=>e.id===t.id)) { t.poisoned = 240; t.poisonDmg = 8; } }
+          } else if (tower.type === "sniper") {
+            const t = [...s.enemies].filter(e => e.lane === tower.lane).sort((a,b) => b.hp - a.hp)[0];
+            if (t) applyDmgToEnemy(s, tower, t, tower.damage, def, pos);
+          } else if (tower.type === "karma") {
+            for (let i = 0; i < Math.min(3, laneEn.length); i++)
+              applyDmgToEnemy(s, tower, laneEn[i], Math.floor(tower.damage * (i === 0 ? 1 : 0.55)), def, pos);
+          } else {
+            applyDmgToEnemy(s, tower, laneEn[0], tower.damage, def, pos);
           }
         }
-      }
+        s.projectiles = s.projectiles.map(p => ({...p, life: p.life - 1})).filter(p => p.life > 0);
 
-      // Decay projectiles
-      s.projectiles = s.projectiles
-        .map((p) => ({ ...p, life: p.life - 1 }))
-        .filter((p) => p.life > 0);
-
-      // Check wave cleared
-      if (s.enemies.length === 0 && s.enemySpawnQueue.length === 0) {
-        const karmaBonus = 20 + s.wave * 5;
-        s.localKarma += karmaBonus;
-        s.earnedKarma += karmaBonus;
-        s.phase = "between";
-        s.betweenTimer = 600; // 10 seconds
+        // Wave cleared?
+        if (s.enemies.length === 0 && s.spawnQueue.length === 0) {
+          const bonus = 20 + s.wave * 5;
+          s.localKarma += bonus; s.earnedKarma += bonus; s.waveBonus += bonus;
+          s.phase = "between"; s.betweenTimer = 600;
+          const cols = ["#c8ff00","#ff2d8d","#00e5ff","#fbbf24","#a855f7"];
+          for (let i = 0; i < 5; i++) spawnBurst(s, GW * 0.2 * (i+1), GH * 0.4, cols[i], 8, 4.5);
+        }
+      } else {
+        if (s.wave > s.bestWave) { s.bestWave = s.wave; if (typeof window !== "undefined") localStorage.setItem(LS_BEST, String(s.wave)); }
       }
     } else if (s.phase === "between") {
       s.betweenTimer--;
-      s.projectiles = [];
-      if (s.betweenTimer <= 0) {
-        // Auto-start next wave after timer
-        // (also startable manually)
-      }
+      s.projectiles = s.projectiles.map(p => ({...p, life: p.life-1})).filter(p => p.life > 0);
     }
 
-    // Sync UI state
-    setUiPhase(s.phase);
-    setUiWave(s.wave);
-    setUiBaseHp(s.baseHp);
-    setUiKarma(s.localKarma);
-    setUiBetweenTimer(s.betweenTimer);
-    setRenderTick((t) => t + 1);
+    // Sync UI
+    setUiPhase(s.phase); setUiWave(s.wave); setUiKarma(s.localKarma);
+    setUiBaseHp(s.baseHp); setUiBetween(s.betweenTimer);
+    setHeroLaneUI({...s.heroLane}); setHeroCdUI({...s.heroCd});
+    setBestWave(s.bestWave);
+    setTick(t => t + 1);
   }, []);
 
-  /* ─── Animation loop ───────────────────────────────────────────────────── */
-  useEffect(() => {
-    const loop = () => {
-      tick();
-      draw();
-      rafRef.current = requestAnimationFrame(loop);
-    };
-    rafRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(rafRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tick]);
-
-  /* ─── Draw ─────────────────────────────────────────────────────────────── */
+  // ─── DRAW ──────────────────────────────────────────────────────────────────
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const s = stateRef.current;
+    const s = sRef.current;
+    const theme = getTheme(s.wave);
 
-    // Background
-    const bg = ctx.createLinearGradient(0, 0, 0, GH);
-    bg.addColorStop(0, "#050510");
-    bg.addColorStop(1, "#0a0020");
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, GW, GH);
+    ctx.clearRect(0, 0, GW, GH);
 
-    // Lane backgrounds
-    const laneColors = [
-      "rgba(168,85,247,0.08)",
-      "rgba(59,130,246,0.08)",
-      "rgba(16,185,129,0.08)",
-    ];
-    for (let i = 0; i < 3; i++) {
-      ctx.fillStyle = laneColors[i];
+    // Screen shake
+    const shaking = s.screenShake > 0;
+    if (shaking) { ctx.save(); ctx.translate(Math.sin(s.frame*3)*s.screenShake*0.5, Math.cos(s.frame*2.2)*s.screenShake*0.3); }
+
+    // BG
+    const bg = ctx.createLinearGradient(0,0,0,GH);
+    bg.addColorStop(0, theme.bg1); bg.addColorStop(1, theme.bg2);
+    ctx.fillStyle = bg; ctx.fillRect(0,0,GW,GH);
+    // Grid
+    ctx.strokeStyle = "rgba(255,255,255,0.025)"; ctx.lineWidth = 1;
+    for (let x = 0; x < GW; x += 38) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,GH); ctx.stroke(); }
+
+    // Lanes
+    for (let i = 0; i < LANE_COUNT; i++) {
+      ctx.fillStyle = theme.lane;
       ctx.fillRect(0, LANE_Y[i], GW, LANE_H);
-      // Lane border
-      ctx.strokeStyle = "rgba(255,255,255,0.06)";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(0, LANE_Y[i], GW, LANE_H);
+      ctx.strokeStyle = "rgba(255,255,255,0.055)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0,LANE_Y[i]); ctx.lineTo(GW,LANE_Y[i]); ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,0.1)"; ctx.font = "bold 9px monospace";
+      ctx.textAlign = "left"; ctx.textBaseline = "top";
+      ctx.fillText(`L${i+1}`, 4, LANE_Y[i]+3);
     }
 
-    // Tower slots (empty)
-    for (let lane = 0; lane < 3; lane++) {
-      for (let slot = 0; slot < 3; slot++) {
-        const pos = slotPos(lane, slot);
-        const hasTower = s.towers.some(
-          (t) => t.lane === lane && t.slot === slot
-        );
-        if (!hasTower) {
-          const isSelected =
-            selectedSlot?.lane === lane && selectedSlot?.slot === slot;
-          ctx.strokeStyle = isSelected
-            ? "rgba(255,200,0,0.9)"
-            : "rgba(255,255,255,0.2)";
-          ctx.lineWidth = isSelected ? 2 : 1;
-          ctx.setLineDash([4, 4]);
-          ctx.strokeRect(pos.x - 18, pos.y - 18, 36, 36);
-          ctx.setLineDash([]);
-          // plus sign
-          ctx.fillStyle = isSelected
-            ? "rgba(255,200,0,0.6)"
-            : "rgba(255,255,255,0.15)";
-          ctx.font = "16px sans-serif";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText("+", pos.x, pos.y);
-        }
+    // Empty slots
+    for (let lane = 0; lane < LANE_COUNT; lane++) {
+      for (let slot = 0; slot < 5; slot++) {
+        if (s.towers.some(t => t.lane===lane && t.slot===slot)) continue;
+        const p = slotXY(lane, slot);
+        const isSel = selSlotRef.current?.lane===lane && selSlotRef.current?.slot===slot;
+        ctx.strokeStyle = isSel ? "#fbbf24" : "rgba(255,255,255,0.16)";
+        ctx.lineWidth = isSel ? 2 : 1; ctx.setLineDash([3,3]);
+        ctx.strokeRect(p.x-15, p.y-15, 30, 30); ctx.setLineDash([]);
+        ctx.fillStyle = isSel ? "rgba(251,191,36,0.55)" : "rgba(255,255,255,0.1)";
+        ctx.font = "13px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText("+", p.x, p.y);
       }
     }
 
     // Towers
     for (const tower of s.towers) {
-      const pos = slotPos(tower.lane, tower.slot);
+      const p = slotXY(tower.lane, tower.slot);
       const def = TOWER_DEFS[tower.type];
-      // Glow
-      ctx.shadowColor = def.color;
-      ctx.shadowBlur = 12;
-      ctx.font = "24px sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(def.emoji, pos.x, pos.y);
-      ctx.shadowBlur = 0;
-      // Cooldown ring
-      const pct = 1 - tower.cooldown / def.fireRate;
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y - 22, 8, -Math.PI / 2, -Math.PI / 2 + pct * Math.PI * 2);
-      ctx.strokeStyle = def.color;
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      const isSel = selTowerRef.current?.id === tower.id;
+      const fs = tower.level===3 ? 24 : tower.level===2 ? 20 : 17;
+      ctx.shadowColor = def.color; ctx.shadowBlur = tower.level===3?22:tower.level===2?12:5;
+      ctx.font = `${fs}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(def.emoji, p.x, p.y); ctx.shadowBlur = 0;
+      // Level pips
+      for (let lv=1;lv<=3;lv++) {
+        ctx.fillStyle = lv<=tower.level ? def.color : "rgba(255,255,255,0.08)";
+        ctx.beginPath(); ctx.arc(p.x+(lv-2)*6, p.y+14, 2.5, 0, Math.PI*2); ctx.fill();
+      }
+      // Cooldown arc
+      const pct = 1 - tower.cooldown / tower.fireRate;
+      ctx.beginPath(); ctx.arc(p.x, p.y-18, 7, -Math.PI/2, -Math.PI/2+pct*Math.PI*2);
+      ctx.strokeStyle = def.color; ctx.lineWidth = 2; ctx.stroke();
+      if (isSel) { ctx.strokeStyle="#fbbf24"; ctx.lineWidth=2; ctx.strokeRect(p.x-17,p.y-17,34,34); }
     }
 
     // Projectiles
     for (const proj of s.projectiles) {
-      const alpha = proj.life / 10;
-      ctx.beginPath();
-      ctx.moveTo(proj.x1, proj.y1);
-      ctx.lineTo(proj.x2, proj.y2);
-      ctx.strokeStyle = proj.color;
-      ctx.lineWidth = 2;
-      ctx.globalAlpha = alpha;
-      ctx.shadowColor = proj.color;
-      ctx.shadowBlur = 8;
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-      ctx.globalAlpha = 1;
-      // Dot at target
-      ctx.beginPath();
-      ctx.arc(proj.x2, proj.y2, 4, 0, Math.PI * 2);
-      ctx.fillStyle = proj.color;
-      ctx.globalAlpha = alpha;
-      ctx.fill();
-      ctx.globalAlpha = 1;
+      ctx.globalAlpha = Math.min(1, proj.life/10);
+      ctx.beginPath(); ctx.moveTo(proj.x1,proj.y1); ctx.lineTo(proj.x2,proj.y2);
+      ctx.strokeStyle = proj.color; ctx.lineWidth = 2;
+      ctx.shadowColor = proj.color; ctx.shadowBlur = 6; ctx.stroke(); ctx.shadowBlur = 0;
+      ctx.beginPath(); ctx.arc(proj.x2,proj.y2,3,0,Math.PI*2);
+      ctx.fillStyle = proj.color; ctx.fill(); ctx.globalAlpha = 1;
     }
+
+    // Particles
+    for (const p of s.particles) {
+      const a = p.life/p.maxLife;
+      ctx.globalAlpha = a; ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.size*a,0,Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
 
     // Enemies
     for (const enemy of s.enemies) {
       const def = ENEMY_DEFS[enemy.type];
       const cy = laneCenter(enemy.lane);
-      // Freeze tint
-      if (enemy.frozen > 0) {
-        ctx.fillStyle = "rgba(56,189,248,0.3)";
-        ctx.beginPath();
-        ctx.arc(enemy.x, cy, 18, 0, Math.PI * 2);
-        ctx.fill();
+      const big = enemy.type==="boss"||enemy.type==="mega_boss";
+      const es = enemy.type==="mega_boss"?34:big?28:enemy.type==="swarm"?13:20;
+      if (enemy.frozen>0) { ctx.fillStyle="rgba(56,189,248,0.22)"; ctx.beginPath(); ctx.arc(enemy.x,cy,es/2+7,0,Math.PI*2); ctx.fill(); }
+      if (enemy.hitFlash>0) { ctx.fillStyle="rgba(255,255,255,0.3)"; ctx.beginPath(); ctx.arc(enemy.x,cy,es/2+5,0,Math.PI*2); ctx.fill(); }
+      if (enemy.poisoned>0) { ctx.fillStyle="rgba(132,204,22,0.18)"; ctx.beginPath(); ctx.arc(enemy.x,cy,es/2+9,0,Math.PI*2); ctx.fill(); }
+      ctx.font = `${es}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.shadowColor=def.color; ctx.shadowBlur=big?18:8; ctx.fillText(def.emoji,enemy.x,cy); ctx.shadowBlur=0;
+      const bw = big?44:28; const by = cy-es/2-9;
+      if (enemy.maxShield>0) {
+        ctx.fillStyle="rgba(0,0,0,0.5)"; ctx.fillRect(enemy.x-bw/2,by-5,bw,3);
+        ctx.fillStyle="#6366f1"; ctx.fillRect(enemy.x-bw/2,by-5,bw*(enemy.shield/enemy.maxShield),3);
       }
-      // Emoji
-      ctx.font = enemy.type === "boss_mini" ? "28px sans-serif" : "22px sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.shadowColor = def.color;
-      ctx.shadowBlur = 8;
-      ctx.fillText(def.emoji, enemy.x, cy);
-      ctx.shadowBlur = 0;
-
-      // HP bar
-      const barW = 30;
-      const barH = 4;
-      const barX = enemy.x - barW / 2;
-      const barY = cy - (enemy.type === "boss_mini" ? 24 : 20);
-      ctx.fillStyle = "rgba(0,0,0,0.6)";
-      ctx.fillRect(barX, barY, barW, barH);
-      const hpPct = Math.max(0, enemy.hp / enemy.maxHp);
-      const hpColor =
-        hpPct > 0.5 ? "#4ade80" : hpPct > 0.25 ? "#facc15" : "#f87171";
-      ctx.fillStyle = hpColor;
-      ctx.fillRect(barX, barY, barW * hpPct, barH);
+      ctx.fillStyle="rgba(0,0,0,0.55)"; ctx.fillRect(enemy.x-bw/2,by,bw,3);
+      const hp = Math.max(0,enemy.hp/enemy.maxHp);
+      ctx.fillStyle = hp>.5?"#4ade80":hp>.25?"#facc15":"#f87171";
+      ctx.fillRect(enemy.x-bw/2,by,bw*hp,3);
+      if (enemy.frozen>0) { ctx.font="9px sans-serif"; ctx.fillStyle="#38bdf8"; ctx.fillText("❄",enemy.x,by-6); }
+      if (enemy.poisoned>0) { ctx.font="9px sans-serif"; ctx.fillStyle="#84cc16"; ctx.fillText("☠",enemy.x+8,by-6); }
     }
 
-    // Pet Base (right side)
-    const baseY = BATTLEFIELD_H / 2;
-    // Shield ring
-    if (s.baseShield > 0) {
-      ctx.beginPath();
-      ctx.arc(BASE_X + 20, baseY, 32, 0, Math.PI * 2);
-      ctx.strokeStyle = "#22d3ee";
-      ctx.lineWidth = 3;
-      ctx.globalAlpha = 0.6 + 0.4 * Math.sin(s.frame * 0.1);
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-    }
-    // HP ring
-    const hpFrac = s.baseHp / 100;
-    ctx.beginPath();
-    ctx.arc(BASE_X + 20, baseY, 28, -Math.PI / 2, -Math.PI / 2 + hpFrac * Math.PI * 2);
-    ctx.strokeStyle =
-      hpFrac > 0.5 ? "#4ade80" : hpFrac > 0.25 ? "#facc15" : "#f87171";
-    ctx.lineWidth = 4;
-    ctx.stroke();
-    // Pet emoji
-    ctx.font = "30px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.shadowColor = "#a855f7";
-    ctx.shadowBlur = 16;
-    ctx.fillText(petEmoji, BASE_X + 20, baseY);
-    ctx.shadowBlur = 0;
-    // HP text
-    ctx.font = "bold 10px sans-serif";
-    ctx.fillStyle = "#fff";
-    ctx.fillText(`${s.baseHp}HP`, BASE_X + 20, baseY + 38);
-
-    // HUD top bar
-    ctx.fillStyle = "rgba(0,0,0,0.6)";
-    ctx.fillRect(0, 0, GW, 36);
-    ctx.font = "bold 12px sans-serif";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = "#a855f7";
-    ctx.fillText(`Wave ${s.wave}`, 10, 18);
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#facc15";
-    ctx.fillText(`⚡ ${s.localKarma}`, GW / 2, 18);
-    ctx.textAlign = "right";
-    ctx.fillStyle = s.baseHp > 50 ? "#4ade80" : "#f87171";
-    ctx.fillText(`❤️ ${s.baseHp}`, GW - 10, 18);
-
-    // Between-wave overlay
-    if (s.phase === "between") {
-      ctx.fillStyle = "rgba(0,0,0,0.55)";
-      ctx.fillRect(0, BATTLEFIELD_H / 2 - 50, GW, 100);
-      ctx.font = "bold 22px sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = "#facc15";
-      ctx.shadowColor = "#facc15";
-      ctx.shadowBlur = 20;
-      ctx.fillText("✨ WAVE CLEARED! ✨", GW / 2, BATTLEFIELD_H / 2 - 20);
-      ctx.shadowBlur = 0;
-      ctx.font = "14px sans-serif";
-      ctx.fillStyle = "#a3e635";
-      ctx.fillText(
-        `+${20 + s.wave * 5}⚡ Karma Bonus`,
-        GW / 2,
-        BATTLEFIELD_H / 2 + 8
-      );
-      ctx.font = "12px sans-serif";
-      ctx.fillStyle = "#94a3b8";
-      const secs = Math.ceil(s.betweenTimer / 60);
-      ctx.fillText(
-        secs > 0 ? `Next wave in ${secs}s` : "Tap START WAVE",
-        GW / 2,
-        BATTLEFIELD_H / 2 + 30
-      );
+    // Heroes on right of each lane
+    for (let lane=0; lane<LANE_COUNT; lane++) {
+      const heroId = s.heroLane[lane];
+      if (!heroId) continue;
+      const hdef = HERO_DEFS[heroId];
+      const hx = BASE_X - 34; const hy = laneCenter(lane);
+      ctx.fillStyle = hdef.color+"22"; ctx.beginPath(); ctx.arc(hx,hy,17,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle = hdef.color; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(hx,hy,17,0,Math.PI*2); ctx.stroke();
+      ctx.font="14px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(hdef.emoji,hx,hy);
+      const cd = s.heroCd[heroId]??0; const maxCd = hdef.cooldownSec*60;
+      const cdPct = cd>0 ? 1-cd/maxCd : 1;
+      ctx.beginPath(); ctx.arc(hx,hy,17,-Math.PI/2,-Math.PI/2+cdPct*Math.PI*2);
+      ctx.strokeStyle = cdPct>=1?"#fff":hdef.color+"55"; ctx.lineWidth=3; ctx.stroke();
     }
 
-    // Game over overlay
-    if (s.phase === "gameover") {
-      ctx.fillStyle = "rgba(0,0,0,0.75)";
-      ctx.fillRect(0, 0, GW, BATTLEFIELD_H);
-      ctx.font = "bold 28px sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = "#f87171";
-      ctx.shadowColor = "#f87171";
-      ctx.shadowBlur = 24;
-      ctx.fillText("💀 GAME OVER", GW / 2, BATTLEFIELD_H / 2 - 30);
-      ctx.shadowBlur = 0;
-      ctx.font = "16px sans-serif";
-      ctx.fillStyle = "#facc15";
-      ctx.fillText(`Waves survived: ${s.wave}`, GW / 2, BATTLEFIELD_H / 2 + 5);
-      ctx.font = "13px sans-serif";
-      ctx.fillStyle = "#94a3b8";
-      ctx.fillText(`Earned: ${s.earnedKarma}⚡ karma`, GW / 2, BATTLEFIELD_H / 2 + 30);
+    // Base
+    const bx=BASE_X+16; const by2=GH/2; const hf=s.baseHp/100;
+    ctx.shadowColor=theme.acc; ctx.shadowBlur=16+Math.sin(s.frame*0.08)*6;
+    ctx.beginPath(); ctx.arc(bx,by2,25,-Math.PI/2,-Math.PI/2+hf*Math.PI*2);
+    ctx.strokeStyle = hf>.5?"#4ade80":hf>.25?"#facc15":"#f87171"; ctx.lineWidth=5; ctx.stroke(); ctx.shadowBlur=0;
+    if (s.baseShield>0) {
+      ctx.beginPath(); ctx.arc(bx,by2,31,0,Math.PI*2); ctx.strokeStyle="#22d3ee"; ctx.lineWidth=2;
+      ctx.globalAlpha=0.5+0.4*Math.sin(s.frame*0.1); ctx.stroke(); ctx.globalAlpha=1;
+    }
+    ctx.font="26px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(petEmoji,bx,by2);
+    ctx.font="bold 9px sans-serif"; ctx.fillStyle="#fff"; ctx.fillText(`${s.baseHp}HP`,bx,by2+34);
+
+    if (shaking) ctx.restore();
+
+    // HUD bar (no shake)
+    ctx.fillStyle="rgba(0,0,0,0.72)"; ctx.fillRect(0,0,GW,28);
+    ctx.font="bold 11px monospace"; ctx.textBaseline="middle";
+    ctx.textAlign="left"; ctx.fillStyle="#a855f7"; ctx.fillText(`Wave ${s.wave}`,7,14);
+    ctx.textAlign="center"; ctx.fillStyle="#fbbf24"; ctx.fillText(`⚡${s.localKarma}`,GW/2,14);
+    ctx.textAlign="right"; ctx.fillStyle=hf>.5?"#4ade80":"#f87171"; ctx.fillText(`❤️${s.baseHp}`,GW-52,14);
+    ctx.fillStyle="#444"; ctx.fillText(`🏆${s.bestWave}`,GW-8,14);
+    // Theme name
+    ctx.textAlign="left"; ctx.font="8px monospace"; ctx.fillStyle=theme.acc+"66"; ctx.fillText(theme.name,7,GH-4);
+
+    // Combo flash
+    if (s.comboFlash>0) {
+      ctx.globalAlpha=s.comboFlash/90; ctx.font="bold 22px sans-serif";
+      ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillStyle="#fbbf24"; ctx.shadowColor="#fbbf24"; ctx.shadowBlur=22;
+      ctx.fillText(s.comboLabel,GW/2,GH/2-50); ctx.shadowBlur=0; ctx.globalAlpha=1;
     }
 
-    // Idle overlay
-    if (s.phase === "idle") {
-      ctx.fillStyle = "rgba(0,0,0,0.5)";
-      ctx.fillRect(0, BATTLEFIELD_H / 2 - 60, GW, 120);
-      ctx.font = "bold 20px sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = "#a855f7";
-      ctx.shadowColor = "#a855f7";
-      ctx.shadowBlur = 16;
-      ctx.fillText("🔮 KARMA DEFENSE 🔮", GW / 2, BATTLEFIELD_H / 2 - 20);
-      ctx.shadowBlur = 0;
-      ctx.font = "13px sans-serif";
-      ctx.fillStyle = "#94a3b8";
-      ctx.fillText("Place towers, then start wave", GW / 2, BATTLEFIELD_H / 2 + 12);
+    // Overlays
+    if (s.phase==="idle") {
+      ctx.fillStyle="rgba(0,0,0,0.58)"; ctx.fillRect(0,GH/2-75,GW,150);
+      ctx.font="bold 21px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillStyle="#a855f7"; ctx.shadowColor="#a855f7"; ctx.shadowBlur=20;
+      ctx.fillText("🔮 KARMA DEFENSE ULTRA",GW/2,GH/2-36); ctx.shadowBlur=0;
+      ctx.font="12px sans-serif"; ctx.fillStyle="#94a3b8";
+      ctx.fillText("4 lanes · 5 slots · 8 towers · 5 heroes",GW/2,GH/2-8);
+      ctx.font="11px sans-serif"; ctx.fillStyle="#555";
+      ctx.fillText("Place towers · Assign heroes · Start wave",GW/2,GH/2+16);
     }
-
-    // Bottom panel background
-    ctx.fillStyle = "rgba(10,0,30,0.95)";
-    ctx.fillRect(0, BATTLEFIELD_H, GW, GH - BATTLEFIELD_H);
-    ctx.strokeStyle = "rgba(168,85,247,0.4)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, BATTLEFIELD_H);
-    ctx.lineTo(GW, BATTLEFIELD_H);
-    ctx.stroke();
+    if (s.phase==="between") {
+      ctx.fillStyle="rgba(0,0,0,0.62)"; ctx.fillRect(0,GH/2-70,GW,140);
+      ctx.font="bold 19px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillStyle="#fbbf24"; ctx.shadowColor="#fbbf24"; ctx.shadowBlur=18;
+      ctx.fillText(`✨ WAVE ${s.wave} CLEARED! ✨`,GW/2,GH/2-30); ctx.shadowBlur=0;
+      ctx.font="13px sans-serif"; ctx.fillStyle="#a3e635"; ctx.fillText(`+${s.waveBonus}⚡ earned`,GW/2,GH/2-4);
+      ctx.font="11px sans-serif"; ctx.fillStyle="#555";
+      const sec=Math.ceil(s.betweenTimer/60);
+      ctx.fillText(sec>0?`Next wave in ${sec}s — or tap START`:"Tap START WAVE",GW/2,GH/2+22);
+    }
+    if (s.phase==="gameover") {
+      ctx.fillStyle="rgba(0,0,0,0.84)"; ctx.fillRect(0,0,GW,GH);
+      ctx.font="bold 28px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillStyle="#f87171"; ctx.shadowColor="#f87171"; ctx.shadowBlur=24;
+      ctx.fillText("💀 GAME OVER",GW/2,GH/2-48); ctx.shadowBlur=0;
+      ctx.font="15px sans-serif"; ctx.fillStyle="#fbbf24"; ctx.fillText(`Waves: ${s.wave}`,GW/2,GH/2-12);
+      ctx.font="13px sans-serif"; ctx.fillStyle="#a3e635"; ctx.fillText(`Karma earned: ${s.earnedKarma}⚡`,GW/2,GH/2+14);
+      if (s.wave>=s.bestWave&&s.wave>0) { ctx.fillStyle="#fbbf24"; ctx.font="bold 13px sans-serif"; ctx.fillText("🏆 NEW RECORD!",GW/2,GH/2+40); }
+    }
   }, [petEmoji]);
 
-  /* ─── Canvas tap handler ───────────────────────────────────────────────── */
-  const handleCanvasClick = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = GW / rect.width;
-      const scaleY = GH / rect.height;
-      const cx = (e.clientX - rect.left) * scaleX;
-      const cy = (e.clientY - rect.top) * scaleY;
+  // ─── LOOP ──────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const loop = () => {
+      const n = speedRef.current;
+      for (let i=0;i<n;i++) doTick();
+      draw();
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [doTick, draw]);
 
-      const s = stateRef.current;
-      if (s.phase === "gameover") return;
-
-      // Check tower slots
-      for (let lane = 0; lane < 3; lane++) {
-        for (let slot = 0; slot < 3; slot++) {
-          const pos = slotPos(lane, slot);
-          if (
-            Math.abs(cx - pos.x) < 22 &&
-            Math.abs(cy - pos.y) < 22
-          ) {
-            const hasTower = s.towers.some(
-              (t) => t.lane === lane && t.slot === slot
-            );
-            if (!hasTower) {
-              setSelectedSlot({ lane, slot });
-            } else {
-              setSelectedSlot(null);
-            }
-            return;
-          }
+  // ─── CANVAS CLICK ─────────────────────────────────────────────────────────
+  const handleCanvas = useCallback((e: React.MouseEvent<HTMLCanvasElement>|React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current; if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const cx2 = "touches" in e ? e.touches[0]?.clientX??0 : e.clientX;
+    const cy2 = "touches" in e ? e.touches[0]?.clientY??0 : e.clientY;
+    const cx = (cx2-rect.left)*(GW/rect.width);
+    const cy = (cy2-rect.top)*(GH/rect.height);
+    const s = sRef.current;
+    if (s.phase==="gameover") return;
+    for (let lane=0;lane<LANE_COUNT;lane++) {
+      for (let slot=0;slot<5;slot++) {
+        const p = slotXY(lane,slot);
+        if (Math.abs(cx-p.x)<22&&Math.abs(cy-p.y)<22) {
+          const ex = s.towers.find(t=>t.lane===lane&&t.slot===slot);
+          if (ex) { selTowerRef.current=ex; selSlotRef.current=null; setSelTower(ex); setSelSlot(null); }
+          else { selSlotRef.current={lane,slot}; selTowerRef.current=null; setSelSlot({lane,slot}); setSelTower(null); }
+          return;
         }
       }
-      setSelectedSlot(null);
-    },
-    []
-  );
-
-  /* ─── Place tower ─────────────────────────────────────────────────────── */
-  const placeTower = useCallback(
-    (type: TowerType) => {
-      if (!selectedSlot) return;
-      const s = stateRef.current;
-      const def = TOWER_DEFS[type];
-      if (s.localKarma < def.cost) return;
-      const exists = s.towers.some(
-        (t) => t.lane === selectedSlot.lane && t.slot === selectedSlot.slot
-      );
-      if (exists) return;
-      s.localKarma -= def.cost;
-      if (type === "shield_gen") {
-        s.baseShield += 50;
-      }
-      s.towers.push({
-        id: uid(),
-        type,
-        lane: selectedSlot.lane,
-        slot: selectedSlot.slot,
-        cooldown: def.fireRate,
-      });
-      setSelectedSlot(null);
-      setUiKarma(s.localKarma);
-    },
-    [selectedSlot]
-  );
-
-  /* ─── Start / continue wave ────────────────────────────────────────────── */
-  const startWave = useCallback(() => {
-    const s = stateRef.current;
-    if (s.phase === "gameover") return;
-    s.wave += 1;
-    s.enemySpawnQueue = buildWaveQueue(s.wave);
-    s.spawnTimer = 0;
-    s.enemies = [];
-    s.projectiles = [];
-    s.phase = "wave";
-    s.betweenTimer = 0;
-    setUiPhase("wave");
-    setUiWave(s.wave);
+    }
+    selSlotRef.current=null; selTowerRef.current=null; setSelSlot(null); setSelTower(null);
   }, []);
 
-  /* ─── Restart ─────────────────────────────────────────────────────────── */
+  // ─── PLACE TOWER ──────────────────────────────────────────────────────────
+  const placeTower = useCallback((type: TowerType) => {
+    const slot=selSlotRef.current; if(!slot) return;
+    const s=sRef.current; const def=TOWER_DEFS[type];
+    if (s.localKarma<def.cost) return;
+    if (s.towers.some(t=>t.lane===slot.lane&&t.slot===slot.slot)) return;
+    s.localKarma-=def.cost;
+    if (type==="freeze") s.baseShield+=30;
+    s.towers.push({ id:mkId(), type, lane:slot.lane, slot:slot.slot, level:1, cooldown:def.fireRate, damage:def.damage, fireRate:def.fireRate });
+    spawnBurst(s, SLOTS[slot.slot], laneCenter(slot.lane), def.color, 8, 2.5);
+    selSlotRef.current=null; selTowerRef.current=null; setSelSlot(null); setSelTower(null);
+    setUiKarma(s.localKarma);
+  }, []);
+
+  // ─── UPGRADE TOWER ────────────────────────────────────────────────────────
+  const upgradeTower = useCallback(() => {
+    const tower=selTowerRef.current; if(!tower||tower.level>=3) return;
+    const s=sRef.current; const def=TOWER_DEFS[tower.type];
+    const cost=Math.floor(def.cost*(tower.level===1?1.5:3));
+    if (s.localKarma<cost) return;
+    s.localKarma-=cost;
+    const t=s.towers.find(t2=>t2.id===tower.id); if(!t) return;
+    t.level++; t.damage=Math.floor(def.damage*(t.level===2?1.6:2.8)); t.fireRate=Math.max(5,Math.floor(def.fireRate*(t.level===2?0.85:0.7)));
+    spawnBurst(s, SLOTS[t.slot], laneCenter(t.lane), def.color, 12, 3.5);
+    selTowerRef.current=null; setSelTower(null); setUiKarma(s.localKarma);
+  }, []);
+
+  // ─── SELL TOWER ───────────────────────────────────────────────────────────
+  const sellTower = useCallback(() => {
+    const tower=selTowerRef.current; if(!tower) return;
+    const s=sRef.current; const def=TOWER_DEFS[tower.type];
+    s.localKarma+=Math.floor(def.cost*0.5*tower.level);
+    s.towers=s.towers.filter(t=>t.id!==tower.id);
+    selTowerRef.current=null; setSelTower(null); setUiKarma(s.localKarma);
+  }, []);
+
+  // ─── ASSIGN HERO ──────────────────────────────────────────────────────────
+  const assignHero = useCallback((lane: number) => {
+    if (!selHero) return;
+    const s=sRef.current;
+    for (let l=0;l<LANE_COUNT;l++) { if (s.heroLane[l]===selHero) delete s.heroLane[l]; }
+    s.heroLane[lane]=selHero;
+    if (s.heroCd[selHero]===undefined) s.heroCd[selHero]=0;
+    spawnBurst(s, BASE_X-34, laneCenter(lane), HERO_DEFS[selHero].color, 10, 3);
+    setHeroLaneUI({...s.heroLane}); setSelHero(null);
+  }, [selHero]);
+
+  const removeHero = useCallback((lane: number) => {
+    const s=sRef.current; delete s.heroLane[lane]; setHeroLaneUI({...s.heroLane}); setSelHero(null);
+  }, []);
+
+  // ─── USE HERO ABILITY ─────────────────────────────────────────────────────
+  const useAbility = useCallback((heroId: HeroId) => {
+    const s=sRef.current;
+    const cd=s.heroCd[heroId]??0; if (cd>0||s.phase!=="wave") return;
+    s.heroCd[heroId]=HERO_DEFS[heroId].cooldownSec*60;
+    switch (heroId) {
+      case "pet": s.localKarma+=150; spawnBurst(s,GW/2,GH/2,"#c8ff00",14,5); break;
+      case "frost": for (const e of s.enemies) e.frozen=240; spawnBurst(s,GW/2,GH/2,"#38bdf8",14,5); break;
+      case "thunder":
+        for (const e of [...s.enemies]) {
+          const ad=ENEMY_DEFS[e.type]; const dmg=Math.max(1,40-ad.armor);
+          if (e.shield>0) e.shield=Math.max(0,e.shield-dmg); else { e.hp-=dmg; e.hitFlash=8; }
+          if (e.hp<=0) doKillEnemy(s,e);
+        }
+        spawnBurst(s,GW/2,GH/2,"#fbbf24",14,5); break;
+      case "shadow": {
+        const t=[...s.enemies].sort((a,b)=>b.hp-a.hp)[0];
+        if (t) doKillEnemy(s,t);
+        spawnBurst(s,GW/2,GH/2,"#a855f7",12,5); break;
+      }
+      case "monk": s.localKarma+=200; s.baseHp=Math.min(100,s.baseHp+10); spawnBurst(s,GW/2,GH/2,"#ff9d00",14,5); break;
+    }
+    setHeroCdUI({...s.heroCd}); setUiKarma(s.localKarma); setUiBaseHp(s.baseHp);
+  }, []);
+
+  // ─── START WAVE ───────────────────────────────────────────────────────────
+  const startWave = useCallback(() => {
+    const s=sRef.current; if(s.phase==="gameover") return;
+    s.wave++; s.spawnQueue=buildWaveQueue(s.wave); s.spawnTimer=0;
+    s.enemies=[]; s.projectiles=[]; s.phase="wave"; s.betweenTimer=0; s.waveBonus=0;
+    setUiPhase("wave"); setUiWave(s.wave);
+    selSlotRef.current=null; selTowerRef.current=null; setSelSlot(null); setSelTower(null);
+  }, []);
+
+  // ─── RESTART ──────────────────────────────────────────────────────────────
   const restart = useCallback(() => {
-    const s = stateRef.current;
-    const earned = s.earnedKarma;
-    const waveReached = s.wave;
-
-    // Call callbacks
-    if (onWin) {
-      onWin(earned, waveReached * 10, `Wave ${waveReached}`, "covert");
-    }
-    if (onEnd) {
-      onEnd(waveReached >= 5, earned);
-    }
-
-    // Reset
-    stateRef.current = initState();
-    setSelectedSlot(null);
-    setUiPhase("idle");
-    setUiWave(0);
-    setUiBaseHp(100);
-    setUiKarma(200);
+    const s=sRef.current;
+    onWin?.(s.earnedKarma, s.wave*10, `Wave ${s.wave}`, "epic");
+    onEnd?.(s.wave>=5, s.earnedKarma);
+    sRef.current=mkGS();
+    selSlotRef.current=null; selTowerRef.current=null;
+    setSelSlot(null); setSelTower(null); setSelHero(null);
+    setHeroLaneUI({}); setHeroCdUI({});
+    setUiPhase("idle"); setUiWave(0); setUiKarma(300); setUiBaseHp(100);
   }, [onEnd, onWin]);
 
-  /* ─── Between-wave auto-advance ────────────────────────────────────────── */
-  useEffect(() => {
-    if (uiPhase === "between" && uiBetweenTimer <= 0) {
-      // Auto-advance after timer done, user can also click START WAVE
-    }
-  }, [uiPhase, uiBetweenTimer]);
+  // ─── SPEED TOGGLE ─────────────────────────────────────────────────────────
+  const toggleSpeed = useCallback(() => {
+    const n: 1|2 = speedRef.current===1?2:1;
+    speedRef.current=n; setGameSpeed(n);
+  }, []);
 
-  const canStart = uiPhase === "idle" || uiPhase === "between";
-  const isGameOver = uiPhase === "gameover";
+  // ─── HERO LANE REVERSE LOOKUP ─────────────────────────────────────────────
+  const heroToLane: Partial<Record<HeroId,number>> = {};
+  for (const [k,v] of Object.entries(heroLaneUI)) { if (v) heroToLane[v]=Number(k); }
+
+  const canStart = uiPhase==="idle"||uiPhase==="between";
+  const isOver = uiPhase==="gameover";
+  const inWave = uiPhase==="wave";
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 0,
-        userSelect: "none",
-        WebkitUserSelect: "none",
-      }}
-    >
-      {/* Canvas */}
-      <div style={{ position: "relative", width: "100%", maxWidth: GW }}>
-        <canvas
-          ref={canvasRef}
-          width={GW}
-          height={GH}
-          onClick={handleCanvasClick}
-          style={{
-            width: "100%",
-            height: "auto",
-            display: "block",
-            borderRadius: 12,
-            border: "2px solid rgba(168,85,247,0.4)",
-            cursor: "pointer",
-            touchAction: "manipulation",
-          }}
-        />
-      </div>
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", userSelect:"none", WebkitUserSelect:"none" } as React.CSSProperties}>
+      <canvas
+        ref={canvasRef} width={GW} height={GH}
+        onClick={handleCanvas}
+        onTouchStart={e=>{ e.preventDefault(); handleCanvas(e); }}
+        style={{ width:"100%", height:"auto", display:"block", cursor:"pointer", touchAction:"manipulation", borderRadius:"14px 14px 0 0", border:"2px solid rgba(168,85,247,0.35)", borderBottom:"none" }}
+      />
 
-      {/* Bottom UI Panel */}
-      <div
-        style={{
-          width: "100%",
-          maxWidth: GW,
-          background: "rgba(10,0,30,0.97)",
-          border: "1px solid rgba(168,85,247,0.3)",
-          borderTop: "none",
-          borderRadius: "0 0 12px 12px",
-          padding: "10px 12px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-        }}
-      >
-        {/* Selected slot info */}
-        {selectedSlot && !isGameOver && (
-          <div
-            style={{
-              fontSize: 11,
-              color: "#facc15",
-              textAlign: "center",
-              paddingBottom: 4,
-            }}
-          >
-            Placing in Lane {selectedSlot.lane + 1}, Slot {selectedSlot.slot + 1} — choose tower:
+      {/* ── Bottom UI ── */}
+      <div style={{ width:"100%", background:"rgba(6,0,18,0.97)", border:"1px solid rgba(168,85,247,0.2)", borderTop:"none", borderRadius:"0 0 14px 14px", padding:"10px 10px 12px", display:"flex", flexDirection:"column", gap:8 }}>
+
+        {/* Selected empty slot → tower shop */}
+        {selSlot && !isOver && (
+          <div>
+            <div style={{ fontSize:10, color:"#fbbf24", fontWeight:700, letterSpacing:"0.08em", marginBottom:6 }}>
+              PLACE TOWER — Lane {selSlot.lane+1}, Slot {selSlot.slot+1}
+            </div>
+            <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
+              {TOWER_TYPES.map(type => {
+                const d=TOWER_DEFS[type]; const ok=uiKarma>=d.cost;
+                return (
+                  <button key={type} onClick={()=>placeTower(type)} disabled={!ok}
+                    style={{ flex:"0 0 auto", minWidth:64, padding:"6px 6px", background:ok?`${d.color}18`:"rgba(255,255,255,0.03)", border:`1.5px solid ${ok?d.color:"#1a1a1a"}`, borderRadius:10, cursor:ok?"pointer":"not-allowed", textAlign:"center", opacity:ok?1:0.4 }}>
+                    <div style={{ fontSize:18 }}>{d.emoji}</div>
+                    <div style={{ fontSize:9, fontWeight:700, color:ok?d.color:"#444", letterSpacing:"0.04em" }}>{d.name}</div>
+                    <div style={{ fontSize:9, color:ok?"#fbbf24":"#f87171", fontWeight:700 }}>⚡{d.cost}</div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
-        {/* Tower shop */}
-        {!isGameOver && (
-          <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>
-            {(Object.keys(TOWER_DEFS) as TowerType[]).map((type) => {
-              const def = TOWER_DEFS[type];
-              const canAfford = uiKarma >= def.cost;
-              const active = !!selectedSlot;
-              return (
-                <button
-                  key={type}
-                  onClick={() => active && placeTower(type)}
-                  disabled={!active || !canAfford}
-                  style={{
-                    background: active && canAfford
-                      ? `linear-gradient(135deg, rgba(168,85,247,0.25), rgba(168,85,247,0.1))`
-                      : "rgba(255,255,255,0.05)",
-                    border: `1px solid ${active && canAfford ? def.color : "rgba(255,255,255,0.1)"}`,
-                    borderRadius: 8,
-                    color: active && canAfford ? "#fff" : "rgba(255,255,255,0.3)",
-                    padding: "6px 10px",
-                    cursor: active && canAfford ? "pointer" : "not-allowed",
-                    fontSize: 12,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: 2,
-                    minWidth: 70,
-                  }}
-                >
-                  <span style={{ fontSize: 18 }}>{def.emoji}</span>
-                  <span style={{ fontWeight: 700 }}>{def.label}</span>
-                  <span style={{ color: canAfford ? "#facc15" : "#f87171", fontSize: 11 }}>
-                    ⚡{def.cost}
-                  </span>
+        {/* Selected existing tower → upgrade/sell */}
+        {selTower && !isOver && (() => {
+          const d=TOWER_DEFS[selTower.type];
+          const uCost=Math.floor(d.cost*(selTower.level===1?1.5:3));
+          const canUp=selTower.level<3&&uiKarma>=uCost;
+          const refund=Math.floor(d.cost*0.5*selTower.level);
+          return (
+            <div style={{ background:`${d.color}12`, border:`1.5px solid ${d.color}44`, borderRadius:12, padding:"8px 10px" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
+                <span style={{ fontSize:"1.6rem" }}>{d.emoji}</span>
+                <div>
+                  <div style={{ fontSize:12, fontWeight:700, color:d.color }}>{d.name} <span style={{ color:"#444", fontWeight:400 }}>Lv.{selTower.level}</span></div>
+                  <div style={{ fontSize:10, color:"#555" }}>DMG:{selTower.damage} · Fire:{selTower.fireRate}f · {d.special}</div>
+                </div>
+              </div>
+              <div style={{ display:"flex", gap:6 }}>
+                {selTower.level<3&&(
+                  <button onClick={upgradeTower} disabled={!canUp}
+                    style={{ flex:1, padding:"7px", background:canUp?"linear-gradient(135deg,#1a3300,#0a1a00)":"#111", border:`1.5px solid ${canUp?"#a3e635":"#222"}`, borderRadius:8, fontSize:11, fontWeight:700, color:canUp?"#a3e635":"#333", cursor:canUp?"pointer":"not-allowed" }}>
+                    ⬆️ Lv.{selTower.level+1} · ⚡{uCost}
+                  </button>
+                )}
+                <button onClick={sellTower}
+                  style={{ padding:"7px 12px", background:"#1a0000", border:"1.5px solid #f87171", borderRadius:8, fontSize:11, fontWeight:700, color:"#f87171", cursor:"pointer" }}>
+                  Sell +{refund}⚡
                 </button>
-              );
-            })}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Hero panel */}
+        {!isOver && (
+          <div>
+            <div style={{ fontSize:9, fontWeight:700, color:"#a855f7", letterSpacing:"0.1em", marginBottom:5 }}>
+              HEROES {selHero && <span style={{ color:"#fbbf24" }}>→ pick lane for {HERO_DEFS[selHero].name}</span>}
+            </div>
+            <div style={{ display:"flex", gap:4 }}>
+              {HERO_IDS.map(heroId => {
+                const hd=HERO_DEFS[heroId];
+                const assignedLane=heroToLane[heroId];
+                const isSel=selHero===heroId;
+                const cd=heroCdUI[heroId]??0;
+                const ready=cd===0;
+                return (
+                  <div key={heroId} style={{ flex:1, display:"flex", flexDirection:"column", gap:3 }}>
+                    <button onClick={()=>setSelHero(isSel?null:heroId)}
+                      style={{ background:isSel?`${hd.color}33`:`${hd.color}11`, border:`1.5px solid ${isSel?hd.color:hd.color+"44"}`, borderRadius:10, padding:"5px 2px", cursor:"pointer", textAlign:"center", boxShadow:isSel?`0 0 12px ${hd.color}66`:"none" }}
+                      title={hd.passiveDesc}>
+                      <div style={{ fontSize:"1.2rem" }}>{hd.emoji}</div>
+                      <div style={{ fontSize:8, fontWeight:700, color:hd.color, letterSpacing:"0.02em" }}>{hd.name.split(" ")[0]}</div>
+                      <div style={{ fontSize:8, color:"#555" }}>{assignedLane!==undefined?`L${assignedLane+1}`:"—"}</div>
+                    </button>
+                    {/* Lane picker (when this hero selected) */}
+                    {isSel && (
+                      <div style={{ display:"flex", gap:2 }}>
+                        {[0,1,2,3].map(lane=>(
+                          <button key={lane} onClick={()=>heroLaneUI[lane]===heroId?removeHero(lane):assignHero(lane)}
+                            style={{ flex:1, padding:"3px 1px", background:heroLaneUI[lane]===heroId?`${hd.color}33`:"#111", border:`1px solid ${hd.color}55`, borderRadius:4, fontSize:9, color:hd.color, cursor:"pointer", fontWeight:700 }}>
+                            L{lane+1}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {/* Use ability button */}
+                    {assignedLane!==undefined && !isSel && inWave && (
+                      <button onClick={()=>useAbility(heroId)}
+                        style={{ padding:"4px 2px", background:ready?`${hd.color}22`:"#0a0a0a", border:`1px solid ${ready?hd.color:"#1a1a1a"}`, borderRadius:6, fontSize:8, fontWeight:700, color:ready?hd.color:"#333", cursor:ready?"pointer":"not-allowed" }}>
+                        {ready?"✨USE":`${Math.ceil(cd/60)}s`}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
-        {/* Hint when no slot selected */}
-        {!selectedSlot && !isGameOver && (
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "center" }}>
-            Tap an empty slot (+) on the battlefield to place a tower
-          </div>
-        )}
-
-        {/* Control buttons */}
-        <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+        {/* Controls row */}
+        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
           {canStart && (
-            <button
-              onClick={startWave}
-              style={{
-                background: "linear-gradient(135deg, #7c3aed, #a855f7)",
-                border: "none",
-                borderRadius: 10,
-                color: "#fff",
-                fontWeight: 700,
-                fontSize: 14,
-                padding: "10px 24px",
-                cursor: "pointer",
-                boxShadow: "0 0 16px rgba(168,85,247,0.5)",
-              }}
-            >
-              {uiPhase === "idle" ? "▶ START WAVE 1" : `▶ START WAVE ${uiWave + 1}`}
+            <button onClick={startWave}
+              style={{ flex:1, padding:"11px 16px", background:"linear-gradient(135deg,#7c3aed,#a855f7)", border:"none", borderRadius:12, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", boxShadow:"0 0 20px rgba(168,85,247,0.5)" }}>
+              {uiPhase==="idle"?`▶ START WAVE 1`:`▶ WAVE ${uiWave+1}`}
             </button>
           )}
-          {isGameOver && (
-            <>
-              <button
-                onClick={restart}
-                style={{
-                  background: "linear-gradient(135deg, #7c3aed, #a855f7)",
-                  border: "none",
-                  borderRadius: 10,
-                  color: "#fff",
-                  fontWeight: 700,
-                  fontSize: 14,
-                  padding: "10px 24px",
-                  cursor: "pointer",
-                }}
-              >
-                🔄 Play Again
-              </button>
-              <button
-                onClick={restart}
-                style={{
-                  background: "linear-gradient(135deg, #1e293b, #334155)",
-                  border: "1px solid rgba(255,255,255,0.2)",
-                  borderRadius: 10,
-                  color: "#94a3b8",
-                  fontWeight: 700,
-                  fontSize: 14,
-                  padding: "10px 24px",
-                  cursor: "pointer",
-                }}
-              >
-                🏠 Exit
-              </button>
-            </>
+          {isOver && (
+            <button onClick={restart}
+              style={{ flex:1, padding:"11px 16px", background:"linear-gradient(135deg,#7c3aed,#a855f7)", border:"none", borderRadius:12, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer" }}>
+              🔄 Play Again
+            </button>
           )}
+          <button onClick={toggleSpeed}
+            style={{ padding:"11px 14px", background:gameSpeed===2?"rgba(251,191,36,0.2)":"#111", border:`1.5px solid ${gameSpeed===2?"#fbbf24":"#222"}`, borderRadius:12, color:gameSpeed===2?"#fbbf24":"#444", fontWeight:700, fontSize:12, cursor:"pointer" }}>
+            {gameSpeed===1?"⏩ 2x":"⏸ 1x"}
+          </button>
         </div>
 
-        {/* Karma display */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            fontSize: 11,
-            color: "rgba(255,255,255,0.4)",
-            borderTop: "1px solid rgba(255,255,255,0.06)",
-            paddingTop: 6,
-          }}
-        >
-          <span>⚡ Karma: <strong style={{ color: "#facc15" }}>{uiKarma}</strong></span>
-          <span>Wave: <strong style={{ color: "#a855f7" }}>{uiWave}</strong></span>
-          <span>❤️ Base HP: <strong style={{ color: uiBaseHp > 50 ? "#4ade80" : "#f87171" }}>{uiBaseHp}</strong></span>
+        {/* Status strip */}
+        <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:"rgba(255,255,255,0.2)", borderTop:"1px solid rgba(255,255,255,0.05)", paddingTop:6 }}>
+          <span>⚡ <strong style={{ color:"#fbbf24" }}>{uiKarma}</strong></span>
+          <span>Wave <strong style={{ color:"#a855f7" }}>{uiWave}</strong></span>
+          <span>❤️ <strong style={{ color:uiBaseHp>50?"#4ade80":"#f87171" }}>{uiBaseHp}</strong></span>
+          {uiBetween>0&&<span>⏳ <strong style={{ color:"#38bdf8" }}>{Math.ceil(uiBetween/60)}s</strong></span>}
+          <span>🏆 <strong style={{ color:"#fbbf24" }}>{bestWave}</strong></span>
         </div>
       </div>
     </div>
