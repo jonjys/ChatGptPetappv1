@@ -66,6 +66,11 @@ type AppContextType = {
   petMoodComputed: Pet["mood"];
   lang: Lang;
   setLang: (l: Lang) => void;
+  bondLevel: number;
+  stamina: number;
+  addBond: (amount: number) => void;
+  addStamina: (amount: number) => void;
+  spendStamina: (amount: number) => boolean;
 };
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -206,6 +211,9 @@ const STORE = {
   qProgress:    "karma_qp_v1",
   qClaimed:     "karma_qclaimed_v1",
   qDate:        "karma_qdate_v1",
+  bond:         "karma_bond_v1",
+  stamina:      "karma_stamina_v1",
+  dailyBonus:   "karma_daily_bonus_v1",
 };
 
 function load<T>(key: string, fallback: T): T {
@@ -230,6 +238,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [questClaimed, setQuestClaimed]   = useState<string[]>([]);
   const [levelUpOverlay, setLevelUpOverlay] = useState<number | null>(null);
   const [lang, setLangState] = useState<Lang>("en");
+  const [bondLevel, setBondLevel] = useState(0);
+  const [stamina, setStamina]     = useState(100);
   const toastIdRef = useRef(0);
 
   // ── Hydrate from localStorage ──────────────────────────────────────────────
@@ -281,6 +291,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setQuestProgress(load<Record<string, number>>(STORE.qProgress, {}));
       setQuestClaimed(load<string[]>(STORE.qClaimed, []));
     }
+
+    // Bond & stamina
+    const savedBond    = load<number>(STORE.bond,    MY_PET.bondLevel);
+    const savedStamina = load<number>(STORE.stamina, 85);
+    setBondLevel(savedBond);
+    setStamina(savedStamina);
+
+    // Daily login bonus
+    const savedBonusDate = localStorage.getItem(STORE.dailyBonus) ?? "";
+    if (savedBonusDate !== today) {
+      localStorage.setItem(STORE.dailyBonus, today);
+      const str = load<number>(STORE.streak, 0);
+      const bonusKarma = str >= 30 ? 500 : str >= 14 ? 300 : str >= 7 ? 200 : str >= 3 ? 100 : 50;
+      setTimeout(() => {
+        setUser(u => {
+          const nk = u.karma + bonusKarma;
+          localStorage.setItem(STORE.karma, String(nk));
+          return { ...u, karma: nk };
+        });
+        showToast(`Daily bonus! Streak ${str}d`, bonusKarma, "#ffde00", "🎁");
+      }, 1800);
+    }
   }, []);
 
   // ── Pet needs decay (every 45s) ────────────────────────────────────────────
@@ -296,6 +328,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return { ...p, needs, mood: deriveMood(needs) };
       });
     }, 45_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // ── Stamina regen (1 per 90s) ─────────────────────────────────────────────
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStamina(s => {
+        if (s >= 100) return s;
+        const next = Math.min(100, s + 1);
+        localStorage.setItem(STORE.stamina, String(next));
+        return next;
+      });
+    }, 90_000);
     return () => clearInterval(interval);
   }, []);
 
@@ -317,6 +362,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [showToast]);
 
+  const addBond = useCallback((amount: number) => {
+    setBondLevel(prev => {
+      const next = Math.min(100, prev + amount);
+      localStorage.setItem(STORE.bond, String(next));
+      // Bond milestones
+      if (prev < 25 && next >= 25) { unlockAchievement("bond_25"); showToast("Friend bond reached!", 25, "#22c55e", "💚"); }
+      if (prev < 50 && next >= 50) { unlockAchievement("bond_50"); showToast("Companion bond!", 50, "#ffde00", "💛"); }
+      if (prev < 100 && next >= 100) { unlockAchievement("bond_100"); showToast("SOUL BOND achieved! 💫", 100, "#ff2d8d", "💜"); }
+      return next;
+    });
+  }, [unlockAchievement, showToast]);
+
+  const addStamina = useCallback((amount: number) => {
+    setStamina(prev => {
+      const next = Math.min(100, prev + amount);
+      localStorage.setItem(STORE.stamina, String(next));
+      return next;
+    });
+  }, []);
+
+  const spendStamina = useCallback((amount: number): boolean => {
+    let ok = false;
+    setStamina(prev => {
+      if (prev < amount) return prev;
+      ok = true;
+      const next = Math.max(0, prev - amount);
+      localStorage.setItem(STORE.stamina, String(next));
+      return next;
+    });
+    return ok;
+  }, []);
+
   // Watch karma milestones
   useEffect(() => {
     if (user.karma > 0)    unlockAchievement("first_karma");
@@ -333,6 +410,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Watch streak
   useEffect(() => {
     if (streak >= 3) unlockAchievement("streak_3");
+  }, [streak, unlockAchievement]);
+
+  // Watch karma 10k
+  useEffect(() => {
+    if (user.karma >= 10000) unlockAchievement("karma_10000");
+  }, [user.karma, unlockAchievement]);
+
+  // Watch levels
+  useEffect(() => {
+    const lvl = calculateLevel(user.xp);
+    if (lvl >= 10) unlockAchievement("level_10");
+    if (lvl >= 20) unlockAchievement("level_20");
+  }, [user.xp, unlockAchievement]);
+
+  // Watch streaks
+  useEffect(() => {
+    if (streak >= 7)  unlockAchievement("streak_7");
+    if (streak >= 30) unlockAchievement("streak_30");
   }, [streak, unlockAchievement]);
 
   // ── Quest helpers ──────────────────────────────────────────────────────────
@@ -440,10 +535,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return newPet;
     });
     showToast(type === "premium" ? "Premium feast!" : "Pet fed!", undefined, "#ff6b35", "🍖");
+    addBond(3);
     addActivity({ emoji: type === "premium" ? "🥩" : "🍖", title: `Fed ${pet.name}`, detail: type === "premium" ? "Premium feast" : "Basic meal", source: "pet" });
     tickQuest("pet_fed");
     return true;
-  }, [pet.name, showToast, addActivity, tickQuest, unlockAchievement]);
+  }, [pet.name, showToast, addActivity, tickQuest, unlockAchievement, addBond]);
 
   const playWithPet = useCallback(() => {
     setPet(p => {
@@ -456,9 +552,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return { ...p, needs, mood: deriveMood(needs) };
     });
     addXP(10);
+    addBond(5);
     showToast("Played with pet!", 10, "#ff2d8d", "🎾");
     addActivity({ emoji: "🎾", title: `Played with ${pet.name}`, detail: "+28 happiness", source: "pet" });
-  }, [addXP, showToast, addActivity, pet.name]);
+  }, [addXP, showToast, addActivity, pet.name, addBond]);
 
   const restPet = useCallback(() => {
     setPet(p => {
@@ -471,7 +568,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return { ...p, needs, mood: deriveMood(needs) };
     });
     showToast(`${pet.name} is resting...`, undefined, "#00e5ff", "😴");
-  }, [pet.name, showToast]);
+    addBond(2);
+    addStamina(20);
+  }, [pet.name, showToast, addBond, addStamina]);
 
   const healPet = useCallback((): boolean => {
     let ok = false;
@@ -514,6 +613,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       unlockAchievement, tickQuest, claimQuest,
       petMoodComputed,
       lang, setLang: (l: Lang) => { setLangState(l); localStorage.setItem(LANG_STORAGE_KEY, l); },
+      bondLevel, stamina, addBond, addStamina, spendStamina,
     }}>
       {children}
       <ToastOverlay toasts={toasts} />

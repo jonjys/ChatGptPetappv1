@@ -13,8 +13,17 @@ import {
   getMoodEmoji,
   getPetClassColor,
   getEvolutionLabel,
+  getPetPersonalityEmoji,
+  getPetPersonalityColor,
+  getPetPersonalityLabel,
+  getPetRarityColor,
+  getPetRarityLabel,
+  getPetRarityGlow,
+  getBondLabel,
+  getBondColor,
 } from "@/lib/pet-evolution";
 import { WORLDS } from "@/lib/worlds";
+import type { WorldId } from "@/types/world";
 
 // ─── Speech ──────────────────────────────────────────────────────────────────
 const SPEECH: Record<string, string[]> = {
@@ -86,7 +95,7 @@ const WORLD_WEATHER: Record<string, { icon: string; label: string }> = {
 export default function PetPage() {
   const {
     pet, petMoodComputed, feedPet, playWithPet, restPet,
-    user, addXP, addKarma, spendKarma, worldId, streak, activities,
+    user, addXP, addKarma, spendKarma, worldId, setWorldId, streak, activities,
   } = useApp();
 
   // ── Core UI state ──────────────────────────────────────────────────────────
@@ -137,6 +146,15 @@ export default function PetPage() {
   const world       = WORLDS.find(w => w.id === worldId) ?? WORLDS[2];
   const isCritical  = pet.needs.hunger < 25 || pet.needs.happiness < 25 || pet.needs.energy < 15;
   const weather     = WORLD_WEATHER[worldId] ?? WORLD_WEATHER.city;
+
+  const rarityColor    = getPetRarityColor(pet.rarity);
+  const rarityLabel    = getPetRarityLabel(pet.rarity);
+  const rarityGlow     = getPetRarityGlow(pet.rarity);
+  const personalityEmoji = getPetPersonalityEmoji(pet.personality);
+  const personalityColor = getPetPersonalityColor(pet.personality);
+  const personalityLabel = getPetPersonalityLabel(pet.personality);
+  const bondLabel      = getBondLabel(pet.bondLevel);
+  const bondColor      = getBondColor(pet.bondLevel);
 
   const speechLines  = SPEECH[petMoodComputed] ?? SPEECH.neutral;
   const currentSpeech = speechLines[speechIdx % speechLines.length];
@@ -384,7 +402,30 @@ export default function PetPage() {
           </h1>
           <p style={{ fontSize: 12, color: classColor, fontWeight: 600, letterSpacing: "0.06em" }}>
             {pet.class.toUpperCase()}
+            <span style={{
+              marginLeft: 8, fontSize: 10, fontWeight: 800,
+              color: rarityColor,
+              textShadow: `0 0 8px ${rarityColor}`,
+            }}>
+              ✦ {rarityLabel}
+            </span>
           </p>
+          <div style={{ display: "flex", gap: 5, marginTop: 3 }}>
+            <span style={{
+              fontSize: 9, fontWeight: 800, color: personalityColor,
+              background: `${personalityColor}18`, border: `1px solid ${personalityColor}55`,
+              borderRadius: 99, padding: "1px 7px", letterSpacing: "0.06em",
+            }}>
+              {personalityEmoji} {personalityLabel}
+            </span>
+            <span style={{
+              fontSize: 9, fontWeight: 700, color: bondColor,
+              background: `${bondColor}18`, border: `1px solid ${bondColor}44`,
+              borderRadius: 99, padding: "1px 7px",
+            }}>
+              {bondLabel}
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {isCritical && (
@@ -630,11 +671,11 @@ export default function PetPage() {
                     style={{
                       width: 168, height: 168,
                       background: "#fff",
-                      border: `4px solid ${petColor}`,
+                      border: `4px solid ${pet.rarity === "common" || pet.rarity === "rare" ? petColor : rarityColor}`,
                       borderRadius: "50%",
                       display: "flex", alignItems: "center", justifyContent: "center",
                       fontSize: "4.8rem",
-                      boxShadow: `5px 5px 0px ${petColor}, 0 0 60px ${world.glowColor}, 0 0 120px ${world.glowColor}44`,
+                      boxShadow: `5px 5px 0px ${petColor}, 0 0 60px ${world.glowColor}, 0 0 120px ${world.glowColor}44, 0 0 40px ${rarityGlow}`,
                       position: "relative",
                     }}
                   >
@@ -673,6 +714,21 @@ export default function PetPage() {
                     border: "1.5px solid rgba(255,255,255,0.08)",
                   }}>
                     {pet.name} · Lv.{pet.level}
+                  </div>
+
+                  {/* Bond bar */}
+                  <div style={{ marginTop: 6, width: 140 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                      <span style={{ fontSize: 8, fontWeight: 700, color: bondColor, letterSpacing: "0.05em" }}>{bondLabel}</span>
+                      <span style={{ fontSize: 8, color: "#555", fontWeight: 600 }}>{pet.bondLevel}/100</span>
+                    </div>
+                    <div style={{ height: 4, background: "#1a1a1a", borderRadius: 99, overflow: "hidden" }}>
+                      <motion.div
+                        animate={{ width: `${pet.bondLevel}%` }}
+                        transition={{ duration: 1, ease: "easeOut" }}
+                        style={{ height: "100%", borderRadius: 99, background: `linear-gradient(90deg, ${bondColor}88, ${bondColor})`, boxShadow: `0 0 6px ${bondColor}` }}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -721,6 +777,7 @@ export default function PetPage() {
                     { label: "HUNGER", icon: "🍖", color: "#ff6b35", val: pet.needs.hunger },
                     { label: "HAPPY",  icon: "😊", color: "#ff2d8d", val: pet.needs.happiness },
                     { label: "ENERGY", icon: "⚡", color: "#c8ff00", val: pet.needs.energy },
+                    { label: "STAMINA",icon: "🗡️", color: "#4488ff", val: pet.stamina ?? 100 },
                   ].map(n => {
                     const crit = n.val < 30;
                     return (
@@ -1059,6 +1116,27 @@ export default function PetPage() {
                 ))}
               </div>
             </div>
+
+            {/* World Selector */}
+            <div className="neo-card p-4">
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>🌍 World Selection</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+                {WORLDS.map(w => (
+                  <button key={w.id} onClick={() => setWorldId(w.id as WorldId)}
+                    style={{
+                      padding: "10px 8px",
+                      background: worldId === w.id ? `${w.accent}18` : "#111",
+                      border: `2px solid ${worldId === w.id ? w.accent : "#222"}`,
+                      borderRadius: 14, cursor: "pointer", textAlign: "left",
+                      boxShadow: worldId === w.id ? `0 0 14px ${w.glowColor}` : "none",
+                    }}>
+                    <div style={{ fontSize: "1.3rem", marginBottom: 3 }}>{w.emoji}</div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: worldId === w.id ? w.accent : "#fff" }}>{w.name}</div>
+                    <div style={{ fontSize: 9, color: "#555" }}>{w.tagline}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -1149,12 +1227,14 @@ export default function PetPage() {
             {/* Stats grid */}
             <div className="neo-card p-4">
               <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>📊 Pet Stats</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
                 {[
-                  { label: "HP", value: statHP,  color: "#4caf50", icon: "❤️" },
+                  { label: "HP",  value: statHP,  color: "#4caf50", icon: "❤️" },
                   { label: "ATK", value: statATK, color: "#ff6b35", icon: "⚔️" },
                   { label: "SPD", value: statSPD, color: "#00e5ff", icon: "💨" },
                   { label: "LCK", value: statLCK, color: "#a855f7", icon: "🍀" },
+                  { label: "STA", value: pet.stamina ?? 85, color: "#4488ff", icon: "🗡️" },
+                  { label: "BOND", value: pet.bondLevel ?? 0, color: bondColor, icon: "💜" },
                 ].map(stat => (
                   <div key={stat.label} style={{ background: "#111", border: `2px solid #222`, borderRadius: 12, padding: "10px 12px", boxShadow: `0 0 16px ${stat.color}33` }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
