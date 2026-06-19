@@ -5,7 +5,7 @@ import React, {
   useCallback, useEffect, useRef,
 } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { Pet, PetNeeds } from "@/types/pet";
+import type { Pet, PetNeeds, PetClass } from "@/types/pet";
 import type { User } from "@/types/user";
 import type { GameScores } from "@/types/game";
 import type { WorldId } from "@/types/world";
@@ -71,6 +71,8 @@ type AppContextType = {
   addBond: (amount: number) => void;
   addStamina: (amount: number) => void;
   spendStamina: (amount: number) => boolean;
+  petCreated: boolean;
+  setupPet: (name: string, emoji: string, petClass: PetClass) => void;
 };
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -214,6 +216,10 @@ const STORE = {
   bond:         "karma_bond_v1",
   stamina:      "karma_stamina_v1",
   dailyBonus:   "karma_daily_bonus_v1",
+  petCreated:   "karma_pet_created_v1",
+  petName:      "karma_pet_name_v1",
+  petEmoji:     "karma_pet_emoji_v1",
+  petClass:     "karma_pet_class_v1",
 };
 
 function load<T>(key: string, fallback: T): T {
@@ -240,6 +246,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>("en");
   const [bondLevel, setBondLevel] = useState(0);
   const [stamina, setStamina]     = useState(100);
+  const [petCreated, setPetCreated] = useState(false);
   const toastIdRef = useRef(0);
 
   // ── Hydrate from localStorage ──────────────────────────────────────────────
@@ -297,6 +304,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const savedStamina = load<number>(STORE.stamina, 85);
     setBondLevel(savedBond);
     setStamina(savedStamina);
+
+    // Pet customization (onboarding)
+    const created = localStorage.getItem(STORE.petCreated) === "1";
+    if (created) {
+      setPetCreated(true);
+      const savedPetName  = localStorage.getItem(STORE.petName);
+      const savedPetClass = localStorage.getItem(STORE.petClass) as PetClass | null;
+      const savedPetEmoji = localStorage.getItem(STORE.petEmoji);
+      setPet(p => ({
+        ...p,
+        ...(savedPetName  ? { name: savedPetName } : {}),
+        ...(savedPetClass ? { class: savedPetClass } : {}),
+        ...(savedPetEmoji ? { skinId: `emoji:${savedPetEmoji}` } : {}),
+      }));
+    }
 
     // Daily login bonus
     const savedBonusDate = localStorage.getItem(STORE.dailyBonus) ?? "";
@@ -595,6 +617,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return true;
   }, [showToast]);
 
+  const setupPet = useCallback((name: string, emoji: string, petClass: PetClass) => {
+    localStorage.setItem(STORE.petCreated, "1");
+    localStorage.setItem(STORE.petName,    name);
+    localStorage.setItem(STORE.petEmoji,   emoji);
+    localStorage.setItem(STORE.petClass,   petClass);
+    setPetCreated(true);
+    setPet(p => ({ ...p, name, class: petClass, skinId: `emoji:${emoji}` }));
+  }, []);
+
   const updateScore = useCallback((game: keyof GameScores, score: number) => {
     setGameScores(s => {
       const next = { ...s, [game]: Math.max(s[game] ?? 0, score) };
@@ -614,6 +645,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       petMoodComputed,
       lang, setLang: (l: Lang) => { setLangState(l); localStorage.setItem(LANG_STORAGE_KEY, l); },
       bondLevel, stamina, addBond, addStamina, spendStamina,
+      petCreated, setupPet,
     }}>
       {children}
       <ToastOverlay toasts={toasts} />

@@ -8,6 +8,16 @@ import { FRIENDS, LEADERBOARD, FEED_POSTS } from "@/lib/mock-data";
 import { WORLDS } from "@/lib/worlds";
 import type { Post, PostType } from "@/types/post";
 
+// ─── Story data ───────────────────────────────────────────────────────────────
+
+const STORY_DATA = [
+  { id: "s1", username: "lunavibes",   emoji: "🌙", color: "#ff2d8d", content: "🌙 Just hit level 8! Grind never stops ⚡", time: "2m" },
+  { id: "s2", username: "tradeknight", emoji: "⚔️", color: "#c8ff00", content: "⚔️ Killed the bounty board today. +1,200 karma!", time: "15m" },
+  { id: "s3", username: "pixelrush",   emoji: "🎮", color: "#a855f7", content: "🎮 New highscore in Karma Runner — 8,400pts 🏆", time: "1h" },
+  { id: "s4", username: "neonmiku",    emoji: "✨", color: "#00e5ff", content: "✨ My pet Yuki just evolved! 🦋→🌟", time: "2h" },
+  { id: "s5", username: "voltfox",     emoji: "🦊", color: "#ff6b35", content: "🦊 Deep Catch gang — caught a legendary fish! 🐟", time: "4h" },
+];
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TABS = ["FLASH", "FRIENDS", "TOP", "LIVE"] as const;
@@ -451,6 +461,8 @@ export default function SocialPage() {
   const [tab, setTab] = useState<Tab>("FLASH");
   const [liveFilter, setLiveFilter] = useState<LiveFilter>("ALL");
   const [showCreate, setShowCreate] = useState(false);
+  const [activeStory, setActiveStory] = useState<typeof STORY_DATA[0] | null>(null);
+  const [seenStories, setSeenStories] = useState<Set<string>>(new Set());
   const world = WORLDS.find(w => w.id === worldId) ?? WORLDS[2];
   const onlineFriends = FRIENDS.filter(f => f.online);
 
@@ -615,9 +627,145 @@ export default function SocialPage() {
         </div>
       </div>
 
+      {/* ── Story Viewer Overlay ── */}
+      <AnimatePresence>
+        {activeStory && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setActiveStory(null)}
+            style={{
+              position: "fixed", inset: 0, zIndex: 9999,
+              background: "rgba(0,0,0,0.95)", backdropFilter: "blur(8px)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              padding: "0 20px",
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.8, y: 40 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.8, y: 40 }}
+              onClick={e => e.stopPropagation()}
+              style={{
+                width: "100%", maxWidth: 360,
+                background: `linear-gradient(145deg, #0d0d0d, #111)`,
+                border: `2.5px solid ${activeStory.color}`,
+                borderRadius: 24, padding: "28px 24px",
+                boxShadow: `0 0 40px ${activeStory.color}44`,
+                position: "relative",
+              }}
+            >
+              {/* Progress bar */}
+              <div style={{ height: 3, background: "#222", borderRadius: 2, marginBottom: 20, overflow: "hidden" }}>
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 5, ease: "linear" }}
+                  onAnimationComplete={() => setActiveStory(null)}
+                  style={{ height: "100%", background: activeStory.color, borderRadius: 2 }}
+                />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: "50%",
+                  background: `${activeStory.color}22`,
+                  border: `2px solid ${activeStory.color}`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: "1.3rem",
+                }}>
+                  {activeStory.emoji}
+                </div>
+                <div>
+                  <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#fff" }}>@{activeStory.username}</div>
+                  <div style={{ fontSize: "0.7rem", color: "#666" }}>{activeStory.time} ago</div>
+                </div>
+              </div>
+              <div style={{
+                fontSize: "1.1rem", color: "#fff", lineHeight: 1.6,
+                fontWeight: 600, marginBottom: 20,
+              }}>
+                {activeStory.content}
+              </div>
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setActiveStory(null)}
+                style={{
+                  width: "100%", padding: "12px 0",
+                  background: activeStory.color, border: "none",
+                  borderRadius: 12, color: "#000",
+                  fontWeight: 900, fontSize: "0.9rem",
+                  cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                ↩ CLOSE
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── FLASH tab ── */}
       {tab === "FLASH" && (
         <div style={{ position: "relative" }}>
+          {/* Stories strip */}
+          <div style={{
+            display: "flex", gap: 14,
+            overflowX: "auto", padding: "14px 16px",
+            scrollbarWidth: "none",
+            borderBottom: "1px solid #111",
+          }}>
+            {/* My story */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer", flexShrink: 0 }}>
+              <div style={{
+                width: 58, height: 58, borderRadius: "50%",
+                background: "#111", border: "2.5px dashed #333",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                position: "relative", fontSize: "1.4rem",
+              }}>
+                {user.avatarEmoji}
+                <div style={{
+                  position: "absolute", bottom: -2, right: -2,
+                  width: 20, height: 20, borderRadius: "50%",
+                  background: "#c8ff00", border: "2px solid #000",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: "0.7rem", color: "#000", fontWeight: 900,
+                }}>+</div>
+              </div>
+              <div style={{ fontSize: "0.6rem", color: "#555", maxWidth: 58, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                Add Story
+              </div>
+            </div>
+
+            {/* Friend stories */}
+            {STORY_DATA.map(story => {
+              const seen = seenStories.has(story.id);
+              return (
+                <motion.div
+                  key={story.id}
+                  whileTap={{ scale: 0.92 }}
+                  onClick={() => { setActiveStory(story); setSeenStories(s => new Set([...s, story.id])); }}
+                  style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer", flexShrink: 0 }}
+                >
+                  <div style={{
+                    width: 58, height: 58, borderRadius: "50%",
+                    background: seen ? "#111" : `${story.color}22`,
+                    border: `2.5px solid ${seen ? "#333" : story.color}`,
+                    boxShadow: seen ? "none" : `0 0 12px ${story.color}66`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "1.4rem",
+                    transition: "all 0.3s",
+                  }}>
+                    {story.emoji}
+                  </div>
+                  <div style={{ fontSize: "0.6rem", color: seen ? "#444" : "#aaa", maxWidth: 58, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {story.username}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+
           <div style={{
             padding: "16px 16px 100px",
             display: "flex",
@@ -625,7 +773,7 @@ export default function SocialPage() {
             gap: 16,
             overflowY: "scroll",
             scrollSnapType: "y mandatory",
-            maxHeight: "calc(100dvh - 120px)",
+            maxHeight: "calc(100dvh - 180px)",
           }}>
             {posts.map(post => (
               <FlashCard

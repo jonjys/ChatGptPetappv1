@@ -6,6 +6,7 @@ import "@/styles/animations.css";
 import { AppProvider } from "@/context/AppContext";
 import BottomNav from "@/components/ui/BottomNav";
 import WorldGate from "@/components/onboarding/WorldGate";
+import PetCreationModal from "@/components/onboarding/PetCreationModal";
 import DailyReward from "@/components/ui/DailyReward";
 import TapEffect from "@/components/ui/TapEffect";
 import PetCompanion from "@/components/ui/PetCompanion";
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <AppProvider>
           <WorldGate>
+            <PetCreationModal />
             <main className="page-wrapper">{children}</main>
             <DailyReward />
             <BottomNav />

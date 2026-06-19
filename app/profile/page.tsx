@@ -410,6 +410,34 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* ── Brand CTA ────────────────────────────────────────────────────── */}
+        <Link href="/brand" style={{ textDecoration: "none", display: "block" }}>
+          <motion.div
+            whileTap={{ scale: 0.97 }}
+            style={{
+              background: "linear-gradient(135deg, #0d1400 0%, #1a2800 100%)",
+              border: "2px solid #c8ff0055",
+              borderRadius: 18, padding: "18px 16px",
+              boxShadow: "0 0 24px #c8ff0011",
+              display: "flex", alignItems: "center", gap: 16,
+            }}
+          >
+            <div style={{
+              width: 52, height: 52, borderRadius: 14,
+              background: "#c8ff0022", border: "2px solid #c8ff00",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: "1.6rem",
+            }}>
+              🚀
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "1rem", fontWeight: 900, color: "#c8ff00", marginBottom: 2 }}>MY BRAND</div>
+              <div style={{ fontSize: "0.78rem", color: "#888" }}>Create your brand, list products, earn karma</div>
+            </div>
+            <div style={{ fontSize: "1rem", color: "#c8ff00" }}>→</div>
+          </motion.div>
+        </Link>
+
         {/* ── World selector ───────────────────────────────────────────────── */}
         <div style={{ background: "#111", border: "2px solid #222", borderRadius: 18, padding: "16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
