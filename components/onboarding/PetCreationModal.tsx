@@ -32,7 +32,7 @@ const CLASSES: { id: PetClass; emoji: string; label: string; desc: string; color
 ];
 
 export default function PetCreationModal() {
-  const { petCreated, setupPet } = useApp();
+  const { petCreated, setupPet, addKarma, addXP } = useApp();
   const [step, setStep] = useState(0);
   const [mounted, setMounted] = useState(false);
   const [selectedEmoji, setSelectedEmoji] = useState(PET_EMOJIS[0]);
@@ -46,8 +46,13 @@ export default function PetCreationModal() {
 
   function handleComplete() {
     if (!petName.trim()) return;
-    setupPet(petName.trim(), selectedEmoji, selectedClass);
     setDone(true);
+    addKarma(100, "Welcome bonus");
+    addXP(200);
+    // Delay context update so the celebration screen can play out first
+    setTimeout(() => {
+      setupPet(petName.trim(), selectedEmoji, selectedClass);
+    }, 3200);
   }
 
   const cls = CLASSES.find(c => c.id === selectedClass)!;

@@ -6,7 +6,7 @@ import { useApp } from "@/context/AppContext";
 import { getDailyQuests } from "@/lib/quests";
 import SpinWheel from "@/components/ui/SpinWheel";
 import { Zap, Users, Trophy, Flame } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type Game = {
   id: string; href: string; emoji: string; name: string;
@@ -26,12 +26,20 @@ const GAMES: Game[] = [
   { id: "blitz",   href: "/games/blitz",   emoji: "💥", name: "BOUNTY BLITZ",  tagline: "Step counter · Workout timer · Gratitude journal", reward: "Up to 500 ⚡",       accent: "#00e5ff",  bg: "#001a1a",  tag: "NEW",  players: 203 },
 ];
 
+const HOT_GAMES = GAMES.filter(g => g.hot);
+
 const LIVE_ACTIVITY = [
-  { emoji: "🦅", user: "dragon99",   action: "caught Blue Whale",         karma: 300, ago: "12s" },
-  { emoji: "⚡", user: "xanax",      action: "won Pet Battle",             karma: 180, ago: "34s" },
-  { emoji: "🔥", user: "moonkid",    action: "Karma Runner — 4200 pts",   karma: 210, ago: "1m"  },
-  { emoji: "💎", user: "tradeknight",action: "Shadow Vault: LEGENDARY",   karma: 550, ago: "2m"  },
-  { emoji: "🎰", user: "zara.q",     action: "Slots JACKPOT hit!",        karma: 2000, ago: "3m" },
+  { emoji: "🦅", user: "dragon99",    action: "caught Blue Whale",        karma: 300,  ago: "12s" },
+  { emoji: "⚡", user: "xanax",       action: "won Pet Battle",            karma: 180,  ago: "34s" },
+  { emoji: "🔥", user: "moonkid",     action: "Karma Runner — 4200 pts",  karma: 210,  ago: "1m"  },
+  { emoji: "💎", user: "tradeknight", action: "Shadow Vault: LEGENDARY",  karma: 550,  ago: "2m"  },
+  { emoji: "🎰", user: "zara.q",      action: "Slots JACKPOT hit!",       karma: 2000, ago: "3m"  },
+];
+
+const LEADERBOARD = [
+  { rank: 1, name: "dragon99",    score: 48200, color: "#FFD700" },
+  { rank: 2, name: "zara.q",      score: 39750, color: "#C0C0C0" },
+  { rank: 3, name: "tradeknight", score: 31100, color: "#CD7F32" },
 ];
 
 export default function GamesPage() {
@@ -39,7 +47,30 @@ export default function GamesPage() {
   const dailyQuests = getDailyQuests();
   const questsDone = dailyQuests.filter(q => questClaimed.includes(q.id)).length;
   const totalPlayers = GAMES.reduce((s, g) => s + (g.players ?? 0), 0);
+
+  // Live ticker state
   const [liveIdx, setLiveIdx] = useState(0);
+  const [tickerVisible, setTickerVisible] = useState(true);
+
+  // Featured daily challenge game — stored in state so it doesn't re-randomise on re-render
+  const [featuredGame] = useState<Game>(
+    () => HOT_GAMES[Math.floor(Math.random() * HOT_GAMES.length)]
+  );
+
+  // Auto-advance ticker every 3 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTickerVisible(false);
+      setTimeout(() => {
+        setLiveIdx(i => (i + 1) % LIVE_ACTIVITY.length);
+        setTickerVisible(true);
+      }, 250);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const featuredScore = gameScores[featuredGame.id as keyof typeof gameScores] ?? 0;
+  const featuredCompleted = featuredScore > 0;
 
   return (
     <div style={{ background: "#080808", minHeight: "100dvh", color: "#fff" }}>
@@ -84,27 +115,140 @@ export default function GamesPage() {
           </motion.div>
         </div>
 
-        {/* Live ticker */}
-        <motion.div
-          key={liveIdx}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          onAnimationComplete={() => setTimeout(() => setLiveIdx(i => (i + 1) % LIVE_ACTIVITY.length), 3000)}
-          style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, overflow: "hidden" }}
-        >
-          <span style={{ fontSize: 11, color: "#c8ff00", fontWeight: 700 }}>{LIVE_ACTIVITY[liveIdx].emoji}</span>
-          <span style={{ fontSize: 10, color: "#444" }}>
-            <span style={{ color: "#888", fontWeight: 700 }}>@{LIVE_ACTIVITY[liveIdx].user}</span>
-            {" "}{LIVE_ACTIVITY[liveIdx].action}
-          </span>
-          <span style={{ fontSize: 10, fontWeight: 800, color: "#c8ff00", marginLeft: "auto", flexShrink: 0 }}>
-            +{LIVE_ACTIVITY[liveIdx].karma}⚡
-          </span>
-        </motion.div>
+        {/* ── Live Activity Ticker ───────────────────────────────────────────── */}
+        <div style={{ marginTop: 8, overflow: "hidden" }}>
+          <AnimatePresence mode="wait">
+            {tickerVisible && (
+              <motion.div
+                key={liveIdx}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.22 }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  background: "#111", border: "1px solid #1a1a1a",
+                  borderRadius: 20, padding: "5px 10px",
+                }}
+              >
+                <span style={{ fontSize: 13 }}>{LIVE_ACTIVITY[liveIdx].emoji}</span>
+                <span style={{ fontSize: 10, color: "#888", fontWeight: 700 }}>@{LIVE_ACTIVITY[liveIdx].user}</span>
+                <span style={{ fontSize: 10, color: "#444", flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {" "}{LIVE_ACTIVITY[liveIdx].action}
+                </span>
+                <span style={{ fontSize: 10, fontWeight: 900, color: "#c8ff00", flexShrink: 0 }}>
+                  +{LIVE_ACTIVITY[liveIdx].karma}⚡
+                </span>
+                <span style={{ fontSize: 9, color: "#333", flexShrink: 0 }}>{LIVE_ACTIVITY[liveIdx].ago}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       <div className="px-4 pt-4 pb-24 space-y-3" style={{ position: "relative", zIndex: 1 }}>
+
+        {/* ── Featured Daily Challenge Banner ──────────────────────────────────── */}
+        <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+          <Link href={featuredGame.href} style={{ textDecoration: "none" }}>
+            <motion.div
+              whileTap={{ scale: 0.98 }}
+              animate={{
+                boxShadow: [
+                  `0 0 24px ${featuredGame.accent}22`,
+                  `0 0 48px ${featuredGame.accent}44`,
+                  `0 0 24px ${featuredGame.accent}22`,
+                ],
+              }}
+              transition={{ repeat: Infinity, duration: 3 }}
+              style={{
+                background: `linear-gradient(135deg, ${featuredGame.bg}, #0a0a0a 60%, ${featuredGame.accent}0a)`,
+                border: `3px solid ${featuredGame.accent}`,
+                borderRadius: 20,
+                padding: "20px 18px",
+                position: "relative",
+                overflow: "hidden",
+              }}
+            >
+              {/* Background glow sweep */}
+              <div style={{
+                position: "absolute", top: 0, right: 0, width: "50%", height: "100%",
+                background: `linear-gradient(90deg, transparent, ${featuredGame.accent}06)`,
+                pointerEvents: "none",
+              }} />
+
+              {/* Top chip */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <motion.div
+                  animate={{ opacity: [1, 0.6, 1] }}
+                  transition={{ repeat: Infinity, duration: 1.4 }}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    background: featuredGame.accent, color: "#000",
+                    fontSize: 9, fontWeight: 900, letterSpacing: "0.1em",
+                    padding: "4px 10px", borderRadius: 20,
+                  }}
+                >
+                  <Zap size={9} fill="#000" color="#000" />
+                  DAILY CHALLENGE
+                </motion.div>
+                {featuredCompleted ? (
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "#22c55e" }}>✓ COMPLETED</span>
+                ) : (
+                  <span style={{ fontSize: 10, color: "#555", fontWeight: 600 }}>resets at midnight</span>
+                )}
+              </div>
+
+              {/* Main content row */}
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                {/* Big emoji */}
+                <motion.div
+                  animate={{ scale: [1, 1.08, 1], rotate: [0, -4, 4, 0] }}
+                  transition={{ duration: 3, repeat: Infinity, repeatDelay: 1 }}
+                  style={{ fontSize: "5rem", lineHeight: 1, flexShrink: 0 }}
+                >
+                  {featuredGame.emoji}
+                </motion.div>
+
+                {/* Text */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: "#fff", letterSpacing: "-0.03em", marginBottom: 2 }}>
+                    {featuredGame.name}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#666", marginBottom: 10, lineHeight: 1.4 }}>
+                    {featuredGame.tagline}
+                  </div>
+
+                  {/* Bonus reward row */}
+                  <div style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    background: `${featuredGame.accent}18`, border: `1px solid ${featuredGame.accent}44`,
+                    borderRadius: 10, padding: "5px 10px", marginBottom: 12,
+                  }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: "#888", letterSpacing: "0.06em" }}>BONUS:</span>
+                    <span style={{ fontSize: 12, fontWeight: 900, color: featuredGame.accent }}>+50 KARMA today</span>
+                  </div>
+
+                  {/* Play Now button */}
+                  <div>
+                    <motion.div
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 6,
+                        background: featuredCompleted ? "#22c55e" : featuredGame.accent,
+                        color: "#000", fontSize: 12, fontWeight: 900,
+                        padding: "8px 18px", borderRadius: 10, letterSpacing: "0.04em",
+                      }}
+                    >
+                      {featuredCompleted ? "✓ PLAY AGAIN →" : "PLAY NOW →"}
+                    </motion.div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </Link>
+        </motion.div>
 
         {/* ── Spin Wheel ──────────────────────────────────────────────────────── */}
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
@@ -183,7 +327,7 @@ export default function GamesPage() {
                 <div style={{ fontSize: 11, color: "#555" }}>Complete quests for huge karma bonuses</div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
                   {/* Mini progress dots */}
-                  {dailyQuests.map((q, i) => (
+                  {dailyQuests.map((q) => (
                     <div key={q.id} style={{
                       width: 20, height: 4, borderRadius: 2,
                       background: questClaimed.includes(q.id) ? "#c8ff00" : "#222",
@@ -259,6 +403,19 @@ export default function GamesPage() {
                     <div style={{ fontSize: 11, color: "#444", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {g.tagline}
                     </div>
+                    {/* Personal best pill */}
+                    {score > 0 && (
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+                        <span style={{
+                          fontSize: 9, fontWeight: 800,
+                          background: `${g.accent}18`, border: `1px solid ${g.accent}44`,
+                          color: g.accent, padding: "2px 7px", borderRadius: 20,
+                          letterSpacing: "0.04em",
+                        }}>
+                          🏆 PB: {score}
+                        </span>
+                      </div>
+                    )}
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ fontSize: 11, fontWeight: 800, color: g.accent, opacity: 0.9 }}>{g.reward}</span>
                       {g.players && (
@@ -288,7 +445,7 @@ export default function GamesPage() {
           );
         })}
 
-        {/* ── Daily Challenge ─────────────────────────────────────────────────── */}
+        {/* ── Daily Challenge mini tracker ─────────────────────────────────────── */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
           <div style={{
             background: "linear-gradient(135deg, #0a2000, #111)",
@@ -325,6 +482,67 @@ export default function GamesPage() {
                 <div style={{ fontSize: "1.3rem", marginBottom: 2 }}>🎁</div>
                 <div style={{ fontSize: 9, color: "#c8ff00", fontWeight: 800 }}>+500 ⚡</div>
               </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* ── Weekly Leaderboard Teaser ────────────────────────────────────────── */}
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
+          <div style={{
+            background: "#0d0d0d",
+            border: "1px solid #1a1a1a",
+            borderRadius: 16, padding: "16px",
+          }}>
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <Trophy size={14} color="#FFD700" fill="#FFD700" />
+                <span style={{ fontSize: 12, fontWeight: 900, color: "#fff", letterSpacing: "0.08em" }}>WEEKLY LEADERBOARD</span>
+              </div>
+              <Link href="/social" style={{ textDecoration: "none" }}>
+                <span style={{ fontSize: 10, color: "#c8ff00", fontWeight: 700, letterSpacing: "0.04em" }}>View all →</span>
+              </Link>
+            </div>
+
+            {/* Top 3 rows */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {LEADERBOARD.map((player, idx) => (
+                <motion.div
+                  key={player.name}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.65 + idx * 0.07 }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    background: idx === 0 ? "#1a1500" : "#111",
+                    border: `1px solid ${idx === 0 ? "#FFD70033" : "#1a1a1a"}`,
+                    borderRadius: 10, padding: "9px 12px",
+                  }}
+                >
+                  {/* Rank badge */}
+                  <div style={{
+                    width: 24, height: 24, borderRadius: 6, flexShrink: 0,
+                    background: `${player.color}22`, border: `1.5px solid ${player.color}66`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 11, fontWeight: 900, color: player.color,
+                  }}>
+                    {player.rank}
+                  </div>
+
+                  {/* Username */}
+                  <span style={{ flex: 1, fontSize: 13, fontWeight: 800, color: idx === 0 ? "#FFD700" : "#ccc" }}>
+                    @{player.name}
+                  </span>
+
+                  {/* Score */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <Zap size={10} color={player.color} fill={player.color} />
+                    <span style={{ fontSize: 12, fontWeight: 900, color: player.color }}>
+                      {player.score.toLocaleString()}
+                    </span>
+                  </div>
+                </motion.div>
+              ))}
             </div>
           </div>
         </motion.div>

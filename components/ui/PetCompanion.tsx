@@ -114,7 +114,7 @@ export default function PetCompanion() {
     setTimeout(() => setFeedbackMsg(null), 2000);
   }
 
-  const petEmoji = getPetEmoji(pet.evolution, pet.class);
+  const petEmoji = pet.skinId?.startsWith("emoji:") ? pet.skinId.slice(6) : getPetEmoji(pet.evolution, pet.class);
   const mood = getMoodLabel(pet.needs.hunger, pet.needs.energy, pet.needs.happiness);
   const isCritical = pet.needs.hunger < 25 || pet.needs.energy < 15;
 

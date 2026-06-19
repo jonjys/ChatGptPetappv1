@@ -78,15 +78,25 @@ export default function QuestsPage() {
               Resets in <span style={{ color: "#888", fontFamily: "monospace" }}><Countdown /></span>
             </div>
           </div>
-          {/* Completion badge */}
-          <div style={{
-            fontSize: 18, fontWeight: 900, color: "#080808",
-            background: "#c8ff00",
-            borderRadius: 10, padding: "4px 12px",
-            boxShadow: "0 0 16px #c8ff0099, 0 0 4px #c8ff00",
-            letterSpacing: "0.03em",
-          }}>
-            {completionPct}%
+          {/* Circular progress ring */}
+          <div style={{ position: "relative", width: 52, height: 52, flexShrink: 0 }}>
+            <svg width="52" height="52" style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)" }}>
+              <circle cx="26" cy="26" r="22" fill="none" stroke="#1a1a1a" strokeWidth="4" />
+              <circle
+                cx="26" cy="26" r="22" fill="none" stroke="#c8ff00" strokeWidth="4"
+                strokeDasharray={`${2 * Math.PI * 22}`}
+                strokeDashoffset={`${2 * Math.PI * 22 * (1 - completionPct / 100)}`}
+                strokeLinecap="round"
+                style={{ transition: "stroke-dashoffset 0.6s ease", filter: "drop-shadow(0 0 4px #c8ff00)" }}
+              />
+            </svg>
+            <div style={{
+              position: "absolute", inset: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 11, fontWeight: 900, color: "#c8ff00",
+            }}>
+              {completionPct}%
+            </div>
           </div>
         </div>
 

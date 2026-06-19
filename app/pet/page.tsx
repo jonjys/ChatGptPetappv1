@@ -96,6 +96,7 @@ export default function PetPage() {
   const {
     pet, petMoodComputed, feedPet, playWithPet, restPet,
     user, addXP, addKarma, spendKarma, worldId, setWorldId, streak, activities,
+    bondLevel, stamina, addBond, showToast: ctxShowToast,
   } = useApp();
 
   // ── Core UI state ──────────────────────────────────────────────────────────
@@ -139,7 +140,7 @@ export default function PetPage() {
   // ── Derived ────────────────────────────────────────────────────────────────
   const progress    = xpProgress(pet.xp);
   const xpToNext    = xpToNextLevel(pet.xp);
-  const petEmoji    = getPetEmoji(pet.evolution, pet.class);
+  const petEmoji    = pet.skinId?.startsWith("emoji:") ? pet.skinId.slice(6) : getPetEmoji(pet.evolution, pet.class);
   const moodEmoji   = getMoodEmoji(petMoodComputed);
   const classColor  = getPetClassColor(pet.class);
   const evolLabel   = getEvolutionLabel(pet.evolution);

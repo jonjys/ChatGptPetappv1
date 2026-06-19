@@ -9,6 +9,8 @@ import StoriesBar from "@/components/feed/StoriesBar";
 import { FEED_POSTS } from "@/lib/mock-data";
 import { useApp } from "@/context/AppContext";
 import { formatXP, calculateLevel } from "@/lib/xp-system";
+import { getDailyQuests } from "@/lib/quests";
+import { getPetEmoji, getMoodEmoji, getPetClassColor } from "@/lib/pet-evolution";
 
 const FILTERS = ["ALL", "NEARBY", "HOT", "BOUNTIES"] as const;
 type Filter = (typeof FILTERS)[number];
@@ -33,7 +35,11 @@ const NOTIFS = [
 ];
 
 export default function FeedPage() {
-  const { user, activities, streak } = useApp();
+  const { user, pet, petMoodComputed, activities, streak, questClaimed, bondLevel, stamina } = useApp();
+  const dailyQuests = getDailyQuests();
+  const claimedCount = dailyQuests.filter(q => questClaimed.includes(q.id)).length;
+  const petEmoji = pet.skinId?.startsWith("emoji:") ? pet.skinId.slice(6) : getPetEmoji(pet.evolution, pet.class);
+  const classColor = getPetClassColor(pet.class);
   const [filter, setFilter]       = useState<Filter>("ALL");
   const [showNotifs, setShowNotifs] = useState(false);
   const level = calculateLevel(user.xp);
@@ -220,6 +226,99 @@ export default function FeedPage() {
         </div>
       </div>
 
+      {/* Pet Status Mini-Card */}
+      <Link href="/pet" style={{ textDecoration: "none", display: "block", margin: "10px 16px 0" }}>
+        <motion.div
+          whileTap={{ scale: 0.97 }}
+          style={{
+            background: "#0d0d0d",
+            border: "1px solid #1a1a1a",
+            borderRadius: 14,
+            padding: "10px 14px",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          {/* Pet emoji */}
+          <div style={{
+            width: 42, height: 42, borderRadius: 12, flexShrink: 0,
+            background: `${classColor}18`, border: `1.5px solid ${classColor}55`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "1.5rem",
+          }}>
+            {petEmoji}
+          </div>
+
+          {/* Name + mood + bars */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {pet.name}
+              </span>
+              <span style={{ fontSize: 13 }}>{getMoodEmoji(petMoodComputed)}</span>
+            </div>
+            {/* Mini progress bars */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              {[
+                { label: "Hunger", value: pet.needs.hunger, color: "#ff6b35" },
+                { label: "Happy",  value: pet.needs.happiness, color: "#ff2d8d" },
+                { label: "Energy", value: pet.needs.energy, color: "#4488ff" },
+              ].map(bar => (
+                <div key={bar.label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 9, fontWeight: 600, color: "#444", width: 38, flexShrink: 0 }}>{bar.label}</span>
+                  <div style={{ flex: 1, height: 4, background: "#1a1a1a", borderRadius: 2, overflow: "hidden" }}>
+                    <div style={{ width: `${bar.value}%`, height: "100%", background: bar.color, borderRadius: 2, transition: "width 0.4s ease" }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Bond + Stamina */}
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <div style={{ fontSize: 9, color: "#555", letterSpacing: "0.06em" }}>BOND</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: classColor }}>{bondLevel}</div>
+            <div style={{ fontSize: 9, color: "#555", letterSpacing: "0.06em", marginTop: 4 }}>STA</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#4488ff" }}>{stamina}</div>
+          </div>
+        </motion.div>
+      </Link>
+
+      {/* Daily Quests Quick Strip */}
+      <div style={{ margin: "8px 16px 0", display: "flex", alignItems: "center", gap: 10 }}>
+        <Link href="/quests" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: "#555", letterSpacing: "0.06em", flexShrink: 0 }}>
+            {claimedCount}/5 QUESTS
+          </span>
+          <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none" as const }}>
+            {dailyQuests.map(q => {
+              const isClaimed = questClaimed.includes(q.id);
+              return (
+                <motion.div
+                  key={q.id}
+                  whileTap={{ scale: 0.9 }}
+                  style={{
+                    width: 38, height: 38, borderRadius: "50%", flexShrink: 0,
+                    background: isClaimed ? "#c8ff0022" : "#111",
+                    border: isClaimed ? "2px solid #c8ff00" : "2px solid #222",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "1.1rem", position: "relative",
+                    boxShadow: isClaimed ? "0 0 10px #c8ff0044" : "none",
+                  }}
+                >
+                  {isClaimed ? (
+                    <span style={{ fontSize: "1.1rem" }}>✅</span>
+                  ) : (
+                    <span>{q.emoji}</span>
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
+        </Link>
+      </div>
+
       {/* Streak hero banner */}
       {streak >= 3 && filter === "ALL" && (
         <motion.div
@@ -316,23 +415,43 @@ export default function FeedPage() {
       )}
 
       {/* Live activity ticker */}
-      {liveActivities.length > 0 && filter === "ALL" && (
-        <div className="mx-4 mt-3" style={{ background: "#0a0a0a", border: "2px solid #c8ff0033", borderRadius: 14, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10 }}>
-          <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1.2, repeat: Infinity }}
-            style={{ width: 8, height: 8, background: "#c8ff00", borderRadius: "50%", flexShrink: 0, boxShadow: "0 0 6px #c8ff00" }} />
-          <div style={{ flex: 1, overflow: "hidden" }}>
+      <AnimatePresence>
+        {liveActivities.length > 0 && filter === "ALL" && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="mx-4 mt-3"
+            style={{
+              background: "#0d0d0d",
+              border: "1px solid #c8ff0033",
+              borderRadius: 14,
+              padding: "9px 14px",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
             <motion.div
-              key={liveActivities[0].id}
-              initial={{ x: 50, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              style={{ fontSize: 12, color: "#c8ff00", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
-            >
-              LIVE · {liveActivities[0].emoji} {liveActivities[0].title}
-            </motion.div>
-          </div>
-          <span style={{ fontSize: 10, color: "#444", flexShrink: 0 }}>{timeAgo(liveActivities[0].timestamp)}</span>
-        </div>
-      )}
+              animate={{ opacity: [1, 0.3, 1] }}
+              transition={{ duration: 1.2, repeat: Infinity }}
+              style={{ width: 7, height: 7, background: "#c8ff00", borderRadius: "50%", flexShrink: 0, boxShadow: "0 0 6px #c8ff00" }}
+            />
+            <div style={{ flex: 1, overflow: "hidden" }}>
+              <motion.div
+                key={liveActivities[0].id}
+                initial={{ x: 40, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 260, damping: 22 }}
+                style={{ fontSize: 12, color: "#c8ff00", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+              >
+                {liveActivities[0].emoji} {liveActivities[0].karma ? `You just earned +${liveActivities[0].karma} karma` : liveActivities[0].title}
+              </motion.div>
+            </div>
+            <span style={{ fontSize: 10, color: "#444", flexShrink: 0 }}>{timeAgo(liveActivities[0].timestamp)}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Stories */}
       <div className="px-4 pt-3" style={{ borderBottom: "2px solid #c8ff0022" }}>
