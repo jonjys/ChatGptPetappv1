@@ -85,3 +85,119 @@
   font-size: 12px;
   font-weight: 700;
 }
+
+/* ── Dark card variants ── */
+.card-dark {
+  background: #0c0c0c;
+  border: 2px solid #1a1a1a;
+  border-radius: 20px;
+  padding: 16px;
+}
+
+.card-dark-lg {
+  background: #0a0a0a;
+  border: 2.5px solid #222;
+  border-radius: 24px;
+  padding: 20px;
+}
+
+/* ── Glow utilities ── */
+.glow-lime  { box-shadow: 0 0 20px rgba(200, 255,   0, 0.35); }
+.glow-pink  { box-shadow: 0 0 20px rgba(255,  45, 141, 0.35); }
+.glow-cyan  { box-shadow: 0 0 20px rgba(  0, 229, 255, 0.35); }
+.glow-gold  { box-shadow: 0 0 20px rgba(255, 222,   0, 0.35); }
+.glow-purple{ box-shadow: 0 0 20px rgba(168, 85,  247, 0.35); }
+.glow-red   { box-shadow: 0 0 20px rgba(239,  68,  68, 0.35); }
+
+/* ── Rarity text shimmer ── */
+.shimmer-rare {
+  background: linear-gradient(90deg, #4488ff, #88bbff, #4488ff);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmerText 2s linear infinite;
+}
+
+.shimmer-epic {
+  background: linear-gradient(90deg, #a855f7, #d084fb, #a855f7);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmerText 2s linear infinite;
+}
+
+.shimmer-legendary {
+  background: linear-gradient(90deg, #ffde00, #ff9900, #ffde00);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmerText 1.8s linear infinite;
+}
+
+.shimmer-mythic {
+  background: linear-gradient(90deg, #ff2d8d, #a855f7, #00e5ff, #ff2d8d);
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmerText 1.4s linear infinite;
+}
+
+/* ── Bond bar ── */
+.bond-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: #1a1a1a;
+  overflow: hidden;
+}
+
+.bond-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.8s ease-out;
+}
+
+/* ── Neo-card press effect ── */
+.press-effect {
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  cursor: pointer;
+}
+
+.press-effect:active {
+  transform: translate(2px, 2px);
+}
+
+/* ── Pill badge ── */
+.pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  border: 1.5px solid currentColor;
+}
+
+/* ── Streak fire bar ── */
+.streak-bar {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.streak-bar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #1a1a1a;
+}
+
+.streak-bar-dot.active {
+  background: #ff6b35;
+  box-shadow: 0 0 6px #ff6b3588;
+}

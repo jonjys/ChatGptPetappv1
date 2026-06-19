@@ -1,4 +1,4 @@
-export type WorldId = "cosmic" | "nature" | "city" | "pixel";
+export type WorldId = "cosmic" | "nature" | "city" | "pixel" | "ocean" | "volcano" | "sky" | "neon" | "crystal" | "shadow";
 
 export type World = {
   id: WorldId;

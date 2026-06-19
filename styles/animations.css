@@ -47,3 +47,57 @@
 .animate-pop-in     { animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 .animate-shimmer    { animation: shimmer 2s linear infinite; }
 .animate-pulse-border { animation: pulseBorder 2s ease-in-out infinite; }
+
+@keyframes shimmerText {
+  0%   { background-position: 0% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes rarityGlow {
+  0%, 100% { filter: brightness(1) saturate(1); }
+  50%       { filter: brightness(1.35) saturate(1.5); }
+}
+
+@keyframes bondBurst {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.28); }
+  60%  { transform: scale(0.93); }
+  100% { transform: scale(1); }
+}
+
+@keyframes neonFlicker {
+  0%, 92%, 100% { opacity: 1; }
+  93%  { opacity: 0.75; }
+  95%  { opacity: 0.9; }
+  97%  { opacity: 0.6; }
+}
+
+@keyframes energyFlow {
+  0%   { background-position: 0% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes criticalPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 45, 45, 0.7); }
+  50%       { box-shadow: 0 0 0 8px rgba(255, 45, 45, 0); }
+}
+
+@keyframes petEnter {
+  0%   { opacity: 0; transform: scale(0.7) translateY(20px); }
+  60%  { opacity: 1; transform: scale(1.05) translateY(-4px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes karmaRain {
+  0%   { opacity: 1; transform: translateY(0) rotate(0deg); }
+  100% { opacity: 0; transform: translateY(-80px) rotate(360deg); }
+}
+
+.animate-rarity-glow    { animation: rarityGlow 2.5s ease-in-out infinite; }
+.animate-bond-burst     { animation: bondBurst 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.animate-neon-flicker   { animation: neonFlicker 4s ease-in-out infinite; }
+.animate-energy-flow    { animation: energyFlow 2s linear infinite; }
+.animate-critical-pulse { animation: criticalPulse 1.2s ease-in-out infinite; }
+.animate-pet-enter      { animation: petEnter 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.animate-karma-rain     { animation: karmaRain 1s ease-out both; }
+.animate-shimmer-text   { animation: shimmerText 2s linear infinite; }

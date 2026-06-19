@@ -44,6 +44,11 @@ export const MY_PET: Pet = {
   totalBountiesCompleted: 38,
   unlockedAbilities: ["Double XP Rush", "Bounty Radar", "Karma Boost", "Iron Will"],
   skinId: "default",
+  bondLevel: 35,
+  personality: "bold" as const,
+  rarity: "epic" as const,
+  stamina: 85,
+  totalTaps: 127,
 };
 
 export const BOUNTIES: Bounty[] = [
