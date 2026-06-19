@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { Gamepad2 } from "lucide-react";
@@ -370,1321 +370,1228 @@ export default function PetPage() {
   }));
   const diaryAll = [...liveEntries, ...DIARY_ENTRIES].slice(0, 8);
 
-  // ─── XP ring constants ────────────────────────────────────────────────────
-  const RING_R = 93;
-  const RING_CIRCUMFERENCE = 2 * Math.PI * RING_R;
-
-  // ─── Tab definitions for bottom nav ──────────────────────────────────────
-  const NAV_TABS = [
-    { key: "room",  icon: petEmoji, label: "PET" },
-    { key: "train", icon: "⚡",     label: "TRAIN" },
-    { key: "bond",  icon: "🎩",     label: "STYLE" },
-    { key: "grow",  icon: "🌱",     label: "GROW" },
-    { key: "squad", icon: "👥",     label: "SQUAD" },
-    { key: "ville", icon: "🏙️",    label: "VILLE" },
-  ] as const;
-
-  // ─── Tab title map ────────────────────────────────────────────────────────
-  const TAB_TITLE: Record<string, string> = {
-    train: "TRAINING DOJO",
-    bond:  "STYLE STUDIO",
-    grow:  "EVOLUTION",
-    squad: "TON SQUAD",
-    ville: "KARMA VILLE",
-  };
-
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
-    <div style={{ background: "var(--bg)", minHeight: "100dvh", userSelect: "none" }}>
+    <div style={{ background: "var(--bg)", minHeight: "100dvh" }}>
 
-      {/* ── Toast (fixed, floats over everything) ── */}
+      {/* ── Sticky Header ── */}
+      <div className="sticky top-0 z-30 px-4 pt-4 pb-3 flex items-center justify-between"
+        style={{ background: "var(--bg)", borderBottom: "3px solid #c8ff0044", boxShadow: "0 2px 24px #c8ff0011" }}>
+        <div>
+          <h1 style={{ fontSize: "2rem", fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 1 }}>
+            <span style={{ background: "linear-gradient(135deg, #c8ff00, #00e5ff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>{pet.name}</span>
+            <span style={{ fontSize: "1rem", color: "#888", marginLeft: 8, WebkitTextFillColor: "#888" }}>· {evolLabel}</span>
+          </h1>
+          <p style={{ fontSize: 12, color: classColor, fontWeight: 600, letterSpacing: "0.06em" }}>
+            {pet.class.toUpperCase()}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {isCritical && (
+            <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ repeat: Infinity, duration: 1 }}
+              style={{ background: "#ff2d2d", color: "#fff", border: "2px solid #0a0a0a", borderRadius: 8, padding: "3px 8px", fontSize: 11, fontWeight: 700, boxShadow: "0 0 20px #ff2d2daa" }}>
+              ⚠️ NEEDS CARE
+            </motion.div>
+          )}
+          <Link href="/games">
+            <div style={{ width: 36, height: 36, background: "#0a0a0a", border: "2px solid #0a0a0a", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "3px 3px 0px #c8ff00" }}>
+              <Gamepad2 size={18} color="#c8ff00" />
+            </div>
+          </Link>
+        </div>
+      </div>
+
+      {/* ── Toast ── */}
       <AnimatePresence>
         {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            style={{
-              position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)",
-              zIndex: 200,
-              background: "#c8ff00", border: "2px solid #0a0a0a",
-              borderRadius: 12, padding: "10px 20px",
-              fontWeight: 700, fontSize: 14,
-              whiteSpace: "nowrap",
-              boxShadow: "0 4px 24px rgba(0,0,0,0.5)",
-            }}>
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="mx-4 mt-3 p-3 text-center"
+            style={{ background: "#c8ff00", border: "2px solid #0a0a0a", borderRadius: 12, fontWeight: 700, fontSize: 14, zIndex: 50, position: "relative" }}>
             {toast}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ══════════════════ ROOM TAB — full-screen immersive ══════════════════ */}
-      {tab === "room" && (
-        <div style={{
-          position: "relative",
-          height: "calc(100dvh - 56px)",
-          background: world.petRoomBg,
-          overflow: "hidden",
-        }}>
+      <div className="px-4 pt-3 pb-6 space-y-4">
 
-          {/* Time overlay */}
-          <div style={{
-            position: "absolute", inset: 0, zIndex: 1,
-            pointerEvents: "none", background: timeOverlay,
-          }} />
+        {/* ── XP Bar (always visible) ── */}
+        <div className="neo-card p-3">
+          <XPBar xp={pet.xp} xpToNext={xpToNext} progress={progress} level={pet.level} compact />
+        </div>
 
-          {/* 10 ambient float particles */}
-          {[...Array(10)].map((_, i) => (
-            <motion.div key={i}
-              animate={{ y: [0, -22, 0], x: [0, i % 2 === 0 ? 6 : -6, 0], opacity: [0.08, 0.4, 0.08] }}
-              transition={{ duration: 3 + i * 0.55, repeat: Infinity, delay: i * 0.38, ease: "easeInOut" }}
-              style={{
-                position: "absolute", borderRadius: "50%",
-                width: i < 3 ? 6 : 3, height: i < 3 ? 6 : 3,
-                background: world.accent,
-                top: `${10 + i * 8}%`, left: `${5 + i * 9}%`,
-                zIndex: 2, pointerEvents: "none",
-                filter: "blur(1px)",
-              }}
-            />
-          ))}
-
-          {/* Perspective floor */}
-          <div style={{
-            position: "absolute", bottom: 0, left: 0, right: 0, height: 90,
-            background: `${world.accent}18`, borderTop: `2px solid ${world.accent}55`,
-            zIndex: 2,
-          }}>
-            {[...Array(8)].map((_, i) => (
-              <div key={i} style={{
-                position: "absolute", bottom: 0,
-                left: `${(i + 1) * 11}%`, width: 1, height: "100%",
-                background: `linear-gradient(0deg, ${world.accent}55, transparent)`,
-              }} />
-            ))}
-          </div>
-
-          {/* Floating world emojis */}
-          {world.petRoomEmojis.slice(0, 3).map((emoji, i) => (
-            <motion.div key={i}
-              animate={{ y: [0, -8, 0], opacity: [0.55, 0.85, 0.55] }}
-              transition={{ duration: 3.5 + i, repeat: Infinity, delay: i * 0.7 }}
-              style={{
-                position: "absolute",
-                top: 14 + i * 20,
-                left: i === 0 ? 14 : i === 1 ? "38%" : undefined,
-                right: i === 2 ? 14 : undefined,
-                fontSize: (["1.8rem", "1.3rem", "1.1rem"] as const)[i],
-                zIndex: 3, pointerEvents: "none",
-              }}>
-              {emoji}
-            </motion.div>
-          ))}
-
-          {/* Ground decor */}
-          {world.petRoomEmojis.slice(3).map((emoji, i) => (
-            <div key={i} style={{
-              position: "absolute", bottom: 92,
-              left: i === 0 ? 10 : i === 1 ? "25%" : undefined,
-              right: i === 2 ? 10 : undefined,
-              fontSize: (["2.2rem", "1.6rem", "2rem"] as const)[i] ?? "1.6rem",
-              opacity: 0.8, zIndex: 3, pointerEvents: "none",
-            }}>{emoji}</div>
-          ))}
-
-          {/* Food bowl */}
-          <div style={{
-            position: "absolute", bottom: 92, left: "50%", transform: "translateX(-50%)",
-            zIndex: 3, pointerEvents: "none", fontSize: "1.8rem", opacity: 0.6,
-          }}>🍜</div>
-
-          {/* ── TOP FLOATING HUD ── */}
-          <div style={{
-            position: "absolute", top: 0, left: 0, right: 0, zIndex: 20,
-            background: "linear-gradient(180deg, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0) 100%)",
-            padding: "14px 16px 36px",
-          }}>
-            {/* Row 1: name + right badges */}
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
-              {/* Left: name + class */}
-              <div>
-                <div style={{
-                  fontSize: "1.7rem", fontWeight: 900, lineHeight: 1,
-                  ...(({
-                    background: `linear-gradient(135deg, ${world.accent}, #fff)`,
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                    backgroundClip: "text",
-                  } as React.CSSProperties)),
+        {/* ── Tab Nav ── */}
+        <div style={{ display: "flex", gap: 4, overflowX: "auto", scrollbarWidth: "none" }}>
+          {(["room", "train", "bond", "grow", "squad", "ville"] as const).map(t => {
+            const isVille = t === "ville";
+            const isSquad = t === "squad";
+            const activeColor = isVille ? "#ff9d00" : isSquad ? "#06b6d4" : "#c8ff00";
+            const activeShadow = isVille ? "0 0 14px #ff9d0055" : isSquad ? "0 0 14px #06b6d444" : "0 0 14px #c8ff0044";
+            const label = isVille ? "🏙️ VILLE" : isSquad ? "👥 SQUAD" : t.toUpperCase();
+            return (
+              <button key={t} onClick={() => setTab(t)}
+                style={{
+                  flex: 1, padding: "9px 4px",
+                  background: tab === t ? "#0a0a0a" : "#111",
+                  border: tab === t ? `2.5px solid ${activeColor}` : "2.5px solid #222",
+                  borderRadius: 12,
+                  fontSize: isVille || isSquad ? 10 : 11, fontWeight: 700,
+                  color: tab === t ? activeColor : "#666",
+                  letterSpacing: "0.03em",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  minWidth: 0,
+                  boxShadow: tab === t ? activeShadow : "none",
                 }}>
-                  {pet.name}
-                </div>
-                <div style={{ fontSize: 11, color: classColor, fontWeight: 700, letterSpacing: "0.06em", marginTop: 2 }}>
-                  {pet.class.toUpperCase()} · {evolLabel}
-                </div>
-              </div>
+                {label}
+              </button>
+            );
+          })}
+        </div>
 
-              {/* Right: care + streak + level + game link */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {isCritical && (
-                  <motion.div
-                    animate={{ scale: [1, 1.1, 1] }}
-                    transition={{ repeat: Infinity, duration: 1 }}
+        {/* ══════════════════ ROOM TAB ══════════════════ */}
+        {tab === "room" && (
+          <div className="space-y-3">
+
+            {/* ── IMMERSIVE PET ROOM ── */}
+            <div style={{
+              borderRadius: 24, overflow: "hidden",
+              border: `2.5px solid ${world.accent}55`,
+              boxShadow: `0 0 50px ${world.accent}22, 0 0 100px ${world.accent}0a`,
+            }}>
+              {/* Room viewport */}
+              <div style={{ height: 460, background: world.petRoomBg, position: "relative", overflow: "hidden" }}>
+
+                {/* Time-of-day tint */}
+                <div style={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none", background: timeOverlay }} />
+
+                {/* Perspective floor */}
+                <div style={{
+                  position: "absolute", bottom: 0, left: 0, right: 0, height: 88,
+                  background: `${world.accent}18`, borderTop: `2px solid ${world.accent}55`,
+                  zIndex: 2,
+                }}>
+                  {[...Array(7)].map((_, i) => (
+                    <div key={i} style={{
+                      position: "absolute", bottom: 0,
+                      left: `${(i + 1) * 13}%`, width: 1, height: "100%",
+                      background: `linear-gradient(0deg, ${world.accent}55, transparent)`,
+                    }} />
+                  ))}
+                </div>
+
+                {/* Ambient glow particles */}
+                {[...Array(8)].map((_, i) => (
+                  <motion.div key={i}
+                    animate={{ y: [0, -22, 0], x: [0, i % 2 === 0 ? 6 : -6, 0], opacity: [0.08, 0.4, 0.08] }}
+                    transition={{ duration: 3 + i * 0.55, repeat: Infinity, delay: i * 0.38, ease: "easeInOut" }}
                     style={{
-                      background: "#ff2d2d", color: "#fff", borderRadius: 8,
-                      padding: "3px 8px", fontSize: 10, fontWeight: 700,
-                      boxShadow: "0 0 20px #ff2d2daa",
+                      position: "absolute", borderRadius: "50%",
+                      width: i < 3 ? 6 : 3, height: i < 3 ? 6 : 3,
+                      background: world.accent,
+                      top: `${10 + i * 9}%`, left: `${7 + i * 11}%`,
+                      zIndex: 2, pointerEvents: "none",
+                      filter: `blur(1px)`,
+                    }}
+                  />
+                ))}
+
+                {/* Floating world emojis */}
+                {world.petRoomEmojis.slice(0, 3).map((emoji, i) => (
+                  <motion.div key={i}
+                    animate={{ y: [0, -8, 0], opacity: [0.55, 0.85, 0.55] }}
+                    transition={{ duration: 3.5 + i, repeat: Infinity, delay: i * 0.7 }}
+                    style={{
+                      position: "absolute",
+                      top: 14 + i * 20,
+                      left: i === 0 ? 14 : i === 1 ? "38%" : undefined,
+                      right: i === 2 ? 14 : undefined,
+                      fontSize: ["1.8rem", "1.3rem", "1.1rem"][i],
+                      zIndex: 3, pointerEvents: "none",
                     }}>
-                    ⚠️CARE
+                    {emoji}
                   </motion.div>
-                )}
-                <span style={{ fontSize: 13, fontWeight: 900, color: "#ff6b35" }}>🔥{streak}</span>
-                <span style={{ fontSize: 13, fontWeight: 900, color: "#ffde00" }}>⭐{pet.level}</span>
-                <Link href="/games">
-                  <div style={{
-                    width: 34, height: 34, background: "rgba(0,0,0,0.6)",
-                    border: `1.5px solid ${world.accent}66`, borderRadius: 10,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    <Gamepad2 size={16} color={world.accent} />
-                  </div>
-                </Link>
-              </div>
-            </div>
+                ))}
 
-            {/* XP bar */}
-            <div style={{ height: 3, background: "rgba(255,255,255,0.1)", borderRadius: 999, overflow: "hidden" }}>
-              <motion.div
-                animate={{ width: `${progress * 100}%` }}
-                transition={{ duration: 0.8 }}
-                style={{
-                  height: "100%", borderRadius: 999,
-                  background: `linear-gradient(90deg, ${world.accent}88, ${world.accent})`,
-                }}
-              />
-            </div>
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 3, fontWeight: 600 }}>
-              XP {pet.xp.toLocaleString()} · {xpToNext.toLocaleString()} to Lv.{pet.level + 1}
-            </div>
-          </div>
+                {/* Ground decor */}
+                {world.petRoomEmojis.slice(3).map((emoji, i) => (
+                  <div key={i} style={{
+                    position: "absolute", bottom: 92,
+                    left: i === 0 ? 10 : i === 1 ? "25%" : undefined,
+                    right: i === 2 ? 10 : undefined,
+                    fontSize: ["2.2rem", "1.6rem", "2rem"][i],
+                    opacity: 0.8, zIndex: 3, pointerEvents: "none",
+                  }}>{emoji}</div>
+                ))}
 
-          {/* ── RIGHT SIDE BADGES ── */}
-          <div style={{
-            position: "absolute", top: 88, right: 12, zIndex: 12,
-            display: "flex", flexDirection: "column", gap: 5,
-          }}>
-            {/* World badge */}
-            <div style={{
-              background: `${world.accent}22`, border: `1.5px solid ${world.accent}`,
-              borderRadius: 8, padding: "3px 8px",
-              display: "flex", alignItems: "center", gap: 4,
-            }}>
-              <span style={{ fontSize: "0.85rem" }}>{world.emoji}</span>
-              <span style={{ fontSize: 10, fontWeight: 700, color: world.accent, letterSpacing: "0.06em" }}>{world.name}</span>
-            </div>
-            {/* Time badge */}
-            <div style={{
-              background: "rgba(0,0,0,0.45)", border: "1.5px solid transparent",
-              borderRadius: 8, padding: "3px 8px",
-              display: "flex", alignItems: "center", gap: 4,
-            }}>
-              <span style={{ fontSize: "0.8rem" }}>{timeMood}</span>
-              <span style={{ fontSize: 10, fontWeight: 600, color: "#ccc" }}>{timeLabel}</span>
-            </div>
-            {/* Karma badge */}
-            <div style={{
-              background: "rgba(0,0,0,0.45)", border: "1.5px solid transparent",
-              borderRadius: 8, padding: "3px 8px",
-              display: "flex", alignItems: "center", gap: 4,
-            }}>
-              <span style={{ fontSize: "0.85rem" }}>⚡</span>
-              <span style={{ fontSize: 10, fontWeight: 700, color: "#c8ff00" }}>{user.karma.toLocaleString()}</span>
-            </div>
-          </div>
+                {/* Food bowl */}
+                <div style={{
+                  position: "absolute", bottom: 92, left: "50%", transform: "translateX(-50%)",
+                  zIndex: 3, pointerEvents: "none", fontSize: "1.8rem", opacity: 0.6,
+                }}>🍜</div>
 
-          {/* ── CENTRAL PET ── */}
-          <div style={{
-            position: "absolute", top: "50%", left: "50%",
-            transform: "translate(-50%, -58%)",
-            zIndex: 10,
-            display: "flex", flexDirection: "column", alignItems: "center",
-          }}>
-            {/* Outer wrapper 200×200 */}
-            <div style={{ position: "relative", width: 200, height: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
-
-              {/* SVG XP ring */}
-              <svg width={200} height={200} style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }}>
-                {/* Background circle */}
-                <circle
-                  cx={100} cy={100} r={RING_R}
-                  fill="none"
-                  stroke={world.accent}
-                  strokeWidth={7}
-                  opacity={0.06}
-                />
-                {/* Progress circle */}
-                <circle
-                  cx={100} cy={100} r={RING_R}
-                  fill="none"
-                  stroke={world.accent}
-                  strokeWidth={7}
-                  strokeLinecap="round"
-                  strokeDasharray={RING_CIRCUMFERENCE}
-                  strokeDashoffset={RING_CIRCUMFERENCE * (1 - progress)}
-                  style={{ filter: `drop-shadow(0 0 6px ${world.accent})`, transition: "stroke-dashoffset 0.8s ease" }}
-                />
-              </svg>
-
-              {/* LV badge floating on ring at top */}
-              <div style={{
-                position: "absolute", top: -2, left: "50%", transform: "translateX(-50%)",
-                background: world.accent, color: "#000",
-                borderRadius: 99, padding: "2px 8px",
-                fontSize: 10, fontWeight: 900, letterSpacing: "0.05em",
-                zIndex: 15,
-              }}>
-                LV.{pet.level}
-              </div>
-
-              {/* Glow orb */}
-              <motion.div
-                animate={{ scale: [1, 1.35, 1], opacity: [0.35, 0.15, 0.35] }}
-                transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
-                style={{
-                  position: "absolute", width: 180, height: 180,
-                  borderRadius: "50%",
-                  background: `radial-gradient(circle, ${world.glowColor} 0%, transparent 70%)`,
-                  pointerEvents: "none",
-                }}
-              />
-
-              {/* Critical pulse ring */}
-              {isCritical && (
+                {/* Giant glow orb */}
                 <motion.div
-                  animate={{ scale: [1, 1.45, 1], opacity: [1, 0, 1] }}
-                  transition={{ duration: 0.9, repeat: Infinity }}
+                  animate={{ scale: [1, 1.3, 1], opacity: [0.4, 0.18, 0.4] }}
+                  transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
                   style={{
-                    position: "absolute", width: 185, height: 185,
-                    borderRadius: "50%", border: "3px solid #ff2d2d",
-                    pointerEvents: "none",
+                    position: "absolute", bottom: 86, left: "50%", transform: "translateX(-50%)",
+                    width: 280, height: 280, borderRadius: "50%",
+                    background: `radial-gradient(circle, ${world.glowColor} 0%, transparent 70%)`,
+                    zIndex: 3, pointerEvents: "none",
                   }}
                 />
-              )}
 
-              {/* Hat */}
-              {equippedHat && (
-                <div style={{
-                  position: "absolute", top: 3, left: "50%", transform: "translateX(-50%)",
-                  fontSize: "2rem", zIndex: 16, lineHeight: 1,
-                  filter: `drop-shadow(0 3px 8px ${world.glowColor})`,
-                }}>
-                  {equippedHat}
-                </div>
-              )}
-
-              {/* Pet circle 180×180 */}
-              <motion.div
-                animate={
-                  petAction === "petting"  ? { scale: [1, 1.3, 0.93, 1.12, 1], rotate: [0, -10, 10, 0] } :
-                  petAction === "eating"   ? { scale: [1, 1.22, 0.9, 1.12, 1], y: [0, -10, 0] } :
-                  petAction === "playing"  ? { y: [0, -32, 0, -18, 0], rotate: [0, 14, -14, 0] } :
-                  petAction === "sleeping" ? { rotate: [0, 8, 8], scale: [1, 0.94, 0.94] } :
-                  petMoodComputed === "excited"
-                    ? { y: [0, -20, 0], scale: [1, 1.08, 1], rotate: [0, -4, 4, 0] }
-                    : { y: [0, -10, 0], scale: [1, 1.02, 1] }
-                }
-                transition={
-                  petAction
-                    ? { duration: 0.85, ease: "easeInOut" }
-                    : { duration: petMoodComputed === "excited" ? 1.6 : 3.2, repeat: Infinity, ease: "easeInOut" }
-                }
-                onClick={handlePetTap}
-                style={{
-                  width: 180, height: 180,
-                  borderRadius: "50%",
-                  background: "rgba(255,255,255,0.96)",
-                  border: `4px solid ${petColor}`,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: "5rem",
-                  cursor: "pointer",
-                  position: "relative", zIndex: 10,
-                  boxShadow: `0 0 70px ${world.glowColor}77, 0 0 140px ${world.glowColor}22, 6px 6px 0 ${petColor}`,
-                }}
-              >
-                {petEmoji}
-
-                {/* Tap particles */}
-                <AnimatePresence>
-                  {particles.map(p => (
-                    <motion.div key={p.id}
-                      initial={{ opacity: 1, y: 0, scale: 1 }}
-                      animate={{ opacity: 0, y: -80, scale: 1.8 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.9, ease: "easeOut" }}
-                      style={{
-                        position: "absolute", left: p.x - 14, top: p.y - 90,
-                        fontSize: "1.6rem", pointerEvents: "none", zIndex: 20,
-                      }}>
-                      💗
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-
-                {/* Love bubble */}
-                <AnimatePresence>
-                  {loveBubble && (
-                    <motion.div
-                      key="love"
-                      initial={{ opacity: 0, scale: 0.5, y: 0 }}
-                      animate={{ opacity: 1, scale: 1, y: -68 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      transition={{ duration: 0.35 }}
-                      style={{
-                        position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)",
-                        background: "#fff", border: "2px solid #0a0a0a",
-                        borderRadius: 12, padding: "4px 12px",
-                        fontSize: 13, fontWeight: 700,
-                        whiteSpace: "nowrap", boxShadow: "2px 2px 0px #0a0a0a", zIndex: 30,
-                      }}>
-                      Love! 💗
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            </div>
-
-            {/* Nameplate */}
-            <div style={{
-              marginTop: -6,
-              background: "rgba(0,0,0,0.72)",
-              color: "#fff", borderRadius: 99,
-              padding: "4px 14px",
-              fontSize: 12, fontWeight: 700, letterSpacing: "0.06em",
-              border: `1.5px solid ${world.accent}66`,
-              zIndex: 11,
-            }}>
-              {moodEmoji} {pet.name} · {evolLabel}
-            </div>
-
-            {/* Speech bubble */}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={`speech-${speechIdx}`}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.85 }}
-                transition={{ duration: 0.22 }}
-                style={{
-                  marginTop: 8,
-                  background: "#fff", border: "2px solid #0a0a0a",
-                  borderRadius: 14, padding: "6px 12px",
-                  fontSize: 12, fontWeight: 600, maxWidth: 200,
-                  boxShadow: "2px 2px 0px #0a0a0a", lineHeight: 1.4,
-                  textAlign: "center", color: "#111",
-                  zIndex: 11,
-                }}>
-                <span style={{ fontSize: "1rem", marginRight: 4 }}>{moodEmoji}</span>
-                {currentSpeech}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-          {/* ── BOTTOM NEEDS + ACTIONS ── */}
-          <div style={{
-            position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 15,
-            background: "linear-gradient(0deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 70%, rgba(0,0,0,0) 100%)",
-            padding: "20px 14px 10px",
-          }}>
-            {/* 3 needs bars */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-              {[
-                { label: "HUNGER", icon: "🍖", color: "#ff6b35", val: pet.needs.hunger },
-                { label: "HAPPY",  icon: "😊", color: "#ff2d8d", val: pet.needs.happiness },
-                { label: "ENERGY", icon: "⚡", color: "#c8ff00", val: pet.needs.energy },
-              ].map(n => {
-                const crit = n.val < 30;
-                return (
-                  <div key={n.label} style={{ flex: 1 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: crit ? "#ff2d2d" : n.color }}>
-                        {n.icon}{crit ? " ⚠" : ""}
-                      </span>
-                      <span style={{ fontSize: 9, color: "#666", fontWeight: 600 }}>{n.val}%</span>
-                    </div>
-                    <div style={{ height: 5, background: "rgba(0,0,0,0.5)", borderRadius: 999, overflow: "hidden", boxShadow: crit ? "0 0 6px #ff2d2d" : "none" }}>
-                      <motion.div
-                        animate={{ width: `${n.val}%` }}
-                        transition={{ duration: 0.8 }}
-                        style={{
-                          height: "100%", borderRadius: 999,
-                          background: crit
-                            ? "linear-gradient(90deg,#ff2d2d,#ff6b35)"
-                            : `linear-gradient(90deg,${n.color}88,${n.color})`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* 5-button action grid */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 6 }}>
-              {[
-                { label: "FEED",   icon: "🍖", color: "#ff6b35", sub: "-50⚡",  onClick: () => handleFeed("basic") },
-                { label: "FEAST",  icon: "🥩", color: "#ffde00", sub: "-150⚡", onClick: () => handleFeed("premium") },
-                { label: "PLAY",   icon: "🎾", color: "#4caf50", sub: "-18nrg", onClick: handlePlay },
-                { label: "REST",   icon: "💤", color: "#3b82f6", sub: "+45nrg", onClick: handleRest },
-                { label: "BATTLE", icon: "⚔️", color: "#ff2d8d", sub: "+karma", href: "/games/battle" },
-              ].map(a => {
-                const inner = (
-                  <div style={{
-                    padding: "10px 2px",
-                    background: `${a.color}14`,
-                    border: `1.5px solid ${a.color}66`,
-                    borderRadius: 14, textAlign: "center", cursor: "pointer",
-                  }}>
-                    <div style={{ fontSize: "1.5rem" }}>{a.icon}</div>
-                    <div style={{ fontSize: 9, fontWeight: 900, color: a.color, letterSpacing: "0.04em", marginTop: 2 }}>{a.label}</div>
-                    <div style={{ fontSize: 8, color: "#555", marginTop: 1 }}>{a.sub}</div>
-                  </div>
-                );
-                return a.href
-                  ? <Link key={a.label} href={a.href} style={{ textDecoration: "none" }}>{inner}</Link>
-                  : <div key={a.label} onClick={a.onClick}>{inner}</div>;
-              })}
-            </div>
-          </div>
-
-        </div>
-      )}
-
-      {/* ══════════════════ NON-ROOM TABS ══════════════════ */}
-      {tab !== "room" && (
-        <div style={{ paddingBottom: 72 }}>
-
-          {/* Sticky mini header */}
-          <div style={{
-            position: "sticky", top: 0, zIndex: 40,
-            background: "var(--bg)",
-            borderBottom: "2px solid #1a1a1a",
-            padding: "12px 16px",
-            display: "flex", alignItems: "center", gap: 10,
-          }}>
-            {/* Pet avatar */}
-            <div style={{
-              width: 40, height: 40, borderRadius: "55%",
-              background: "#111", border: `2px solid ${world.accent}`,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: "1.4rem", flexShrink: 0,
-            }}>
-              {petEmoji}
-            </div>
-
-            {/* Title + subtitle */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 900, letterSpacing: "0.06em", color: "#fff" }}>
-                {TAB_TITLE[tab] ?? tab.toUpperCase()}
-              </div>
-              <div style={{ fontSize: 10, color: classColor, fontWeight: 600 }}>
-                {pet.name} · {pet.class}
-              </div>
-            </div>
-
-            {/* Right: karma + level */}
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, flexShrink: 0 }}>
-              <span style={{ fontSize: 13, fontWeight: 900, color: "#c8ff00" }}>⚡ {user.karma.toLocaleString()}</span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "#555" }}>Lv.{pet.level}</span>
-            </div>
-          </div>
-
-          {/* Content */}
-          <div style={{ padding: "16px 16px 0" }} className="space-y-4">
-
-            {/* ══ TRAIN TAB ══ */}
-            {tab === "train" && (
-              <div style={{ background: "#0c0c0c", border: "2px solid #1a1a1a", borderRadius: 20, padding: "16px" }} className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div style={{ fontSize: 16, fontWeight: 700 }}>⚡ Training Mini-Game</div>
-                    <div style={{ fontSize: 12, color: "#888" }}>Tap the target before it vanishes!</div>
-                  </div>
-                  {trainCooldown > 0 && !trainActive && !trainDone && (
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#ff6b35" }}>
-                      ⏳ {trainCooldown}m
-                    </div>
-                  )}
-                </div>
-
-                {/* Stats row */}
-                {(trainActive || trainDone) && (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    {[
-                      { label: "Hits",   val: trainHits },
-                      { label: "Streak", val: `${trainStreak}${trainStreak >= 3 ? ` ×${Math.min(3, Math.floor(trainStreak / 3) + 1)}` : ""}` },
-                      { label: "XP",     val: `+${trainXP}` },
-                      { label: "Left",   val: TRAIN_MAX - trainHits },
-                    ].map(s => (
-                      <div key={s.label} style={{ flex: 1, background: "#111", border: "2px solid #0a0a0a", borderRadius: 10, padding: "6px 4px", textAlign: "center" }}>
-                        <div style={{ fontSize: 16, fontWeight: 700 }}>{s.val}</div>
-                        <div style={{ fontSize: 9, color: "#888", fontWeight: 600, letterSpacing: "0.04em" }}>{s.label.toUpperCase()}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Play area */}
-                {trainActive && !trainDone && (
-                  <div style={{ position: "relative", width: "100%", height: 200, background: "#0a0a0a", borderRadius: 14, border: "3px solid #c8ff00", overflow: "hidden" }}>
-                    <AnimatePresence>
-                      {floats.map(f => (
-                        <motion.div key={f.id}
-                          initial={{ opacity: 1, y: f.y, x: f.x }}
-                          animate={{ opacity: 0, y: f.y - 40 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.8 }}
-                          style={{ position: "absolute", fontSize: 14, fontWeight: 700, color: "#c8ff00", pointerEvents: "none", zIndex: 10 }}>
-                          {f.text}
-                        </motion.div>
-                      ))}
-                    </AnimatePresence>
-
-                    <AnimatePresence>
-                      {trainTarget && (
-                        <motion.button
-                          key={trainTarget.id}
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          exit={{ scale: 0, opacity: 0 }}
-                          transition={{ duration: 0.15 }}
-                          onClick={() => hitTarget(trainTarget.id, trainTarget.x, trainTarget.y)}
-                          style={{
-                            position: "absolute",
-                            left: trainTarget.x, top: trainTarget.y,
-                            width: 48, height: 48, borderRadius: "50%",
-                            background: `radial-gradient(circle, ${world.accent} 0%, ${world.glowColor} 100%)`,
-                            border: "3px solid #fff", cursor: "pointer", fontSize: "1.2rem",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            transform: "translate(-50%, -50%)",
-                            boxShadow: `0 0 16px ${world.glowColor}`,
-                          }}>
-                          ✦
-                        </motion.button>
-                      )}
-                    </AnimatePresence>
-
-                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 4, background: "#222" }}>
-                      <div style={{ height: "100%", background: "#c8ff00", width: `${(trainHits / TRAIN_MAX) * 100}%`, transition: "width 0.2s" }} />
-                    </div>
-                  </div>
-                )}
-
-                {/* Results */}
-                {trainDone && (
-                  <div style={{ background: "#0f0f0f", border: "2.5px solid #c8ff0044", borderRadius: 14, padding: 16, textAlign: "center" }}>
-                    <div style={{ fontSize: "2rem", marginBottom: 4 }}>🏆</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Training Complete!</div>
-                    <div style={{ display: "flex", justifyContent: "center", gap: 16, marginBottom: 12 }}>
-                      <div>
-                        <div style={{ fontSize: 22, fontWeight: 700 }}>{Math.round((trainHits / TRAIN_MAX) * 100)}%</div>
-                        <div style={{ fontSize: 10, color: "#888" }}>ACCURACY</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 22, fontWeight: 700, color: "#4caf50", textShadow: "0 0 10px #4caf5088" }}>+{trainXP}</div>
-                        <div style={{ fontSize: 10, color: "#888" }}>XP EARNED</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 22, fontWeight: 700, color: "#a855f7" }}>+{Math.floor(trainXP / 3)}</div>
-                        <div style={{ fontSize: 10, color: "#888" }}>KARMA</div>
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 12, color: "#888" }}>Next session in 30 min</div>
-                  </div>
-                )}
-
-                {/* Start button */}
-                {!trainActive && !trainDone && (
-                  <button
-                    onClick={startTraining}
-                    disabled={trainCooldown > 0}
-                    style={{
-                      width: "100%", padding: "14px",
-                      background: trainCooldown > 0 ? "#1a1a1a" : "#0a0a0a",
-                      color: trainCooldown > 0 ? "#444" : "#c8ff00",
-                      border: "2.5px solid #1a1a1a", borderRadius: 14,
-                      fontSize: 15, fontWeight: 700,
-                      cursor: trainCooldown > 0 ? "not-allowed" : "pointer",
-                      letterSpacing: "0.04em",
-                    }}>
-                    {trainCooldown > 0 ? `⏳ Recharges in ${trainCooldown} min` : "⚡ START TRAINING"}
-                  </button>
-                )}
-
-                {trainDone && (
-                  <button
-                    onClick={() => setTrainDone(false)}
-                    style={{
-                      width: "100%", padding: "12px",
-                      background: "#111", border: "2.5px solid #1a1a1a",
-                      borderRadius: 14, fontSize: 14, fontWeight: 700,
-                      cursor: "pointer", color: "#fff",
-                    }}>
-                    Back
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* ══ BOND / STYLE TAB ══ */}
-            {tab === "bond" && (
-              <div className="space-y-4">
-                {/* Diary */}
-                <div style={{ background: "#0c0c0c", border: "2px solid #1a1a1a", borderRadius: 20, padding: "16px" }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
-                    📖 Bond Diary
-                  </div>
-                  <div style={{ background: "#0f0f0f", border: "2px solid #1a1a1a", borderRadius: 12, overflow: "hidden" }}>
-                    {diaryAll.map((entry, i) => (
-                      <div key={i} style={{
-                        display: "flex", alignItems: "center", gap: 10,
-                        padding: "10px 12px",
-                        borderBottom: i < diaryAll.length - 1 ? "1px solid #1a1a1a" : "none",
-                        background: i % 2 === 0 ? "#0f0f0f" : "#111",
-                      }}>
-                        <span style={{ fontSize: "1.3rem", flexShrink: 0 }}>{entry.emoji}</span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3, color: "#ddd" }}>{entry.text}</div>
-                          <div style={{ fontSize: 10, color: "#555" }}>{entry.time}</div>
-                        </div>
-                        <div style={{ textAlign: "right", flexShrink: 0 }}>
-                          {entry.xp > 0 && <div style={{ fontSize: 11, fontWeight: 700, color: "#4caf50" }}>+{entry.xp} XP</div>}
-                          {entry.karma > 0 && <div style={{ fontSize: 11, fontWeight: 700, color: "#a855f7" }}>+{entry.karma} ⚡</div>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Accessories */}
-                <div style={{ background: "#0c0c0c", border: "2px solid #1a1a1a", borderRadius: 20, padding: "16px" }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>🎩 Accessories</div>
-
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 8, letterSpacing: "0.05em" }}>HATS</div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-                    {HAT_OPTIONS.map(hat => (
-                      <button key={hat} onClick={() => selectHat(hat)}
-                        style={{
-                          width: 48, height: 48, borderRadius: 12,
-                          border: equippedHat === hat ? `2.5px solid ${world.accent}` : "2px solid #222",
-                          background: equippedHat === hat ? `${world.accent}18` : "#111",
-                          fontSize: "1.6rem", cursor: "pointer",
-                          boxShadow: equippedHat === hat ? `2px 2px 0px ${world.accent}` : "none",
-                        }}>
-                        {hat}
-                      </button>
-                    ))}
-                  </div>
-
-                  {equippedHat && (
-                    <div style={{ fontSize: 12, color: "#888", marginBottom: 12, fontWeight: 600 }}>
-                      Wearing: {equippedHat} · <span style={{ color: world.accent }}>Equipped</span>
-                    </div>
-                  )}
-
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 8, letterSpacing: "0.05em" }}>PET BORDER COLOR</div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    {COLOR_OPTIONS.map(c => (
-                      <button key={c} onClick={() => selectColor(c)}
-                        style={{
-                          width: 36, height: 36, borderRadius: "50%",
-                          background: c,
-                          border: petColor === c ? "3px solid #0a0a0a" : "2px solid transparent",
-                          cursor: "pointer",
-                          boxShadow: petColor === c ? `0 0 0 2px #fff, 0 0 0 4px ${c}` : "none",
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ══ GROW TAB ══ */}
-            {tab === "grow" && (
-              <div className="space-y-4">
-                {/* Evolution tree */}
-                <div style={{ background: "#0c0c0c", border: "2px solid #1a1a1a", borderRadius: 20, padding: "16px" }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>🌱 Evolution Roadmap</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {EVO_STAGES.map((stage, i) => {
-                      const isActive = i === currentStageIdx;
-                      const isDone = i < currentStageIdx;
-                      const isLocked = i > currentStageIdx;
-                      return (
-                        <div key={stage.key}>
-                          <div style={{
-                            display: "flex", alignItems: "center", gap: 12,
-                            padding: "12px 14px",
-                            background: isActive ? `${world.accent}15` : isDone ? "#0a1a0a" : "#111",
-                            border: `2.5px solid ${isActive ? world.accent : isDone ? "#4caf50" : "#1a1a1a"}`,
-                            borderRadius: 14,
-                            opacity: isLocked ? 0.6 : 1,
-                            boxShadow: isActive ? `0 0 16px ${world.glowColor}` : "none",
-                          }}>
-                            <motion.div
-                              animate={isActive ? { scale: [1, 1.1, 1] } : {}}
-                              transition={{ duration: 2, repeat: Infinity }}
-                              style={{ fontSize: "2rem", flexShrink: 0 }}>
-                              {stage.emoji}
-                            </motion.div>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                                <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{stage.label}</span>
-                                {isActive && (
-                                  <span style={{ fontSize: 9, fontWeight: 700, background: world.accent, color: "#000", borderRadius: 4, padding: "1px 5px" }}>
-                                    CURRENT
-                                  </span>
-                                )}
-                                {isDone && <span style={{ fontSize: 12 }}>✅</span>}
-                              </div>
-                              <div style={{ fontSize: 11, color: "#555", marginBottom: 4 }}>
-                                {stage.xpReq === 0 ? "Starting stage" : `Requires ${stage.xpReq.toLocaleString()} XP`}
-                              </div>
-                              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                                {stage.abilities.map(ab => (
-                                  <span key={ab} style={{
-                                    fontSize: 10, fontWeight: 700,
-                                    background: isDone || isActive ? "#0a0a0a" : "#1a1a1a",
-                                    color: isDone || isActive ? "#c8ff00" : "#444",
-                                    borderRadius: 5, padding: "2px 6px",
-                                  }}>{ab}</span>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-
-                          {isActive && nextStage && (
-                            <div style={{ margin: "6px 12px" }}>
-                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                                <span style={{ fontSize: 10, color: "#555" }}>Progress to {nextStage.label}</span>
-                                <span style={{ fontSize: 10, fontWeight: 700, color: world.accent }}>
-                                  {Math.round(evoProgress)}%
-                                </span>
-                              </div>
-                              <div style={{ height: 6, background: "#1a1a1a", borderRadius: 6, overflow: "hidden" }}>
-                                <motion.div
-                                  initial={{ width: 0 }}
-                                  animate={{ width: `${evoProgress}%` }}
-                                  transition={{ duration: 1, ease: "easeOut" }}
-                                  style={{ height: "100%", background: world.accent, borderRadius: 6 }}
-                                />
-                              </div>
-                              <div style={{ fontSize: 11, color: "#555", marginTop: 4, fontWeight: 600 }}>
-                                Next evolution at {nextStage.xpReq.toLocaleString()} XP
-                                · {Math.max(0, nextStage.xpReq - pet.xp).toLocaleString()} to go
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Stats grid */}
-                <div style={{ background: "#0c0c0c", border: "2px solid #1a1a1a", borderRadius: 20, padding: "16px" }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>📊 Pet Stats</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                    {[
-                      { label: "HP",  value: statHP,  color: "#4caf50", icon: "❤️" },
-                      { label: "ATK", value: statATK, color: "#ff6b35", icon: "⚔️" },
-                      { label: "SPD", value: statSPD, color: "#00e5ff", icon: "💨" },
-                      { label: "LCK", value: statLCK, color: "#a855f7", icon: "🍀" },
-                    ].map(stat => (
-                      <div key={stat.label} style={{ background: "#111", border: "2px solid #222", borderRadius: 12, padding: "10px 12px", boxShadow: `0 0 16px ${stat.color}33` }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: "#ddd" }}>{stat.icon} {stat.label}</span>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: stat.color, textShadow: `0 0 8px ${stat.color}` }}>{stat.value}</span>
-                        </div>
-                        <div style={{ height: 8, background: "#222", borderRadius: 6, overflow: "hidden" }}>
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${stat.value}%` }}
-                            transition={{ duration: 0.9, ease: "easeOut", delay: 0.1 }}
-                            style={{ height: "100%", background: stat.color, borderRadius: 6, boxShadow: `0 0 6px ${stat.color}` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div style={{ marginTop: 14 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 8, letterSpacing: "0.05em" }}>UNLOCKED ABILITIES</div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      {pet.unlockedAbilities.length > 0
-                        ? pet.unlockedAbilities.map(a => (
-                            <span key={a} style={{ padding: "4px 10px", background: "#0a0a0a", color: "#c8ff00", borderRadius: 8, fontSize: 12, fontWeight: 700 }}>{a}</span>
-                          ))
-                        : <span style={{ fontSize: 12, color: "#555" }}>Level up to unlock abilities!</span>
-                      }
-                    </div>
-                  </div>
-                </div>
-
-                {/* Streak */}
-                <div style={{ background: "#0c0c0c", border: "2px solid #1a1a1a", borderRadius: 20, padding: "16px", display: "flex", alignItems: "center", gap: 16 }}>
-                  <div style={{ fontSize: "2rem" }}>🔥</div>
-                  <div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>{pet.streak} day streak</div>
-                    <div style={{ fontSize: 12, color: "#555" }}>Keep grinding every day!</div>
-                  </div>
-                  <div style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: world.accent }}>
-                    {pet.totalBountiesCompleted} bounties done
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ══ SQUAD TAB ══ */}
-            {tab === "squad" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-
-                <div style={{
-                  background: "linear-gradient(135deg, #001a1a, #00111a)",
-                  border: "2.5px solid #06b6d4", borderRadius: 20, padding: "16px",
-                  display: "flex", alignItems: "center", gap: 12,
-                }}>
-                  <motion.div animate={{ scale: [1, 1.12, 1] }} transition={{ repeat: Infinity, duration: 2 }}
-                    style={{ fontSize: "2.2rem" }}>👥</motion.div>
-                  <div>
-                    <div style={{ fontSize: 16, fontWeight: 900, color: "#06b6d4", letterSpacing: "0.06em" }}>TON SQUAD</div>
-                    <div style={{ fontSize: 12, color: "#555" }}>Utmana vänner · Dela segrar · Klättra ligan</div>
-                  </div>
-                  <div style={{
-                    marginLeft: "auto", background: "#06b6d422", border: "2px solid #06b6d4",
-                    borderRadius: 10, padding: "4px 10px", textAlign: "center",
-                  }}>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: "#06b6d4" }}>{FRIENDS.length}</div>
-                    <div style={{ fontSize: 9, color: "#555" }}>VÄNNER</div>
-                  </div>
-                </div>
-
-                {FRIENDS.map(friend => {
-                  const isChallenged = challengedFriend === friend.id;
-                  return (
-                    <motion.div key={friend.id}
-                      initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
-                      style={{
-                        background: "#0d1214", border: `2px solid ${friend.online ? "#06b6d444" : "#1a2a3a"}`,
-                        borderRadius: 18, padding: "14px 16px",
-                        display: "flex", alignItems: "center", gap: 12,
-                      }}
-                    >
-                      <div style={{ position: "relative", flexShrink: 0 }}>
-                        <div style={{
-                          width: 52, height: 52, borderRadius: 16,
-                          background: friend.online ? "#002222" : "#111",
-                          border: `2px solid ${friend.online ? "#06b6d4" : "#222"}`,
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: "1.6rem",
-                        }}>{friend.emoji}</div>
-                        {friend.online && (
-                          <div style={{
-                            position: "absolute", bottom: 2, right: 2,
-                            width: 10, height: 10, borderRadius: "50%",
-                            background: "#22c55e", border: "2px solid #0d1214",
-                          }} />
-                        )}
-                      </div>
-
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>@{friend.username}</span>
-                          <span style={{ fontSize: 10, color: "#555" }}>Lv.{friend.level}</span>
-                        </div>
-                        <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
-                          {friend.petEmoji} {friend.petName}
-                        </div>
-                        <div style={{ fontSize: 10, color: friend.online ? "#22c55e" : "#444", marginTop: 2, fontWeight: 600 }}>
-                          {friend.online ? (friend.currentGame ? `🎮 ${friend.currentGame}` : "🟢 Online") : `⚫ ${friend.lastActivity}`}
-                        </div>
-                      </div>
-
-                      <motion.button
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => {
-                          setChallengedFriend(friend.id);
-                          showToast(`Utmanade ${friend.emoji} @${friend.username}! ⚔️`);
-                          setTimeout(() => setChallengedFriend(null), 3000);
-                        }}
-                        style={{
-                          padding: "8px 12px",
-                          background: isChallenged ? "#c8ff0022" : "#0a1a00",
-                          border: `2px solid ${isChallenged ? "#c8ff00" : "#333"}`,
-                          borderRadius: 12, fontSize: 11, fontWeight: 700,
-                          color: isChallenged ? "#c8ff00" : "#555",
-                          cursor: "pointer", flexShrink: 0,
-                        }}
-                      >
-                        {isChallenged ? "✅ Skickat!" : "⚔️ UTMANA"}
-                      </motion.button>
-                    </motion.div>
-                  );
-                })}
-
-                {/* Squad Leaderboard */}
-                <div style={{
-                  background: "#0d1214", border: "2.5px solid #ffde0066",
-                  borderRadius: 20, padding: "16px",
-                }}>
-                  <div style={{ fontSize: 13, fontWeight: 900, color: "#ffde00", letterSpacing: "0.08em", marginBottom: 12 }}>
-                    👑 SQUAD LIGA — DENNA VECKA
-                  </div>
-                  {[
-                    { emoji: "🦊", name: "Du", level: pet.level, karma: user.karma, rank: 1 },
-                    ...FRIENDS.slice(0, 4).map((f, i) => ({
-                      emoji: f.emoji, name: `@${f.username}`,
-                      level: f.level, karma: Math.floor(user.karma * (0.9 - i * 0.15)), rank: i + 2,
-                    })),
-                  ].map(entry => (
-                    <div key={entry.rank} style={{
-                      display: "flex", alignItems: "center", gap: 10,
-                      padding: "8px 0",
-                      borderBottom: entry.rank < 5 ? "1px solid #1a2a3a" : "none",
-                    }}>
-                      <div style={{
-                        width: 26, height: 26, borderRadius: 8, flexShrink: 0,
-                        background: entry.rank === 1 ? "#ffde0022" : "#111",
-                        border: `1.5px solid ${entry.rank === 1 ? "#ffde00" : entry.rank === 2 ? "#aaa" : entry.rank === 3 ? "#cd7f32" : "#222"}`,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 11, fontWeight: 700,
-                        color: entry.rank === 1 ? "#ffde00" : entry.rank <= 3 ? "#ccc" : "#555",
-                      }}>
-                        {entry.rank === 1 ? "👑" : `#${entry.rank}`}
-                      </div>
-                      <span style={{ fontSize: "1.2rem", flexShrink: 0 }}>{entry.emoji}</span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: entry.rank === 1 ? "#ffde00" : "#fff" }}>{entry.name}</div>
-                        <div style={{ fontSize: 10, color: "#555" }}>Lv.{entry.level}</div>
-                      </div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#c8ff00" }}>⚡ {entry.karma.toLocaleString()}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Joint challenge */}
-                <div style={{
-                  background: "linear-gradient(135deg, #0a0010, #100022)",
-                  border: "2.5px solid #8b5cf6", borderRadius: 20, padding: "16px",
-                  boxShadow: "0 0 24px #8b5cf622",
-                }}>
-                  <div style={{ fontSize: 13, fontWeight: 900, color: "#8b5cf6", letterSpacing: "0.06em", marginBottom: 8 }}>
-                    🎯 GEMENSAM UTMANING
-                  </div>
-                  <div style={{ fontSize: 14, color: "#fff", fontWeight: 700, marginBottom: 4 }}>
-                    Gå 50 000 steg ihop med ditt squad!
-                  </div>
-                  <div style={{ fontSize: 12, color: "#666", marginBottom: 12 }}>
-                    3 av 5 vänner har anslutit sig · Belöning: +500⚡ var
-                  </div>
-                  <div style={{ marginBottom: 8 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span style={{ fontSize: 11, color: "#8b5cf6", fontWeight: 700 }}>32 450 / 50 000 steg</span>
-                      <span style={{ fontSize: 11, color: "#555" }}>65%</span>
-                    </div>
-                    <div style={{ height: 8, background: "#1a0a2a", borderRadius: 999, overflow: "hidden" }}>
-                      <motion.div
-                        initial={{ width: 0 }} animate={{ width: "65%" }}
-                        transition={{ duration: 1, ease: "easeOut" }}
-                        style={{ height: "100%", background: "linear-gradient(90deg, #8b5cf6, #c084fc)", borderRadius: 999 }}
-                      />
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: -4 }}>
-                    {["🦊", "🌙", "⚔️"].map((e, i) => (
-                      <div key={i} style={{
-                        width: 30, height: 30, borderRadius: "50%",
-                        background: "#1a0a2a", border: "2px solid #8b5cf6",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: "1rem", marginLeft: i > 0 ? -8 : 0,
-                      }}>{e}</div>
-                    ))}
-                    <div style={{
-                      width: 30, height: 30, borderRadius: "50%",
-                      background: "#0a0a0a", border: "2px solid #333",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 10, color: "#555", marginLeft: -8,
-                    }}>+2</div>
-                  </div>
-                </div>
-
-              </div>
-            )}
-
-            {/* ══ VILLE TAB ══ */}
-            {tab === "ville" && (
-              <div className="space-y-4">
-
-                <div style={{
-                  background: "linear-gradient(135deg, #0d0800, #1a1000)",
-                  border: "2.5px solid #ff9d00", borderRadius: 20, padding: "14px 16px",
-                  boxShadow: "0 0 28px #ff9d0022",
-                }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                    <div>
-                      <div style={{ fontSize: 18, fontWeight: 900, color: "#ff9d00", letterSpacing: "-0.02em" }}>🏙️ {pet.name}&apos;s Ville</div>
-                      <div style={{ fontSize: 11, color: "#666", marginTop: 2 }}>Lv.{villeUserLevel} Stad · {villePlaced.length}/{VILLE_COLS * VILLE_ROWS} byggnader</div>
-                    </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: 11, color: "#555", fontWeight: 600 }}>PASSIV INKOMST</div>
-                      <div style={{ fontSize: 22, fontWeight: 900, color: "#c8ff00" }}>+{villePassiveKarma}<span style={{ fontSize: 11, color: "#555" }}>/h</span></div>
-                    </div>
-                  </div>
-                  <button onClick={villeCollect} disabled={villeCollecting}
-                    style={{
-                      width: "100%", padding: "10px",
-                      background: villeCollecting ? "#1a1a1a" : "linear-gradient(135deg, #ff9d00, #ffd000)",
-                      border: "2.5px solid #0a0a0a", borderRadius: 12,
-                      fontSize: 14, fontWeight: 900, color: "#0a0a0a",
-                      cursor: villeCollecting ? "not-allowed" : "pointer",
-                      boxShadow: villeCollecting ? "none" : "3px 3px 0 #0a0a0a",
-                      opacity: villeCollecting ? 0.5 : 1,
-                      letterSpacing: "0.04em",
-                    }}>
-                    {villeCollecting ? "⏳ SAMLAR IN..." : `🪙 SAMLA IN +${Math.round(villePassiveKarma * 0.5)} ⚡`}
-                  </button>
-                </div>
-
-                <div style={{
-                  background: "#060e06", border: "2.5px solid #ff9d00",
-                  borderRadius: 20, padding: 14,
-                  boxShadow: "0 0 20px #ff9d0018",
-                }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#ff9d00", letterSpacing: "0.08em", marginBottom: 10 }}>
-                    🗺️ STADSVY — tryck på en ruta
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: `repeat(${VILLE_COLS}, 1fr)`, gap: 6 }}>
-                    {Array.from({ length: VILLE_ROWS }).map((_, row) =>
-                      Array.from({ length: VILLE_COLS }).map((_, col) => {
-                        const placed = villeGetCell(col, row);
-                        const def = placed ? VILLE_BUILDINGS.find(b => b.id === placed.buildingId) : null;
-                        const isSelected = villeSelectedCell?.col === col && villeSelectedCell?.row === row;
-                        return (
-                          <button key={`${col}-${row}`}
-                            onClick={() => {
-                              if (isSelected) { setVilleSelectedCell(null); }
-                              else { setVilleSelectedCell({ col, row }); setVilleShopOpen(false); }
-                            }}
-                            style={{
-                              aspectRatio: "1",
-                              background: def ? `${def.color}18` : "#0a0a0a",
-                              border: isSelected
-                                ? "2.5px solid #ff9d00"
-                                : def ? `2px solid ${def.color}66` : "2px solid #1a1a1a",
-                              borderRadius: 10,
-                              display: "flex", flexDirection: "column",
-                              alignItems: "center", justifyContent: "center",
-                              cursor: "pointer", fontSize: "1.4rem",
-                              boxShadow: isSelected ? "0 0 12px #ff9d0066" : def ? `0 0 8px ${def.color}22` : "none",
-                              transition: "all 0.15s",
-                            }}>
-                            {def ? def.emoji : <span style={{ color: "#222", fontSize: "1rem" }}>+</span>}
-                            {def && <span style={{ fontSize: 8, color: def.color, fontWeight: 700, marginTop: 2 }}>{def.name.slice(0, 5)}</span>}
-                          </button>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-
-                {villeSelectedCell && (() => {
-                  const placed = villeGetCell(villeSelectedCell.col, villeSelectedCell.row);
-                  const def = placed ? VILLE_BUILDINGS.find(b => b.id === placed.buildingId) : null;
-                  return (
-                    <div style={{
-                      background: def ? `${def.color}12` : "#0a0a1a",
-                      border: `2.5px solid ${def ? def.color : "#4488ff"}`,
-                      borderRadius: 20, padding: "14px 16px",
-                      boxShadow: def ? `0 0 20px ${def.color}22` : "0 0 20px #4488ff22",
-                    }}>
-                      {def ? (
-                        <>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                            <span style={{ fontSize: "2rem" }}>{def.emoji}</span>
-                            <div>
-                              <div style={{ fontSize: 16, fontWeight: 900, color: def.color }}>{def.name}</div>
-                              <div style={{ fontSize: 11, color: "#666" }}>{def.desc}</div>
-                            </div>
-                          </div>
-                          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                            <div style={{ flex: 1, background: "#111", borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
-                              <div style={{ fontSize: 10, color: "#555", fontWeight: 600 }}>INKOMST</div>
-                              <div style={{ fontSize: 15, fontWeight: 900, color: "#c8ff00" }}>+{def.karmaPerHour}/h</div>
-                            </div>
-                            <div style={{ flex: 1, background: "#111", borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
-                              <div style={{ fontSize: 10, color: "#555", fontWeight: 600 }}>XP BONUS</div>
-                              <div style={{ fontSize: 15, fontWeight: 900, color: "#00e5ff" }}>+{def.xpBonus}%</div>
-                            </div>
-                          </div>
-                          <button onClick={() => villeDemolish(villeSelectedCell.col, villeSelectedCell.row)}
-                            style={{
-                              width: "100%", padding: "9px",
-                              background: "#1a0000", border: "2px solid #ff2d2d",
-                              borderRadius: 10, fontSize: 13, fontWeight: 700,
-                              color: "#ff2d2d", cursor: "pointer",
-                            }}>
-                            🏗️ RIV ({def.id === "house" ? "gratis" : `+${Math.round(def.cost * 0.4)}⚡ refund`})
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: "#4488ff", marginBottom: 10 }}>
-                            📍 Tom tomt — välj en byggnad
-                          </div>
-                          <button onClick={() => setVilleShopOpen(s => !s)}
-                            style={{
-                              width: "100%", padding: "10px",
-                              background: "linear-gradient(135deg, #1a2aff, #4488ff)",
-                              border: "2.5px solid #0a0a0a", borderRadius: 12,
-                              fontSize: 14, fontWeight: 900, color: "#fff",
-                              cursor: "pointer", boxShadow: "3px 3px 0 #0a0a0a",
-                              letterSpacing: "0.04em",
-                            }}>
-                            🏪 {villeShopOpen ? "STÄNG BUTIK" : "ÖPPNA BUTIK"}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {villeShopOpen && villeSelectedCell && !villeGetCell(villeSelectedCell.col, villeSelectedCell.row) && (
-                  <div style={{ background: "#060610", border: "2.5px solid #4488ff", borderRadius: 20, padding: 14, boxShadow: "0 0 24px #4488ff22" }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#4488ff", letterSpacing: "0.08em", marginBottom: 10 }}>
-                      🏪 BYGGNADSBUTIK
-                    </div>
-                    <div className="space-y-2">
-                      {VILLE_BUILDINGS.map(b => {
-                        const canAfford = user.karma >= b.cost;
-                        const alreadyBuilt = villePlacedIds.has(b.id);
-                        const locked = b.unlockLevel > villeUserLevel;
-                        const disabled = alreadyBuilt || locked || !canAfford;
-                        return (
-                          <button key={b.id} onClick={() => villeBuild(b)} disabled={disabled}
-                            style={{
-                              width: "100%", padding: "10px 12px",
-                              background: alreadyBuilt ? "#0a0a0a" : canAfford && !locked ? `${b.color}14` : "#0d0d0d",
-                              border: `2px solid ${alreadyBuilt ? "#222" : canAfford && !locked ? b.color : "#333"}`,
-                              borderRadius: 12, display: "flex", alignItems: "center", gap: 10,
-                              cursor: disabled ? "not-allowed" : "pointer",
-                              opacity: disabled ? 0.55 : 1, textAlign: "left",
-                            }}>
-                            <span style={{ fontSize: "1.6rem", flexShrink: 0 }}>{b.emoji}</span>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: alreadyBuilt ? "#555" : b.color }}>
-                                {b.name}
-                                {alreadyBuilt && <span style={{ marginLeft: 6, fontSize: 10, color: "#555" }}>✓ BYGGD</span>}
-                                {locked && <span style={{ marginLeft: 6, fontSize: 10, color: "#ff4444" }}>🔒 Lv.{b.unlockLevel}</span>}
-                              </div>
-                              <div style={{ fontSize: 10, color: "#555" }}>{b.desc} · +{b.karmaPerHour}/h</div>
-                            </div>
-                            {!alreadyBuilt && !locked && (
-                              <div style={{ fontSize: 13, fontWeight: 900, color: canAfford ? "#c8ff00" : "#ff4444", flexShrink: 0 }}>
-                                {b.cost === 0 ? "GRATIS" : `⚡${b.cost}`}
-                              </div>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                <div style={{ background: "#0a0a0a", border: "2px solid #222", borderRadius: 20, padding: "14px 16px" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#555", letterSpacing: "0.08em", marginBottom: 10 }}>📊 STADSSTATISTIK</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    {[
-                      { label: "BYGGNADER", value: `${villePlaced.length}/${VILLE_COLS * VILLE_ROWS}`, color: "#ff9d00" },
-                      { label: "PASSIV/H",  value: `+${villePassiveKarma}⚡`,                         color: "#c8ff00" },
-                      { label: "STADSNIVÅ", value: `Lv.${villeUserLevel}`,                            color: "#00e5ff" },
-                      { label: "TOTAL XP",  value: user.xp.toLocaleString(),                          color: "#8b5cf6" },
-                    ].map(s => (
-                      <div key={s.label} style={{ background: "#111", borderRadius: 12, padding: "10px 12px" }}>
-                        <div style={{ fontSize: 9, color: "#444", fontWeight: 600, letterSpacing: "0.08em" }}>{s.label}</div>
-                        <div style={{ fontSize: 16, fontWeight: 900, color: s.color, marginTop: 2 }}>{s.value}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-              </div>
-            )}
-
-          </div>
-        </div>
-      )}
-
-      {/* ── FIXED BOTTOM NAV ── */}
-      <div style={{
-        position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 100,
-        height: 56,
-        background: "#050505",
-        borderTop: `1.5px solid ${tab === "room" ? world.accent + "44" : "#1a1a1a"}`,
-        boxShadow: "0 -4px 24px rgba(0,0,0,0.5)",
-        display: "flex",
-      }}>
-        {NAV_TABS.map(({ key, icon, label }) => {
-          const isActive = tab === key;
-          return (
-            <button
-              key={key}
-              onClick={() => setTab(key as typeof tab)}
-              style={{
-                flex: 1, border: "none", background: "transparent",
-                cursor: "pointer", padding: "4px 0",
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                gap: 2, position: "relative",
-              }}
-            >
-              {/* Active top indicator line */}
-              <AnimatePresence>
-                {isActive && (
+                {/* Critical warning ring */}
+                {isCritical && (
                   <motion.div
-                    layoutId="nav-indicator"
+                    animate={{ scale: [1, 1.55, 1], opacity: [1, 0, 1] }}
+                    transition={{ duration: 0.9, repeat: Infinity }}
                     style={{
-                      position: "absolute", top: 0, left: "15%", right: "15%", height: 2,
-                      background: world.accent,
-                      borderRadius: "0 0 2px 2px",
-                      boxShadow: `0 2px 8px ${world.accent}`,
+                      position: "absolute", bottom: 86, left: "50%", transform: "translateX(-50%)",
+                      width: 212, height: 212, borderRadius: "50%",
+                      border: "3px solid #ff2d2d", zIndex: 4, pointerEvents: "none",
                     }}
                   />
                 )}
-              </AnimatePresence>
 
-              {/* Icon */}
-              <motion.span
-                animate={{ scale: isActive ? 1.15 : 1 }}
-                transition={{ duration: 0.15 }}
-                style={{
-                  fontSize: "1.4rem", lineHeight: 1,
-                  filter: isActive ? "none" : "grayscale(1) opacity(0.35)",
-                }}
-              >
-                {icon}
-              </motion.span>
+                {/* PET — big tap zone */}
+                <div
+                  style={{
+                    position: "absolute", bottom: 86, left: "50%", transform: "translateX(-50%)",
+                    display: "flex", flexDirection: "column", alignItems: "center",
+                    cursor: "pointer", zIndex: 10,
+                  }}
+                  onClick={handlePetTap}
+                >
+                  {/* Tap heart particles */}
+                  <AnimatePresence>
+                    {particles.map(p => (
+                      <motion.div key={p.id}
+                        initial={{ opacity: 1, y: 0, scale: 1 }}
+                        animate={{ opacity: 0, y: -80, scale: 1.8 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.9, ease: "easeOut" }}
+                        style={{
+                          position: "absolute", left: p.x - 14, top: p.y - 90,
+                          fontSize: "1.6rem", pointerEvents: "none", zIndex: 20,
+                        }}>
+                        💗
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
 
-              {/* Label */}
-              <span style={{
-                fontSize: 9, fontWeight: 700, letterSpacing: "0.05em",
-                color: isActive ? world.accent : "#3a3a3a",
+                  {/* Hat */}
+                  {equippedHat && (
+                    <div style={{
+                      fontSize: "2rem", lineHeight: 1, marginBottom: -8,
+                      filter: `drop-shadow(0 3px 8px ${world.glowColor})`,
+                    }}>
+                      {equippedHat}
+                    </div>
+                  )}
+
+                  {/* PET CIRCLE — 168px with XP ring */}
+                  <div style={{ position: "relative" }}>
+                    {/* SVG XP progress ring */}
+                    <svg
+                      style={{ position: "absolute", top: -15, left: -15, pointerEvents: "none", overflow: "visible" }}
+                      width="198" height="198" viewBox="0 0 198 198">
+                      <circle cx="99" cy="99" r="91" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="6" />
+                      <circle cx="99" cy="99" r="91" fill="none" stroke={world.accent} strokeWidth="6"
+                        strokeDasharray={`${(2 * Math.PI * 91 * progress / 100).toFixed(1)} ${(2 * Math.PI * 91).toFixed(1)}`}
+                        strokeLinecap="round"
+                        transform="rotate(-90 99 99)"
+                        style={{ filter: `drop-shadow(0 0 7px ${world.accent})` }} />
+                    </svg>
+                    {/* LV badge on ring */}
+                    <div style={{
+                      position: "absolute", top: -24, left: "50%", transform: "translateX(-50%)",
+                      background: world.accent, color: "#000", fontSize: 9, fontWeight: 900,
+                      borderRadius: 99, padding: "2px 8px", whiteSpace: "nowrap", zIndex: 15,
+                      boxShadow: `0 0 10px ${world.accent}`,
+                    }}>
+                      LV.{pet.level}
+                    </div>
+                  <motion.div
+                    animate={
+                      petAction === "petting"  ? { scale: [1, 1.3, 0.93, 1.12, 1], rotate: [0, -10, 10, 0] } :
+                      petAction === "eating"   ? { scale: [1, 1.22, 0.9, 1.12, 1], y: [0, -10, 0] } :
+                      petAction === "playing"  ? { y: [0, -32, 0, -18, 0], rotate: [0, 14, -14, 0] } :
+                      petAction === "sleeping" ? { rotate: [0, 8, 8], scale: [1, 0.94, 0.94] } :
+                      petMoodComputed === "excited"
+                        ? { y: [0, -20, 0], scale: [1, 1.08, 1], rotate: [0, -4, 4, 0] }
+                        : { y: [0, -10, 0], scale: [1, 1.02, 1] }
+                    }
+                    transition={
+                      petAction
+                        ? { duration: 0.85, ease: "easeInOut" }
+                        : { duration: petMoodComputed === "excited" ? 1.6 : 3.2, repeat: Infinity, ease: "easeInOut" }
+                    }
+                    style={{
+                      width: 168, height: 168,
+                      background: "#fff",
+                      border: `4px solid ${petColor}`,
+                      borderRadius: "50%",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: "4.8rem",
+                      boxShadow: `5px 5px 0px ${petColor}, 0 0 60px ${world.glowColor}, 0 0 120px ${world.glowColor}44`,
+                      position: "relative",
+                    }}
+                  >
+                    {petEmoji}
+
+                    {/* Love bubble */}
+                    <AnimatePresence>
+                      {loveBubble && (
+                        <motion.div
+                          key="love"
+                          initial={{ opacity: 0, scale: 0.5, y: 0 }}
+                          animate={{ opacity: 1, scale: 1, y: -78 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          transition={{ duration: 0.35 }}
+                          style={{
+                            position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)",
+                            background: "#fff", border: "2px solid #0a0a0a",
+                            borderRadius: 12, padding: "4px 12px",
+                            fontSize: 13, fontWeight: 700,
+                            whiteSpace: "nowrap", boxShadow: "2px 2px 0px #0a0a0a", zIndex: 30,
+                          }}>
+                          Love! 💗
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                  </div>{/* end XP ring wrapper */}
+
+                  {/* Nameplate */}
+                  <div style={{
+                    marginTop: 6,
+                    background: "rgba(0,0,0,0.65)",
+                    color: "#fff", borderRadius: 8,
+                    padding: "3px 12px",
+                    fontSize: 11, fontWeight: 700, letterSpacing: "0.08em",
+                    border: "1.5px solid rgba(255,255,255,0.08)",
+                  }}>
+                    {pet.name} · Lv.{pet.level}
+                  </div>
+                </div>
+
+                {/* Speech bubble — bottom-left */}
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={`speech-${speechIdx}`}
+                    initial={{ opacity: 0, scale: 0.8, x: -8 }}
+                    animate={{ opacity: 1, scale: 1, x: 0 }}
+                    exit={{ opacity: 0, scale: 0.85 }}
+                    transition={{ duration: 0.22 }}
+                    style={{
+                      position: "absolute", bottom: 200, left: 10,
+                      background: "#fff", border: "2px solid #0a0a0a",
+                      borderRadius: 14, padding: "6px 10px",
+                      fontSize: 11, fontWeight: 600, maxWidth: 120,
+                      boxShadow: "2px 2px 0px #0a0a0a", lineHeight: 1.35, zIndex: 12,
+                    }}>
+                    <div style={{ fontSize: "1.1rem", marginBottom: 2 }}>{moodEmoji}</div>
+                    {currentSpeech}
+                  </motion.div>
+                </AnimatePresence>
+
+                {/* World + weather + time — top-right column */}
+                <div style={{ position: "absolute", top: 10, right: 10, zIndex: 12, display: "flex", flexDirection: "column", gap: 5 }}>
+                  {[
+                    { bg: `${world.accent}22`, border: world.accent, content: <><span style={{ fontSize: "0.85rem" }}>{world.emoji}</span><span style={{ fontSize: 10, fontWeight: 700, color: world.accent, letterSpacing: "0.06em" }}>{world.name}</span></> },
+                    { bg: "rgba(0,0,0,0.45)", border: "transparent", content: <><span style={{ fontSize: "0.85rem" }}>{weather.icon}</span><span style={{ fontSize: 10, fontWeight: 600, color: "#ccc" }}>{weather.label}</span></> },
+                    { bg: "rgba(0,0,0,0.45)", border: "transparent", content: <><span style={{ fontSize: "0.8rem" }}>{timeMood}</span><span style={{ fontSize: 10, fontWeight: 600, color: "#ccc" }}>{timeLabel}</span></> },
+                  ].map((b, i) => (
+                    <div key={i} style={{
+                      background: b.bg, border: `1.5px solid ${b.border}`,
+                      borderRadius: 8, padding: "3px 8px",
+                      display: "flex", alignItems: "center", gap: 4,
+                    }}>{b.content}</div>
+                  ))}
+                </div>
+
+                {/* Needs meters — overlaid at very bottom of room */}
+                <div style={{
+                  position: "absolute", bottom: 2, left: 0, right: 0,
+                  zIndex: 13, padding: "0 10px 6px",
+                  display: "flex", gap: 6,
+                }}>
+                  {[
+                    { label: "HUNGER", icon: "🍖", color: "#ff6b35", val: pet.needs.hunger },
+                    { label: "HAPPY",  icon: "😊", color: "#ff2d8d", val: pet.needs.happiness },
+                    { label: "ENERGY", icon: "⚡", color: "#c8ff00", val: pet.needs.energy },
+                  ].map(n => {
+                    const crit = n.val < 30;
+                    return (
+                      <div key={n.label} style={{ flex: 1 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                          <span style={{ fontSize: 9, fontWeight: 700, color: crit ? "#ff2d2d" : n.color, letterSpacing: "0.05em" }}>
+                            {n.icon} {crit && "⚠"}
+                          </span>
+                          <span style={{ fontSize: 9, color: "#666", fontWeight: 600 }}>{n.val}%</span>
+                        </div>
+                        <div style={{ height: 5, background: "#0008", borderRadius: 999, overflow: "hidden", boxShadow: crit ? `0 0 6px #ff2d2d` : "none" }}>
+                          <motion.div
+                            animate={{ width: `${n.val}%` }}
+                            transition={{ duration: 0.8 }}
+                            style={{
+                              height: "100%", borderRadius: 999,
+                              background: crit
+                                ? "linear-gradient(90deg,#ff2d2d,#ff6b35)"
+                                : `linear-gradient(90deg,${n.color}88,${n.color})`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Status strip */}
+              <div style={{
+                background: "#080808", borderTop: `2px solid ${world.accent}33`,
+                padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between",
               }}>
-                {label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#333", letterSpacing: "0.06em" }}>
+                  💗 TAP PET TO LOVE
+                </div>
+                <div style={{ display: "flex", gap: 16 }}>
+                  <span style={{ fontSize: 13, fontWeight: 900, color: "#ff6b35" }}>🔥 {streak}d</span>
+                  <span style={{ fontSize: 13, fontWeight: 900, color: "#ffde00" }}>⭐ Lv.{pet.level}</span>
+                  <span style={{ fontSize: 13, fontWeight: 900, color: "#c8ff00" }}>⚡ {user.karma.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
 
+            {/* ── CARE ACTIONS ── */}
+            <div style={{
+              background: "#080808", border: "2.5px solid #1a1a1a",
+              borderRadius: 22, padding: "14px 12px",
+            }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#444", letterSpacing: "0.12em", marginBottom: 10 }}>
+                CARE ACTIONS
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                {[
+                  { label: "FEED",   emoji: "🍖", color: "#ff6b35", bg: "#1a0800", sub: "-50 ⚡", onClick: () => handleFeed("basic"), badge: null },
+                  { label: "FEAST",  emoji: "🥩", color: "#ffde00", bg: "#1a1200", sub: "-150 ⚡", onClick: () => handleFeed("premium"), badge: "BEST" },
+                  { label: "PLAY",   emoji: "🎾", color: "#4caf50", bg: "#081808", sub: "-18 nrg", onClick: handlePlay, badge: null },
+                  { label: "REST",   emoji: "💤", color: "#3b82f6", bg: "#081018", sub: "+45 nrg", onClick: handleRest, badge: null },
+                  { label: "BATTLE", emoji: "⚔️", color: "#ff2d8d", bg: "#1a0012", sub: "+karma", href: "/games/battle", badge: null },
+                  { label: "SHOP",   emoji: "💊", color: "#8b5cf6", bg: "#100820", sub: "heal+items", href: "/shop", badge: null },
+                ].map(a => {
+                  const inner = (
+                    <div style={{
+                      padding: "14px 4px",
+                      background: `linear-gradient(160deg, ${a.bg}, #050505)`,
+                      border: `2px solid ${a.color}`,
+                      borderRadius: 16, textAlign: "center",
+                      boxShadow: `0 0 16px ${a.color}28`,
+                      position: "relative", cursor: "pointer",
+                    }}>
+                      {a.badge && (
+                        <span style={{ position: "absolute", top: -6, right: -4, background: "#ff2d8d", color: "#fff", borderRadius: 5, fontSize: 8, fontWeight: 700, padding: "1px 4px", border: "1.5px solid #050505" }}>
+                          {a.badge}
+                        </span>
+                      )}
+                      <div style={{ fontSize: "2rem" }}>{a.emoji}</div>
+                      <div style={{ fontSize: 11, fontWeight: 900, color: a.color, marginTop: 5, letterSpacing: "0.06em" }}>{a.label}</div>
+                      <div style={{ fontSize: 9, color: "#444", marginTop: 1 }}>{a.sub}</div>
+                    </div>
+                  );
+                  return a.href
+                    ? <Link key={a.label} href={a.href} style={{ textDecoration: "none" }}>{inner}</Link>
+                    : <div key={a.label} onClick={a.onClick}>{inner}</div>;
+                })}
+              </div>
+            </div>
+
+            {/* ── PET STATS ── */}
+            <div style={{ background: "#080808", border: "2px solid #1a1a1a", borderRadius: 22, padding: "14px 14px" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#444", letterSpacing: "0.12em", marginBottom: 10 }}>PET STATS</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {[
+                  { label: "HP",  val: statHP,  color: "#ff6b35", icon: "❤️" },
+                  { label: "ATK", val: statATK, color: "#ff2d8d", icon: "⚔️" },
+                  { label: "SPD", val: statSPD, color: "#c8ff00", icon: "💨" },
+                  { label: "LCK", val: statLCK, color: "#ffde00", icon: "🍀" },
+                ].map(s => (
+                  <div key={s.label} style={{ background: "#111", borderRadius: 14, padding: "10px 12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                      <span style={{ fontSize: 10, color: "#444", fontWeight: 700, letterSpacing: "0.08em" }}>{s.icon} {s.label}</span>
+                      <span style={{ fontSize: 14, fontWeight: 900, color: s.color }}>{s.val}</span>
+                    </div>
+                    <div style={{ height: 5, background: "#1a1a1a", borderRadius: 999, overflow: "hidden" }}>
+                      <motion.div
+                        animate={{ width: `${s.val}%` }}
+                        transition={{ duration: 1.2, ease: "easeOut" }}
+                        style={{ height: "100%", background: `linear-gradient(90deg,${s.color}77,${s.color})`, borderRadius: 999 }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* ══════════════════ TRAIN TAB ══════════════════ */}
+        {tab === "train" && (
+          <div className="neo-card p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700 }}>⚡ Training Mini-Game</div>
+                <div style={{ fontSize: 12, color: "#888" }}>Tap the target before it vanishes!</div>
+              </div>
+              {trainCooldown > 0 && !trainActive && !trainDone && (
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#ff6b35" }}>
+                  ⏳ {trainCooldown}m
+                </div>
+              )}
+            </div>
+
+            {/* Stats row */}
+            {(trainActive || trainDone) && (
+              <div style={{ display: "flex", gap: 8 }}>
+                {[
+                  { label: "Hits", val: trainHits },
+                  { label: "Streak", val: `${trainStreak}${trainStreak >= 3 ? ` ×${Math.min(3, Math.floor(trainStreak / 3) + 1)}` : ""}` },
+                  { label: "XP", val: `+${trainXP}` },
+                  { label: "Left", val: TRAIN_MAX - trainHits },
+                ].map(s => (
+                  <div key={s.label} style={{ flex: 1, background: "#f5f0e8", border: "2px solid #0a0a0a", borderRadius: 10, padding: "6px 4px", textAlign: "center" }}>
+                    <div style={{ fontSize: 16, fontWeight: 700 }}>{s.val}</div>
+                    <div style={{ fontSize: 9, color: "#888", fontWeight: 600, letterSpacing: "0.04em" }}>{s.label.toUpperCase()}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Play area */}
+            {trainActive && !trainDone && (
+              <div style={{ position: "relative", width: "100%", height: 200, background: "#0a0a0a", borderRadius: 14, border: "3px solid #c8ff00", overflow: "hidden" }}>
+                {/* Float indicators */}
+                <AnimatePresence>
+                  {floats.map(f => (
+                    <motion.div key={f.id}
+                      initial={{ opacity: 1, y: f.y, x: f.x }}
+                      animate={{ opacity: 0, y: f.y - 40 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.8 }}
+                      style={{ position: "absolute", fontSize: 14, fontWeight: 700, color: "#c8ff00", pointerEvents: "none", zIndex: 10 }}>
+                      {f.text}
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+
+                <AnimatePresence>
+                  {trainTarget && (
+                    <motion.button
+                      key={trainTarget.id}
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0, opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                      onClick={() => hitTarget(trainTarget.id, trainTarget.x, trainTarget.y)}
+                      style={{
+                        position: "absolute",
+                        left: trainTarget.x,
+                        top: trainTarget.y,
+                        width: 48, height: 48,
+                        borderRadius: "50%",
+                        background: `radial-gradient(circle, ${world.accent} 0%, ${world.glowColor} 100%)`,
+                        border: "3px solid #fff",
+                        cursor: "pointer",
+                        fontSize: "1.2rem",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        transform: "translate(-50%, -50%)",
+                        boxShadow: `0 0 16px ${world.glowColor}`,
+                      }}>
+                      ✦
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+
+                {/* Progress strip */}
+                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 4, background: "#222" }}>
+                  <div style={{ height: "100%", background: "#c8ff00", width: `${(trainHits / TRAIN_MAX) * 100}%`, transition: "width 0.2s" }} />
+                </div>
+              </div>
+            )}
+
+            {/* Results */}
+            {trainDone && (
+              <div style={{ background: "#0f0f0f", border: "2.5px solid #c8ff0044", borderRadius: 14, padding: 16, textAlign: "center" }}>
+                <div style={{ fontSize: "2rem", marginBottom: 4 }}>🏆</div>
+                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Training Complete!</div>
+                <div style={{ display: "flex", justifyContent: "center", gap: 16, marginBottom: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 22, fontWeight: 700 }}>{Math.round((trainHits / TRAIN_MAX) * 100)}%</div>
+                    <div style={{ fontSize: 10, color: "#888" }}>ACCURACY</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: "#4caf50", textShadow: "0 0 10px #4caf5088" }}>+{trainXP}</div>
+                    <div style={{ fontSize: 10, color: "#888" }}>XP EARNED</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: "#a855f7" }}>+{Math.floor(trainXP / 3)}</div>
+                    <div style={{ fontSize: 10, color: "#888" }}>KARMA</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 12, color: "#888" }}>Next session in 30 min</div>
+              </div>
+            )}
+
+            {/* Start button */}
+            {!trainActive && !trainDone && (
+              <button
+                onClick={startTraining}
+                disabled={trainCooldown > 0}
+                style={{
+                  width: "100%", padding: "14px",
+                  background: trainCooldown > 0 ? "#e8e3d8" : "#0a0a0a",
+                  color: trainCooldown > 0 ? "#aaa" : "#c8ff00",
+                  border: "2.5px solid #0a0a0a",
+                  borderRadius: 14,
+                  fontSize: 15, fontWeight: 700,
+                  cursor: trainCooldown > 0 ? "not-allowed" : "pointer",
+                  letterSpacing: "0.04em",
+                }}>
+                {trainCooldown > 0 ? `⏳ Recharges in ${trainCooldown} min` : "⚡ START TRAINING"}
+              </button>
+            )}
+
+            {trainDone && (
+              <button
+                onClick={() => setTrainDone(false)}
+                style={{
+                  width: "100%", padding: "12px",
+                  background: "#f5f0e8", border: "2.5px solid #0a0a0a",
+                  borderRadius: 14, fontSize: 14, fontWeight: 700, cursor: "pointer",
+                }}>
+                Back
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* ══════════════════ BOND TAB ══════════════════ */}
+        {tab === "bond" && (
+          <div className="space-y-4">
+            {/* Diary */}
+            <div className="neo-card p-4">
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                📖 Bond Diary
+              </div>
+              <div style={{
+                background: "#fffef5",
+                border: "2px solid #e8e3d8",
+                borderRadius: 12,
+                overflow: "hidden",
+              }}>
+                {diaryAll.map((entry, i) => (
+                  <div key={i} style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "10px 12px",
+                    borderBottom: i < diaryAll.length - 1 ? "1px solid #e8e3d8" : "none",
+                    background: i % 2 === 0 ? "#fffef5" : "#fffdf0",
+                  }}>
+                    <span style={{ fontSize: "1.3rem", flexShrink: 0 }}>{entry.emoji}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}>{entry.text}</div>
+                      <div style={{ fontSize: 10, color: "#aaa" }}>{entry.time}</div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      {entry.xp > 0 && <div style={{ fontSize: 11, fontWeight: 700, color: "#4caf50" }}>+{entry.xp} XP</div>}
+                      {entry.karma > 0 && <div style={{ fontSize: 11, fontWeight: 700, color: "#a855f7" }}>+{entry.karma} ⚡</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Accessories */}
+            <div className="neo-card p-4">
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>🎩 Accessories</div>
+
+              {/* Hat picker */}
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 8, letterSpacing: "0.05em" }}>HATS</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+                {HAT_OPTIONS.map(hat => (
+                  <button key={hat} onClick={() => selectHat(hat)}
+                    style={{
+                      width: 48, height: 48,
+                      borderRadius: 12,
+                      border: equippedHat === hat ? `2.5px solid ${world.accent}` : "2px solid #e8e3d8",
+                      background: equippedHat === hat ? `${world.accent}18` : "#f5f0e8",
+                      fontSize: "1.6rem",
+                      cursor: "pointer",
+                      boxShadow: equippedHat === hat ? `2px 2px 0px ${world.accent}` : "none",
+                    }}>
+                    {hat}
+                  </button>
+                ))}
+              </div>
+
+              {equippedHat && (
+                <div style={{ fontSize: 12, color: "#888", marginBottom: 12, fontWeight: 600 }}>
+                  Wearing: {equippedHat} · <span style={{ color: world.accent }}>Equipped</span>
+                </div>
+              )}
+
+              {/* Color picker */}
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 8, letterSpacing: "0.05em" }}>PET BORDER COLOR</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {COLOR_OPTIONS.map(c => (
+                  <button key={c} onClick={() => selectColor(c)}
+                    style={{
+                      width: 36, height: 36,
+                      borderRadius: "50%",
+                      background: c,
+                      border: petColor === c ? "3px solid #0a0a0a" : "2px solid transparent",
+                      cursor: "pointer",
+                      boxShadow: petColor === c ? `0 0 0 2px #fff, 0 0 0 4px ${c}` : "none",
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══════════════════ GROW TAB ══════════════════ */}
+        {tab === "grow" && (
+          <div className="space-y-4">
+            {/* Evolution tree */}
+            <div className="neo-card p-4">
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>🌱 Evolution Roadmap</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {EVO_STAGES.map((stage, i) => {
+                  const isActive = i === currentStageIdx;
+                  const isDone = i < currentStageIdx;
+                  const isLocked = i > currentStageIdx;
+                  return (
+                    <div key={stage.key}>
+                      <div style={{
+                        display: "flex", alignItems: "center", gap: 12,
+                        padding: "12px 14px",
+                        background: isActive ? `${world.accent}15` : isDone ? "#f0fff4" : "#f5f0e8",
+                        border: `2.5px solid ${isActive ? world.accent : isDone ? "#4caf50" : "#e8e3d8"}`,
+                        borderRadius: 14,
+                        opacity: isLocked ? 0.6 : 1,
+                        boxShadow: isActive ? `0 0 16px ${world.glowColor}` : "none",
+                      }}>
+                        <motion.div
+                          animate={isActive ? { scale: [1, 1.1, 1] } : {}}
+                          transition={{ duration: 2, repeat: Infinity }}
+                          style={{ fontSize: "2rem", flexShrink: 0 }}>
+                          {stage.emoji}
+                        </motion.div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                            <span style={{ fontSize: 14, fontWeight: 700 }}>{stage.label}</span>
+                            {isActive && (
+                              <span style={{ fontSize: 9, fontWeight: 700, background: world.accent, color: "#fff", borderRadius: 4, padding: "1px 5px" }}>
+                                CURRENT
+                              </span>
+                            )}
+                            {isDone && <span style={{ fontSize: 12 }}>✅</span>}
+                          </div>
+                          <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>
+                            {stage.xpReq === 0 ? "Starting stage" : `Requires ${stage.xpReq.toLocaleString()} XP`}
+                          </div>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                            {stage.abilities.map(ab => (
+                              <span key={ab} style={{
+                                fontSize: 10, fontWeight: 700,
+                                background: isDone || isActive ? "#0a0a0a" : "#e8e3d8",
+                                color: isDone || isActive ? "#c8ff00" : "#aaa",
+                                borderRadius: 5,
+                                padding: "2px 6px",
+                              }}>{ab}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Progress bar between current and next */}
+                      {isActive && nextStage && (
+                        <div style={{ margin: "6px 12px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                            <span style={{ fontSize: 10, color: "#888" }}>Progress to {nextStage.label}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: world.accent }}>
+                              {Math.round(evoProgress)}%
+                            </span>
+                          </div>
+                          <div style={{ height: 6, background: "#e8e3d8", borderRadius: 6, overflow: "hidden" }}>
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${evoProgress}%` }}
+                              transition={{ duration: 1, ease: "easeOut" }}
+                              style={{ height: "100%", background: world.accent, borderRadius: 6 }}
+                            />
+                          </div>
+                          <div style={{ fontSize: 11, color: "#888", marginTop: 4, fontWeight: 600 }}>
+                            Next evolution at {nextStage.xpReq.toLocaleString()} XP
+                            · {Math.max(0, nextStage.xpReq - pet.xp).toLocaleString()} to go
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Stats grid */}
+            <div className="neo-card p-4">
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>📊 Pet Stats</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {[
+                  { label: "HP", value: statHP,  color: "#4caf50", icon: "❤️" },
+                  { label: "ATK", value: statATK, color: "#ff6b35", icon: "⚔️" },
+                  { label: "SPD", value: statSPD, color: "#00e5ff", icon: "💨" },
+                  { label: "LCK", value: statLCK, color: "#a855f7", icon: "🍀" },
+                ].map(stat => (
+                  <div key={stat.label} style={{ background: "#111", border: `2px solid #222`, borderRadius: 12, padding: "10px 12px", boxShadow: `0 0 16px ${stat.color}33` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700 }}>{stat.icon} {stat.label}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: stat.color, textShadow: `0 0 8px ${stat.color}` }}>{stat.value}</span>
+                    </div>
+                    <div style={{ height: 8, background: "#222", borderRadius: 6, overflow: "hidden" }}>
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${stat.value}%` }}
+                        transition={{ duration: 0.9, ease: "easeOut", delay: 0.1 }}
+                        style={{ height: "100%", background: stat.color, borderRadius: 6, boxShadow: `0 0 6px ${stat.color}` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Abilities */}
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 8, letterSpacing: "0.05em" }}>UNLOCKED ABILITIES</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {pet.unlockedAbilities.length > 0
+                    ? pet.unlockedAbilities.map(a => (
+                        <span key={a} style={{ padding: "4px 10px", background: "#0a0a0a", color: "#c8ff00", borderRadius: 8, fontSize: 12, fontWeight: 700 }}>{a}</span>
+                      ))
+                    : <span style={{ fontSize: 12, color: "#aaa" }}>Level up to unlock abilities!</span>
+                  }
+                </div>
+              </div>
+            </div>
+
+            {/* Streak */}
+            <div className="neo-card p-4 flex items-center gap-4">
+              <div style={{ fontSize: "2rem" }}>🔥</div>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>{pet.streak} day streak</div>
+                <div style={{ fontSize: 12, color: "#888" }}>Keep grinding every day!</div>
+              </div>
+              <div style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: world.accent }}>
+                {pet.totalBountiesCompleted} bounties done
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══════════════════ SQUAD TAB ══════════════════ */}
+        {tab === "squad" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+            {/* Header */}
+            <div style={{
+              background: "linear-gradient(135deg, #001a1a, #00111a)",
+              border: "2.5px solid #06b6d4", borderRadius: 20, padding: "16px",
+              display: "flex", alignItems: "center", gap: 12,
+            }}>
+              <motion.div animate={{ scale: [1, 1.12, 1] }} transition={{ repeat: Infinity, duration: 2 }}
+                style={{ fontSize: "2.2rem" }}>👥</motion.div>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: "#06b6d4", letterSpacing: "0.06em" }}>TON SQUAD</div>
+                <div style={{ fontSize: 12, color: "#555" }}>Utmana vänner · Dela segrar · Klättra ligan</div>
+              </div>
+              <div style={{
+                marginLeft: "auto", background: "#06b6d422", border: "2px solid #06b6d4",
+                borderRadius: 10, padding: "4px 10px", textAlign: "center",
+              }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#06b6d4" }}>{FRIENDS.length}</div>
+                <div style={{ fontSize: 9, color: "#555" }}>VÄNNER</div>
+              </div>
+            </div>
+
+            {/* Friends list */}
+            {FRIENDS.map(friend => {
+              const isChallenged = challengedFriend === friend.id;
+              return (
+                <motion.div key={friend.id}
+                  initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                  style={{
+                    background: "#0d1214", border: `2px solid ${friend.online ? "#06b6d444" : "#1a2a3a"}`,
+                    borderRadius: 18, padding: "14px 16px",
+                    display: "flex", alignItems: "center", gap: 12,
+                  }}
+                >
+                  {/* Avatar */}
+                  <div style={{ position: "relative", flexShrink: 0 }}>
+                    <div style={{
+                      width: 52, height: 52, borderRadius: 16,
+                      background: friend.online ? "#002222" : "#111",
+                      border: `2px solid ${friend.online ? "#06b6d4" : "#222"}`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: "1.6rem",
+                    }}>{friend.emoji}</div>
+                    {friend.online && (
+                      <div style={{
+                        position: "absolute", bottom: 2, right: 2,
+                        width: 10, height: 10, borderRadius: "50%",
+                        background: "#22c55e", border: "2px solid #0d1214",
+                      }} />
+                    )}
+                  </div>
+
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>@{friend.username}</span>
+                      <span style={{ fontSize: 10, color: "#555" }}>Lv.{friend.level}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
+                      {friend.petEmoji} {friend.petName}
+                    </div>
+                    <div style={{ fontSize: 10, color: friend.online ? "#22c55e" : "#444", marginTop: 2, fontWeight: 600 }}>
+                      {friend.online ? (friend.currentGame ? `🎮 ${friend.currentGame}` : "🟢 Online") : `⚫ ${friend.lastActivity}`}
+                    </div>
+                  </div>
+
+                  {/* Challenge button */}
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => {
+                      setChallengedFriend(friend.id);
+                      showToast(`Utmanade ${friend.emoji} @${friend.username}! ⚔️`);
+                      setTimeout(() => setChallengedFriend(null), 3000);
+                    }}
+                    style={{
+                      padding: "8px 12px",
+                      background: isChallenged ? "#c8ff0022" : "#0a1a00",
+                      border: `2px solid ${isChallenged ? "#c8ff00" : "#333"}`,
+                      borderRadius: 12,
+                      fontSize: 11, fontWeight: 700,
+                      color: isChallenged ? "#c8ff00" : "#555",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {isChallenged ? "✅ Skickat!" : "⚔️ UTMANA"}
+                  </motion.button>
+                </motion.div>
+              );
+            })}
+
+            {/* Squad Leaderboard */}
+            <div style={{
+              background: "#0d1214", border: "2.5px solid #ffde0066",
+              borderRadius: 20, padding: "16px",
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 900, color: "#ffde00", letterSpacing: "0.08em", marginBottom: 12 }}>
+                👑 SQUAD LIGA — DENNA VECKA
+              </div>
+              {[
+                { emoji: "🦊", name: "Du", level: pet.level, karma: user.karma, rank: 1 },
+                ...FRIENDS.slice(0, 4).map((f, i) => ({
+                  emoji: f.emoji, name: `@${f.username}`,
+                  level: f.level, karma: Math.floor(user.karma * (0.9 - i * 0.15)), rank: i + 2,
+                })),
+              ].map(entry => (
+                <div key={entry.rank} style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "8px 0",
+                  borderBottom: entry.rank < 5 ? "1px solid #1a2a3a" : "none",
+                }}>
+                  <div style={{
+                    width: 26, height: 26, borderRadius: 8, flexShrink: 0,
+                    background: entry.rank === 1 ? "#ffde0022" : "#111",
+                    border: `1.5px solid ${entry.rank === 1 ? "#ffde00" : entry.rank === 2 ? "#aaa" : entry.rank === 3 ? "#cd7f32" : "#222"}`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 11, fontWeight: 700,
+                    color: entry.rank === 1 ? "#ffde00" : entry.rank <= 3 ? "#ccc" : "#555",
+                  }}>
+                    {entry.rank === 1 ? "👑" : `#${entry.rank}`}
+                  </div>
+                  <span style={{ fontSize: "1.2rem", flexShrink: 0 }}>{entry.emoji}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: entry.rank === 1 ? "#ffde00" : "#fff" }}>{entry.name}</div>
+                    <div style={{ fontSize: 10, color: "#555" }}>Lv.{entry.level}</div>
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#c8ff00" }}>⚡ {entry.karma.toLocaleString()}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Joint challenge */}
+            <div style={{
+              background: "linear-gradient(135deg, #0a0010, #100022)",
+              border: "2.5px solid #8b5cf6", borderRadius: 20, padding: "16px",
+              boxShadow: "0 0 24px #8b5cf622",
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 900, color: "#8b5cf6", letterSpacing: "0.06em", marginBottom: 8 }}>
+                🎯 GEMENSAM UTMANING
+              </div>
+              <div style={{ fontSize: 14, color: "#fff", fontWeight: 700, marginBottom: 4 }}>
+                Gå 50 000 steg ihop med ditt squad!
+              </div>
+              <div style={{ fontSize: 12, color: "#666", marginBottom: 12 }}>
+                3 av 5 vänner har anslutit sig · Belöning: +500⚡ var
+              </div>
+              {/* Progress bar */}
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span style={{ fontSize: 11, color: "#8b5cf6", fontWeight: 700 }}>32 450 / 50 000 steg</span>
+                  <span style={{ fontSize: 11, color: "#555" }}>65%</span>
+                </div>
+                <div style={{ height: 8, background: "#1a0a2a", borderRadius: 999, overflow: "hidden" }}>
+                  <motion.div
+                    initial={{ width: 0 }} animate={{ width: "65%" }}
+                    transition={{ duration: 1, ease: "easeOut" }}
+                    style={{ height: "100%", background: "linear-gradient(90deg, #8b5cf6, #c084fc)", borderRadius: 999 }}
+                  />
+                </div>
+              </div>
+              {/* Avatars */}
+              <div style={{ display: "flex", gap: -4 }}>
+                {["🦊", "🌙", "⚔️"].map((e, i) => (
+                  <div key={i} style={{
+                    width: 30, height: 30, borderRadius: "50%",
+                    background: "#1a0a2a", border: "2px solid #8b5cf6",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "1rem", marginLeft: i > 0 ? -8 : 0,
+                  }}>{e}</div>
+                ))}
+                <div style={{
+                  width: 30, height: 30, borderRadius: "50%",
+                  background: "#0a0a0a", border: "2px solid #333",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 10, color: "#555", marginLeft: -8,
+                }}>+2</div>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* ══════════════════ VILLE TAB ══════════════════ */}
+        {tab === "ville" && (
+          <div className="space-y-4">
+
+            {/* City header stats */}
+            <div style={{
+              background: "linear-gradient(135deg, #0d0800, #1a1000)",
+              border: "2.5px solid #ff9d00", borderRadius: 20, padding: "14px 16px",
+              boxShadow: "0 0 28px #ff9d0022",
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: "#ff9d00", letterSpacing: "-0.02em" }}>🏙️ {pet.name}&apos;s Ville</div>
+                  <div style={{ fontSize: 11, color: "#666", marginTop: 2 }}>Lv.{villeUserLevel} Stad · {villePlaced.length}/{VILLE_COLS * VILLE_ROWS} byggnader</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 11, color: "#555", fontWeight: 600 }}>PASSIV INKOMST</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: "#c8ff00" }}>+{villePassiveKarma}<span style={{ fontSize: 11, color: "#555" }}>/h</span></div>
+                </div>
+              </div>
+              <button onClick={villeCollect} disabled={villeCollecting}
+                style={{
+                  width: "100%", padding: "10px",
+                  background: villeCollecting ? "#1a1a1a" : "linear-gradient(135deg, #ff9d00, #ffd000)",
+                  border: "2.5px solid #0a0a0a", borderRadius: 12,
+                  fontSize: 14, fontWeight: 900, color: "#0a0a0a",
+                  cursor: villeCollecting ? "not-allowed" : "pointer",
+                  boxShadow: villeCollecting ? "none" : "3px 3px 0 #0a0a0a",
+                  opacity: villeCollecting ? 0.5 : 1,
+                  letterSpacing: "0.04em",
+                }}>
+                {villeCollecting ? "⏳ SAMLAR IN..." : `🪙 SAMLA IN +${Math.round(villePassiveKarma * 0.5)} ⚡`}
+              </button>
+            </div>
+
+            {/* City grid */}
+            <div style={{
+              background: "#060e06", border: "2.5px solid #ff9d00",
+              borderRadius: 20, padding: 14,
+              boxShadow: "0 0 20px #ff9d0018",
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#ff9d00", letterSpacing: "0.08em", marginBottom: 10 }}>
+                🗺️ STADSVY — tryck på en ruta
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${VILLE_COLS}, 1fr)`, gap: 6 }}>
+                {Array.from({ length: VILLE_ROWS }).map((_, row) =>
+                  Array.from({ length: VILLE_COLS }).map((_, col) => {
+                    const placed = villeGetCell(col, row);
+                    const def = placed ? VILLE_BUILDINGS.find(b => b.id === placed.buildingId) : null;
+                    const isSelected = villeSelectedCell?.col === col && villeSelectedCell?.row === row;
+                    return (
+                      <button key={`${col}-${row}`}
+                        onClick={() => {
+                          if (isSelected) { setVilleSelectedCell(null); }
+                          else { setVilleSelectedCell({ col, row }); setVilleShopOpen(false); }
+                        }}
+                        style={{
+                          aspectRatio: "1",
+                          background: def ? `${def.color}18` : "#0a0a0a",
+                          border: isSelected
+                            ? "2.5px solid #ff9d00"
+                            : def ? `2px solid ${def.color}66` : "2px solid #1a1a1a",
+                          borderRadius: 10,
+                          display: "flex", flexDirection: "column",
+                          alignItems: "center", justifyContent: "center",
+                          cursor: "pointer", fontSize: "1.4rem",
+                          boxShadow: isSelected ? "0 0 12px #ff9d0066" : def ? `0 0 8px ${def.color}22` : "none",
+                          transition: "all 0.15s",
+                        }}>
+                        {def ? def.emoji : <span style={{ color: "#222", fontSize: "1rem" }}>+</span>}
+                        {def && <span style={{ fontSize: 8, color: def.color, fontWeight: 700, marginTop: 2 }}>{def.name.slice(0,5)}</span>}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Selected cell info / action panel */}
+            {villeSelectedCell && (() => {
+              const placed = villeGetCell(villeSelectedCell.col, villeSelectedCell.row);
+              const def = placed ? VILLE_BUILDINGS.find(b => b.id === placed.buildingId) : null;
+              return (
+                <div style={{
+                  background: def ? `${def.color}12` : "#0a0a1a",
+                  border: `2.5px solid ${def ? def.color : "#4488ff"}`,
+                  borderRadius: 20, padding: "14px 16px",
+                  boxShadow: def ? `0 0 20px ${def.color}22` : "0 0 20px #4488ff22",
+                }}>
+                  {def ? (
+                    <>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                        <span style={{ fontSize: "2rem" }}>{def.emoji}</span>
+                        <div>
+                          <div style={{ fontSize: 16, fontWeight: 900, color: def.color }}>{def.name}</div>
+                          <div style={{ fontSize: 11, color: "#666" }}>{def.desc}</div>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                        <div style={{ flex: 1, background: "#111", borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
+                          <div style={{ fontSize: 10, color: "#555", fontWeight: 600 }}>INKOMST</div>
+                          <div style={{ fontSize: 15, fontWeight: 900, color: "#c8ff00" }}>+{def.karmaPerHour}/h</div>
+                        </div>
+                        <div style={{ flex: 1, background: "#111", borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
+                          <div style={{ fontSize: 10, color: "#555", fontWeight: 600 }}>XP BONUS</div>
+                          <div style={{ fontSize: 15, fontWeight: 900, color: "#00e5ff" }}>+{def.xpBonus}%</div>
+                        </div>
+                      </div>
+                      <button onClick={() => villeDemolish(villeSelectedCell.col, villeSelectedCell.row)}
+                        style={{
+                          width: "100%", padding: "9px",
+                          background: "#1a0000", border: "2px solid #ff2d2d",
+                          borderRadius: 10, fontSize: 13, fontWeight: 700,
+                          color: "#ff2d2d", cursor: "pointer",
+                        }}>
+                        🏗️ RIV ({def.id === "house" ? "gratis" : `+${Math.round(def.cost * 0.4)}⚡ refund`})
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#4488ff", marginBottom: 10 }}>
+                        📍 Tom tomt — välj en byggnad
+                      </div>
+                      <button onClick={() => setVilleShopOpen(s => !s)}
+                        style={{
+                          width: "100%", padding: "10px",
+                          background: "linear-gradient(135deg, #1a2aff, #4488ff)",
+                          border: "2.5px solid #0a0a0a", borderRadius: 12,
+                          fontSize: 14, fontWeight: 900, color: "#fff",
+                          cursor: "pointer", boxShadow: "3px 3px 0 #0a0a0a",
+                          letterSpacing: "0.04em",
+                        }}>
+                        🏪 {villeShopOpen ? "STÄNG BUTIK" : "ÖPPNA BUTIK"}
+                      </button>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Shop panel */}
+            {villeShopOpen && villeSelectedCell && !villeGetCell(villeSelectedCell.col, villeSelectedCell.row) && (
+              <div style={{ background: "#060610", border: "2.5px solid #4488ff", borderRadius: 20, padding: 14, boxShadow: "0 0 24px #4488ff22" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#4488ff", letterSpacing: "0.08em", marginBottom: 10 }}>
+                  🏪 BYGGNADSBUTIK
+                </div>
+                <div className="space-y-2">
+                  {VILLE_BUILDINGS.map(b => {
+                    const canAfford = user.karma >= b.cost;
+                    const alreadyBuilt = villePlacedIds.has(b.id);
+                    const locked = b.unlockLevel > villeUserLevel;
+                    const disabled = alreadyBuilt || locked || !canAfford;
+                    return (
+                      <button key={b.id} onClick={() => villeBuild(b)} disabled={disabled}
+                        style={{
+                          width: "100%", padding: "10px 12px",
+                          background: alreadyBuilt ? "#0a0a0a" : canAfford && !locked ? `${b.color}14` : "#0d0d0d",
+                          border: `2px solid ${alreadyBuilt ? "#222" : canAfford && !locked ? b.color : "#333"}`,
+                          borderRadius: 12, display: "flex", alignItems: "center", gap: 10,
+                          cursor: disabled ? "not-allowed" : "pointer",
+                          opacity: disabled ? 0.55 : 1,
+                          textAlign: "left",
+                        }}>
+                        <span style={{ fontSize: "1.6rem", flexShrink: 0 }}>{b.emoji}</span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: alreadyBuilt ? "#555" : b.color }}>
+                            {b.name}
+                            {alreadyBuilt && <span style={{ marginLeft: 6, fontSize: 10, color: "#555" }}>✓ BYGGD</span>}
+                            {locked && <span style={{ marginLeft: 6, fontSize: 10, color: "#ff4444" }}>🔒 Lv.{b.unlockLevel}</span>}
+                          </div>
+                          <div style={{ fontSize: 10, color: "#555" }}>{b.desc} · +{b.karmaPerHour}/h</div>
+                        </div>
+                        {!alreadyBuilt && !locked && (
+                          <div style={{ fontSize: 13, fontWeight: 900, color: canAfford ? "#c8ff00" : "#ff4444", flexShrink: 0 }}>
+                            {b.cost === 0 ? "GRATIS" : `⚡${b.cost}`}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* City stats overview */}
+            <div style={{ background: "#0a0a0a", border: "2px solid #222", borderRadius: 20, padding: "14px 16px" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#555", letterSpacing: "0.08em", marginBottom: 10 }}>📊 STADSSTATISTIK</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {[
+                  { label: "BYGGNADER", value: `${villePlaced.length}/${VILLE_COLS * VILLE_ROWS}`, color: "#ff9d00" },
+                  { label: "PASSIV/H", value: `+${villePassiveKarma}⚡`, color: "#c8ff00" },
+                  { label: "STADSNIVÅ", value: `Lv.${villeUserLevel}`, color: "#00e5ff" },
+                  { label: "TOTAL XP", value: user.xp.toLocaleString(), color: "#8b5cf6" },
+                ].map(s => (
+                  <div key={s.label} style={{ background: "#111", borderRadius: 12, padding: "10px 12px" }}>
+                    <div style={{ fontSize: 9, color: "#444", fontWeight: 600, letterSpacing: "0.08em" }}>{s.label}</div>
+                    <div style={{ fontSize: 16, fontWeight: 900, color: s.color, marginTop: 2 }}>{s.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }
