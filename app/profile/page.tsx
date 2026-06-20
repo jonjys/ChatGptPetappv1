@@ -438,6 +438,34 @@ export default function ProfilePage() {
           </motion.div>
         </Link>
 
+        {/* ── Karma Card CTA ───────────────────────────────────────────────── */}
+        <Link href="/card" style={{ textDecoration: "none", display: "block" }}>
+          <motion.div
+            whileTap={{ scale: 0.97 }}
+            style={{
+              background: "linear-gradient(135deg, #0a0020 0%, #1a0035 100%)",
+              border: "2px solid #ff2d8d55",
+              borderRadius: 18, padding: "18px 16px",
+              boxShadow: "0 0 24px #ff2d8d11",
+              display: "flex", alignItems: "center", gap: 16,
+            }}
+          >
+            <div style={{
+              width: 52, height: 52, borderRadius: 14,
+              background: "#ff2d8d22", border: "2px solid #ff2d8d",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: "1.6rem",
+            }}>
+              🃏
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "1rem", fontWeight: 900, color: "#ff2d8d", marginBottom: 2 }}>MY KARMA CARD</div>
+              <div style={{ fontSize: "0.78rem", color: "#888" }}>Your aura, power score &amp; shareable identity</div>
+            </div>
+            <div style={{ fontSize: "1rem", color: "#ff2d8d" }}>→</div>
+          </motion.div>
+        </Link>
+
         {/* ── World selector ───────────────────────────────────────────────── */}
         <div style={{ background: "#111", border: "2px solid #222", borderRadius: 18, padding: "16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
