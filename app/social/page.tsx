@@ -811,6 +811,47 @@ export default function SocialPage() {
         </div>
       )}
 
+      {/* ── KARMA TV banner (shown in FLASH) ── */}
+      {tab === "FLASH" && (
+        <Link href="/karma-tv" style={{ textDecoration: "none", display: "block", padding: "0 16px 12px" }}>
+          <motion.div
+            whileTap={{ scale: 0.97 }}
+            animate={{ boxShadow: ["0 0 20px #ff2d8d22", "0 0 40px #ff2d8d55", "0 0 20px #ff2d8d22"] }}
+            transition={{ duration: 2.5, repeat: Infinity }}
+            style={{
+              background: "linear-gradient(135deg, #1a0010 0%, #0d001a 100%)",
+              border: "2px solid #ff2d8d",
+              borderRadius: 18, padding: "16px",
+              display: "flex", alignItems: "center", gap: 14,
+            }}
+          >
+            <div style={{
+              width: 54, height: 54, borderRadius: 14,
+              background: "#ff2d8d22", border: "2px solid #ff2d8d",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: "1.8rem", flexShrink: 0,
+            }}>
+              📺
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                <span style={{ fontSize: "1rem", fontWeight: 900, color: "#fff" }}>KARMA TV</span>
+                <motion.div
+                  animate={{ opacity: [1, 0.3, 1] }}
+                  transition={{ duration: 1, repeat: Infinity }}
+                  style={{ display: "flex", alignItems: "center", gap: 4, background: "#ff2d8d22", border: "1px solid #ff2d8d44", borderRadius: 10, padding: "2px 7px" }}
+                >
+                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#ff2d8d", display: "block" }} />
+                  <span style={{ fontSize: "0.6rem", color: "#ff2d8d", fontWeight: 700 }}>LIVE</span>
+                </motion.div>
+              </div>
+              <div style={{ fontSize: "0.78rem", color: "#888" }}>TikTok-style pet moments · Duel friends · Go viral</div>
+            </div>
+            <div style={{ fontSize: "1.2rem", color: "#ff2d8d" }}>→</div>
+          </motion.div>
+        </Link>
+      )}
+
       {/* ── FRIENDS tab ── */}
       {tab === "FRIENDS" && (
         <div className="px-4 pt-4 pb-24 space-y-4">

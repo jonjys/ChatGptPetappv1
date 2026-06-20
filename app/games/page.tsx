@@ -547,6 +547,41 @@ export default function GamesPage() {
           </div>
         </motion.div>
 
+        {/* ── KARMA TV CTA ─────────────────────────────────────────────── */}
+        <Link href="/karma-tv" style={{ textDecoration: "none", display: "block" }}>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+            whileTap={{ scale: 0.97 }}
+            style={{
+              background: "linear-gradient(135deg, #1a0010 0%, #0d001a 50%, #050020 100%)",
+              border: "2px solid #ff2d8d",
+              borderRadius: 20, padding: "20px 18px",
+              display: "flex", alignItems: "center", gap: 14,
+              marginBottom: 8,
+              boxShadow: "0 0 30px #ff2d8d22",
+            }}
+          >
+            <motion.div
+              animate={{ scale: [1, 1.06, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              style={{ fontSize: "2.5rem" }}
+            >
+              📺
+            </motion.div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "1rem", fontWeight: 900, color: "#fff", marginBottom: 3 }}>
+                KARMA TV <span style={{ fontSize: "0.65rem", color: "#ff2d8d", letterSpacing: "0.1em", background: "#ff2d8d22", borderRadius: 8, padding: "2px 6px" }}>LIVE</span>
+              </div>
+              <div style={{ fontSize: "0.78rem", color: "#888", lineHeight: 1.4 }}>
+                Watch & react to the hottest pet moments. Duel strangers. Go viral.
+              </div>
+            </div>
+            <div style={{ fontSize: "1.2rem", color: "#ff2d8d" }}>→</div>
+          </motion.div>
+        </Link>
+
       </div>
     </div>
   );
