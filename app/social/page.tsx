@@ -84,10 +84,18 @@ function FlashCard({
   post,
   onLike,
   onDoubleTap,
+  onComment,
+  onBookmark,
+  onShare,
+  isBookmarked,
 }: {
   post: LocalPost;
   onLike: (id: string) => void;
   onDoubleTap: (id: string) => void;
+  onComment: (id: string) => void;
+  onBookmark: (id: string) => void;
+  onShare: (post: LocalPost) => void;
+  isBookmarked: boolean;
 }) {
   const accent = POST_ACCENT[post.type];
   const gradient = POST_GRADIENTS[post.type];
@@ -256,9 +264,9 @@ function FlashCard({
             </motion.span>
             <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>{post.localLikes}</span>
           </button>
-          <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.3rem" }}>💬</button>
-          <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.3rem" }}>🔖</button>
-          <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.3rem" }}>↗️</button>
+          <motion.button whileTap={{ scale: 0.85 }} onClick={e => { e.stopPropagation(); onComment(post.id); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.3rem" }}>💬</motion.button>
+          <motion.button whileTap={{ scale: 0.85 }} onClick={e => { e.stopPropagation(); onBookmark(post.id); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.3rem", filter: isBookmarked ? "drop-shadow(0 0 6px #ffd700)" : "none" }}>{isBookmarked ? "🔖" : "🏷️"}</motion.button>
+          <motion.button whileTap={{ scale: 0.85 }} onClick={e => { e.stopPropagation(); onShare(post); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.3rem" }}>↗️</motion.button>
         </div>
       </div>
 
@@ -457,12 +465,43 @@ function CreatePostModal({ onClose, onPost, accent }: {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SocialPage() {
-  const { user, worldId, activities } = useApp();
+  const { user, worldId, activities, showToast } = useApp();
   const [tab, setTab] = useState<Tab>("FLASH");
   const [liveFilter, setLiveFilter] = useState<LiveFilter>("ALL");
   const [showCreate, setShowCreate] = useState(false);
   const [activeStory, setActiveStory] = useState<typeof STORY_DATA[0] | null>(null);
   const [seenStories, setSeenStories] = useState<Set<string>>(new Set());
+  const [commentPostId, setCommentPostId] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState("");
+  const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
+  const [addedFriends, setAddedFriends] = useState<Set<string>>(new Set());
+  const [inviteCopied, setInviteCopied] = useState(false);
+
+  const handleComment = useCallback((id: string) => { setCommentPostId(id); setCommentText(""); }, []);
+  const handleBookmark = useCallback((id: string) => {
+    setBookmarks(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); showToast("Removed bookmark", undefined, "#888", "🏷️"); }
+      else { next.add(id); showToast("Bookmarked! 🔖", undefined, "#ffd700", "🔖"); }
+      return next;
+    });
+  }, [showToast]);
+  const handleShare = useCallback((post: LocalPost) => {
+    const text = `@${post.authorUsername}: "${post.content.slice(0, 80)}" — KarmaPet 🐾`;
+    try { navigator.clipboard.writeText(text); } catch {}
+    showToast("Post copied! Share it 📤", undefined, "#4488ff", "↗️");
+  }, [showToast]);
+  const handleAddFriend = useCallback((username: string) => {
+    setAddedFriends(prev => { const n = new Set(prev); n.add(username); return n; });
+    showToast(`Added @${username}! 🤝`, undefined, "#c8ff00", "✅");
+  }, [showToast]);
+  const handleCopyInvite = useCallback(() => {
+    const code = `KARMA-${user.username.toUpperCase().slice(0, 6)}`;
+    try { navigator.clipboard.writeText(code); } catch {}
+    setInviteCopied(true);
+    showToast("Invite code copied! 📋", undefined, "#c8ff00", "🎉");
+    setTimeout(() => setInviteCopied(false), 2500);
+  }, [user.username, showToast]);
   const world = WORLDS.find(w => w.id === worldId) ?? WORLDS[2];
   const onlineFriends = FRIENDS.filter(f => f.online);
 
@@ -716,7 +755,7 @@ export default function SocialPage() {
             borderBottom: "1px solid #111",
           }}>
             {/* My story */}
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer", flexShrink: 0 }}>
+            <motion.div whileTap={{ scale: 0.9 }} onClick={() => setShowCreate(true)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer", flexShrink: 0 }}>
               <div style={{
                 width: 58, height: 58, borderRadius: "50%",
                 background: "#111", border: "2.5px dashed #333",
@@ -735,7 +774,7 @@ export default function SocialPage() {
               <div style={{ fontSize: "0.6rem", color: "#555", maxWidth: 58, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 Add Story
               </div>
-            </div>
+            </motion.div>
 
             {/* Friend stories */}
             {STORY_DATA.map(story => {
@@ -781,6 +820,10 @@ export default function SocialPage() {
                 post={post}
                 onLike={handleLike}
                 onDoubleTap={handleDoubleTap}
+                onComment={handleComment}
+                onBookmark={handleBookmark}
+                onShare={handleShare}
+                isBookmarked={bookmarks.has(post.id)}
               />
             ))}
           </div>
@@ -1001,9 +1044,19 @@ export default function SocialPage() {
                       <div style={{ fontSize: 13, fontWeight: 700 }}>@{e.username}</div>
                       <div style={{ fontSize: 11, color: "#888" }}>LV{e.level} · {e.karma.toLocaleString()} ⚡</div>
                     </div>
-                    <button style={{ padding: "6px 12px", background: world.accent, border: "2px solid #0a0a0a", borderRadius: 10, fontSize: 11, fontWeight: 700, color: "#000", cursor: "pointer" }}>
-                      + ADD
-                    </button>
+                    <motion.button
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => !addedFriends.has(e.username) && handleAddFriend(e.username)}
+                      style={{
+                        padding: "6px 12px",
+                        background: addedFriends.has(e.username) ? "#1a1a1a" : world.accent,
+                        border: `2px solid ${addedFriends.has(e.username) ? "#333" : "#0a0a0a"}`,
+                        borderRadius: 10, fontSize: 11, fontWeight: 700,
+                        color: addedFriends.has(e.username) ? "#666" : "#000",
+                        cursor: addedFriends.has(e.username) ? "default" : "pointer",
+                      }}>
+                      {addedFriends.has(e.username) ? "✓ ADDED" : "+ ADD"}
+                    </motion.button>
                   </div>
                 </motion.div>
               ))}
@@ -1014,9 +1067,19 @@ export default function SocialPage() {
           <div style={{ background: `${world.accent}18`, border: `2px solid ${world.accent}`, borderRadius: 16, padding: "14px 16px", textAlign: "center" }}>
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Invite Friends</div>
             <div style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>Share your code and earn 200 ⚡ each</div>
-            <div style={{ background: "#0a0a0a", color: world.accent, borderRadius: 10, padding: "8px 14px", fontSize: 13, fontWeight: 700, letterSpacing: "0.1em", display: "inline-block" }}>
-              KARMA-{user.username.toUpperCase().slice(0, 6)}
-            </div>
+            <motion.div
+              whileTap={{ scale: 0.95 }}
+              onClick={handleCopyInvite}
+              style={{
+                background: inviteCopied ? world.accent + "33" : "#0a0a0a",
+                color: world.accent, borderRadius: 10, padding: "8px 14px",
+                fontSize: 13, fontWeight: 700, letterSpacing: "0.1em",
+                display: "inline-flex", alignItems: "center", gap: 8,
+                cursor: "pointer", border: `1.5px solid ${world.accent}55`,
+              }}>
+              {inviteCopied ? "✅ COPIED!" : `KARMA-${user.username.toUpperCase().slice(0, 6)}`}
+              {!inviteCopied && <span style={{ fontSize: 11, opacity: 0.6 }}>tap to copy</span>}
+            </motion.div>
           </div>
         </div>
       )}
@@ -1216,6 +1279,103 @@ export default function SocialPage() {
             onClose={() => setShowCreate(false)}
             onPost={handleNewPost}
           />
+        )}
+      </AnimatePresence>
+
+      {/* ── Comment Sheet ── */}
+      <AnimatePresence>
+        {commentPostId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setCommentPostId(null)}
+            style={{
+              position: "fixed", inset: 0, zIndex: 300,
+              background: "rgba(0,0,0,0.8)", backdropFilter: "blur(6px)",
+              display: "flex", alignItems: "flex-end",
+            }}
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 28 }}
+              onClick={e => e.stopPropagation()}
+              style={{
+                width: "100%", background: "#0d0d0d",
+                borderTop: "2.5px solid #222",
+                borderTopLeftRadius: 28, borderTopRightRadius: 28,
+                padding: "20px 16px 36px",
+              }}
+            >
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", marginBottom: 16, letterSpacing: "-0.02em" }}>
+                💬 ADD COMMENT
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#1a1a1a", border: "2px solid #333", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", flexShrink: 0 }}>
+                  {user.avatarEmoji}
+                </div>
+                <input
+                  autoFocus
+                  value={commentText}
+                  onChange={e => setCommentText(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && commentText.trim()) {
+                      showToast("Comment posted! 💬", undefined, world.accent, "💬");
+                      setCommentPostId(null);
+                      setCommentText("");
+                    }
+                  }}
+                  placeholder="Write something..."
+                  style={{
+                    flex: 1, background: "#111", border: "2px solid #222",
+                    borderRadius: 14, padding: "10px 14px",
+                    fontSize: 14, color: "#fff", outline: "none",
+                    fontFamily: "inherit",
+                  }}
+                />
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => {
+                    if (!commentText.trim()) return;
+                    showToast("Comment posted! 💬", undefined, world.accent, "💬");
+                    setCommentPostId(null);
+                    setCommentText("");
+                  }}
+                  style={{
+                    width: 42, height: 42, borderRadius: 14,
+                    background: commentText.trim() ? world.accent : "#1a1a1a",
+                    border: "2px solid #0a0a0a",
+                    cursor: "pointer", fontSize: "1.2rem", flexShrink: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}
+                >
+                  ↑
+                </motion.button>
+              </div>
+              {/* Quick reactions */}
+              <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                {["🔥 Fire!", "⚡ Based!", "🏆 W", "🐾 Pet goals", "💪 Let's go"].map(q => (
+                  <motion.button
+                    key={q}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => {
+                      showToast("Comment posted! 💬", undefined, world.accent, "💬");
+                      setCommentPostId(null);
+                      setCommentText("");
+                    }}
+                    style={{
+                      background: "#111", border: "1.5px solid #222",
+                      borderRadius: 20, padding: "6px 12px",
+                      fontSize: 12, color: "#aaa", cursor: "pointer",
+                      fontFamily: "inherit",
+                    }}
+                  >{q}</motion.button>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

@@ -46,6 +46,10 @@ export default function FeedPage() {
 
   const posts = filter === "BOUNTIES"
     ? FEED_POSTS.filter((p) => p.type === "bounty_complete" || p.bounty)
+    : filter === "NEARBY"
+    ? FEED_POSTS.filter((p) => !!p.location)
+    : filter === "HOT"
+    ? [...FEED_POSTS].sort((a, b) => b.likes - a.likes).slice(0, 5)
     : FEED_POSTS;
 
   const myActivities = filter === "BOUNTIES" ? [] : activities.slice(0, 8);

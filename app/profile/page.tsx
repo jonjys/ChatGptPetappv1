@@ -37,6 +37,12 @@ export default function ProfilePage() {
   const newFollowerCount = FOLLOWERS.filter(f => f.isNew).length;
   const followList = followTab === "followers" ? FOLLOWERS : FOLLOWING;
 
+  const [showSettings, setShowSettings] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
+  const [hapticsOn, setHapticsOn] = useState(true);
+  const [notifOn, setNotifOn] = useState(true);
+  const [privacyPublic, setPrivacyPublic] = useState(true);
+
   return (
     <div style={{ background: "#080808", minHeight: "100dvh", color: "#fff" }}>
 
@@ -54,7 +60,7 @@ export default function ProfilePage() {
         </h1>
         <motion.button
           whileTap={{ scale: 0.9 }}
-          onClick={() => showToast("Settings coming soon! 🛠️", undefined, "#4488ff", "⚙️")}
+          onClick={() => setShowSettings(true)}
           style={{
             width: 40, height: 40,
             background: "#111", border: "2px solid #333",
@@ -495,6 +501,117 @@ export default function ProfilePage() {
         </div>
 
       </div>
+
+      {/* ── Settings Modal ── */}
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowSettings(false)}
+            style={{
+              position: "fixed", inset: 0, zIndex: 9999,
+              background: "rgba(0,0,0,0.85)", backdropFilter: "blur(8px)",
+              display: "flex", alignItems: "flex-end",
+            }}
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 280, damping: 28 }}
+              onClick={e => e.stopPropagation()}
+              style={{
+                width: "100%", background: "#0d0d0d",
+                borderTop: "2.5px solid #222",
+                borderTopLeftRadius: 28, borderTopRightRadius: 28,
+                padding: "24px 20px 48px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+                <div style={{ fontSize: "1.3rem", fontWeight: 900, letterSpacing: "-0.03em" }}>⚙️ SETTINGS</div>
+                <button onClick={() => setShowSettings(false)} style={{ background: "#1a1a1a", border: "2px solid #333", borderRadius: 10, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#888", fontSize: "1rem" }}>✕</button>
+              </div>
+
+              {/* Account */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#444", letterSpacing: "0.1em", marginBottom: 10 }}>ACCOUNT</div>
+                <div style={{ background: "#111", border: "2px solid #1a1a1a", borderRadius: 16, overflow: "hidden" }}>
+                  {[
+                    { label: "Username", value: `@${user.username}` },
+                    { label: "Email", value: "••••@gmail.com" },
+                    { label: "Member since", value: "Jun 2026" },
+                  ].map((item, i, arr) => (
+                    <div key={item.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: i < arr.length - 1 ? "1px solid #1a1a1a" : "none" }}>
+                      <span style={{ fontSize: 13, color: "#888" }}>{item.label}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#ccc" }}>{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Preferences */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#444", letterSpacing: "0.1em", marginBottom: 10 }}>PREFERENCES</div>
+                <div style={{ background: "#111", border: "2px solid #1a1a1a", borderRadius: 16, overflow: "hidden" }}>
+                  {[
+                    { label: "Language", icon: "🌐", value: lang === "sv" ? "Svenska" : "English", action: () => { setLang(lang === "sv" ? "en" : "sv"); showToast(lang === "sv" ? "Switched to English" : "Bytt till Svenska", undefined, "#4488ff", "🌐"); } },
+                    { label: "Sound FX", icon: "🔊", toggle: soundOn, onToggle: () => setSoundOn(v => !v) },
+                    { label: "Haptics", icon: "📳", toggle: hapticsOn, onToggle: () => setHapticsOn(v => !v) },
+                    { label: "Notifications", icon: "🔔", toggle: notifOn, onToggle: () => setNotifOn(v => !v) },
+                    { label: "Public Profile", icon: "👁️", toggle: privacyPublic, onToggle: () => setPrivacyPublic(v => !v) },
+                  ].map((item, i, arr) => (
+                    <div key={item.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: i < arr.length - 1 ? "1px solid #1a1a1a" : "none" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontSize: "1.1rem" }}>{item.icon}</span>
+                        <span style={{ fontSize: 13, color: "#ccc" }}>{item.label}</span>
+                      </div>
+                      {item.toggle !== undefined ? (
+                        <motion.button
+                          whileTap={{ scale: 0.9 }}
+                          onClick={item.onToggle}
+                          style={{
+                            width: 48, height: 26, borderRadius: 13,
+                            background: item.toggle ? classColor : "#222",
+                            border: "2px solid #0a0a0a",
+                            cursor: "pointer", position: "relative",
+                            transition: "background 0.2s",
+                          }}
+                        >
+                          <motion.div
+                            animate={{ x: item.toggle ? 22 : 2 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                            style={{ position: "absolute", top: 2, width: 18, height: 18, borderRadius: "50%", background: "#fff" }}
+                          />
+                        </motion.button>
+                      ) : (
+                        <motion.button whileTap={{ scale: 0.95 }} onClick={item.action} style={{ fontSize: 12, fontWeight: 700, color: classColor, background: "none", border: "none", cursor: "pointer" }}>
+                          {item.value} ›
+                        </motion.button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Danger zone */}
+              <motion.button
+                whileTap={{ scale: 0.96 }}
+                onClick={() => { showToast("Account data cleared (demo)", undefined, "#ff3333", "🗑️"); setShowSettings(false); }}
+                style={{
+                  width: "100%", padding: "14px", background: "#110000",
+                  border: "2px solid #ff333344", borderRadius: 14,
+                  fontSize: 13, fontWeight: 700, color: "#ff3333",
+                  cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                🗑️ Reset All Data
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
