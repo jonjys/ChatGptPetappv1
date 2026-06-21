@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Bell, Zap, Flame, X } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,6 +11,23 @@ import { useApp } from "@/context/AppContext";
 import { formatXP, calculateLevel } from "@/lib/xp-system";
 import { getDailyQuests } from "@/lib/quests";
 import { getPetEmoji, getMoodEmoji, getPetClassColor } from "@/lib/pet-evolution";
+
+const EVENTS = [
+  { id: "surge",  name: "KARMA SURGE",   emoji: "⚡", color: "#c8ff00", tagline: "2× karma on everything" },
+  { id: "bounty", name: "BOUNTY STORM",  emoji: "🎯", color: "#00ff88", tagline: "3× bounty rewards" },
+  { id: "pet",    name: "PET PARADISE",  emoji: "🐾", color: "#ff2d8d", tagline: "5× pet XP" },
+  { id: "battle", name: "BATTLE ROYALE", emoji: "⚔️", color: "#ff6b35", tagline: "+500 bonus on game wins" },
+  { id: "mystery",name: "MYSTERY DROP",  emoji: "🎁", color: "#a855f7", tagline: "Random drops every 2min" },
+];
+const EVENT_INTERVAL = 30 * 60;
+function getCurrentEvent() {
+  const slot = Math.floor(Date.now() / 1000 / EVENT_INTERVAL);
+  return EVENTS[slot % EVENTS.length];
+}
+function getSecondsLeft() {
+  return EVENT_INTERVAL - (Math.floor(Date.now() / 1000) % EVENT_INTERVAL);
+}
+function fmt(s: number) { return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`; }
 
 const FILTERS = ["ALL", "NEARBY", "HOT", "BOUNTIES"] as const;
 type Filter = (typeof FILTERS)[number];
@@ -43,6 +60,14 @@ export default function FeedPage() {
   const [filter, setFilter]       = useState<Filter>("ALL");
   const [showNotifs, setShowNotifs] = useState(false);
   const level = calculateLevel(user.xp);
+  const [liveEvent, setLiveEvent] = useState(getCurrentEvent);
+  const [secsLeft, setSecsLeft]   = useState(getSecondsLeft);
+
+  useEffect(() => {
+    const tick = () => { setLiveEvent(getCurrentEvent()); setSecsLeft(getSecondsLeft()); };
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const posts = filter === "BOUNTIES"
     ? FEED_POSTS.filter((p) => p.type === "bounty_complete" || p.bounty)
@@ -457,6 +482,39 @@ export default function FeedPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── LIVE EVENT BANNER ── */}
+      <Link href="/event" style={{ textDecoration: "none", display: "block", padding: "10px 16px 0" }}>
+        <motion.div
+          whileTap={{ scale: 0.97 }}
+          animate={{ boxShadow: [`0 0 16px ${liveEvent.color}22`, `0 0 32px ${liveEvent.color}55`, `0 0 16px ${liveEvent.color}22`] }}
+          transition={{ duration: 1.8, repeat: Infinity }}
+          style={{
+            background: `linear-gradient(135deg, #0a0a0a, #111)`,
+            border: `2px solid ${liveEvent.color}77`,
+            borderRadius: 16, padding: "12px 14px",
+            display: "flex", alignItems: "center", gap: 12,
+          }}
+        >
+          <motion.span
+            animate={{ scale: [1, 1.15, 1] }}
+            transition={{ repeat: Infinity, duration: 1.2 }}
+            style={{ fontSize: "1.6rem", flexShrink: 0 }}
+          >{liveEvent.emoji}</motion.span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+              <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ repeat: Infinity, duration: 0.9 }}
+                style={{ width: 6, height: 6, background: liveEvent.color, borderRadius: "50%", boxShadow: `0 0 6px ${liveEvent.color}`, flexShrink: 0 }} />
+              <span style={{ fontSize: 11, fontWeight: 900, color: liveEvent.color, letterSpacing: "0.08em" }}>LIVE · {liveEvent.name}</span>
+            </div>
+            <div style={{ fontSize: 11, color: "#666" }}>{liveEvent.tagline}</div>
+          </div>
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <div style={{ fontSize: 10, color: "#444" }}>ends in</div>
+            <div style={{ fontSize: 14, fontWeight: 900, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{fmt(secsLeft)}</div>
+          </div>
+        </motion.div>
+      </Link>
 
       {/* Stories */}
       <div className="px-4 pt-3" style={{ borderBottom: "2px solid #c8ff0022" }}>

@@ -5,10 +5,24 @@ import { usePathname } from "next/navigation";
 import { Flame, PawPrint, Gamepad2, Tv2, Users, User } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { t } from "@/lib/i18n";
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+
+const EVENT_INTERVAL = 30 * 60;
+const EVENT_EMOJIS = ["⚡","🎯","🐾","⚔️","🎁"];
+function getEventEmoji() {
+  return EVENT_EMOJIS[Math.floor(Math.floor(Date.now() / 1000 / EVENT_INTERVAL) % EVENT_EMOJIS.length)];
+}
 
 export default function BottomNav() {
   const path = usePathname();
   const { pet, worldId, lang } = useApp();
+  const [eventEmoji, setEventEmoji] = useState(getEventEmoji);
+
+  useEffect(() => {
+    const id = setInterval(() => setEventEmoji(getEventEmoji()), 5000);
+    return () => clearInterval(id);
+  }, []);
 
   const TABS = [
     { href: "/feed",     icon: Flame,    label: t(lang, "feed") },
@@ -29,11 +43,29 @@ export default function BottomNav() {
 
           if (tab.special) {
             return (
-              <Link key={tab.href} href={tab.href} className="flex flex-col items-center">
-                <span className="flex items-center justify-center w-12 h-12 rounded-2xl transition-transform active:scale-90"
-                  style={{ background: "#0a0a0a", border: "3px solid #0a0a0a", boxShadow: "3px 3px 0px #c8ff00" }}>
+              <Link key={tab.href} href={tab.href} className="flex flex-col items-center" style={{ position: "relative" }}>
+                <motion.span
+                  animate={{ boxShadow: ["3px 3px 0px #c8ff00", "3px 3px 0px #c8ff00, 0 0 12px #c8ff0066", "3px 3px 0px #c8ff00"] }}
+                  transition={{ repeat: Infinity, duration: 2 }}
+                  className="flex items-center justify-center w-12 h-12 rounded-2xl transition-transform active:scale-90"
+                  style={{ background: "#0a0a0a", border: "3px solid #0a0a0a" }}
+                >
                   <Icon size={24} color="#c8ff00" strokeWidth={2.5} />
-                </span>
+                </motion.span>
+                {/* Live event dot */}
+                <Link href="/event" onClick={e => e.stopPropagation()}
+                  style={{ position: "absolute", top: -2, right: -2, zIndex: 10, textDecoration: "none" }}>
+                  <motion.div
+                    animate={{ scale: [1, 1.3, 1] }}
+                    transition={{ repeat: Infinity, duration: 1.2 }}
+                    style={{
+                      width: 18, height: 18, borderRadius: "50%",
+                      background: "#ff2d8d", border: "2px solid #faf7f2",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: "9px", lineHeight: 1,
+                    }}
+                  >{eventEmoji}</motion.div>
+                </Link>
               </Link>
             );
           }
