@@ -355,10 +355,11 @@ export default function FeedPage() {
       {filter === "ALL" && (
         <div style={{ display: "flex", gap: 8, padding: "12px 16px 0", overflowX: "auto", scrollbarWidth: "none" }}>
           {[
-            { href: "/karma-pot", emoji: "💰", label: "POTTEN", sub: "249 kr idag", color: "#c8ff00" },
-            { href: "/ville",     emoji: "🏙️", label: "MIN STAD", sub: "Bygg & tjäna", color: "#ff6b35" },
-            { href: "/chat",      emoji: "💬", label: "CHATT",    sub: "137 online", color: "#00e5ff" },
-            { href: "/premium",   emoji: "👑", label: "PREMIUM",  sub: "Från 19 kr", color: "#ff8c00" },
+            { href: "/karma-pot", emoji: "💰", label: "POTTEN",   sub: "249 kr idag",   color: "#c8ff00" },
+            { href: "/squads",    emoji: "⚡",  label: "SQUADS",   sub: "Wars live!",     color: "#c8ff00" },
+            { href: "/ville",     emoji: "🏙️", label: "MIN STAD", sub: "Bygg & tjäna",  color: "#ff6b35" },
+            { href: "/chat",      emoji: "💬", label: "CHATT",    sub: "137 online",     color: "#00e5ff" },
+            { href: "/premium",   emoji: "👑", label: "PREMIUM",  sub: "Från 19 kr",    color: "#ff8c00" },
           ].map(item => (
             <Link key={item.href} href={item.href} style={{ textDecoration: "none", flexShrink: 0 }}>
               <motion.div

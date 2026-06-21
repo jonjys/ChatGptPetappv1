@@ -898,6 +898,29 @@ export default function SocialPage() {
       {/* ── FRIENDS tab ── */}
       {tab === "FRIENDS" && (
         <div className="px-4 pt-4 pb-24 space-y-4">
+
+          {/* Squad banner */}
+          <Link href="/squads" style={{ textDecoration: "none", display: "block" }}>
+            <motion.div
+              whileTap={{ scale: 0.97 }}
+              animate={{ boxShadow: ["0 0 16px #c8ff0022", "0 0 32px #c8ff0044", "0 0 16px #c8ff0022"] }}
+              transition={{ duration: 2.5, repeat: Infinity }}
+              style={{
+                background: "linear-gradient(135deg, #060f06, #0d1a0d)",
+                border: "2px solid #c8ff0055",
+                borderRadius: 18, padding: "14px 16px",
+                display: "flex", alignItems: "center", gap: 14,
+              }}
+            >
+              <div style={{ width: 48, height: 48, borderRadius: 12, background: "#c8ff0022", border: "2px solid #c8ff00", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem", flexShrink: 0 }}>⚡</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: "0.95rem", fontWeight: 900, color: "#c8ff00", marginBottom: 2 }}>KARMA LORDS · #3</div>
+                <div style={{ fontSize: 11, color: "#555" }}>Squad wars · 6 members · Join the fight</div>
+              </div>
+              <div style={{ fontSize: "1rem", color: "#c8ff00" }}>→</div>
+            </motion.div>
+          </Link>
+
           {/* Online story-bar */}
           {onlineFriends.length > 0 && (
             <div>
