@@ -351,6 +351,9 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
     s.particles = s.particles.filter(p => p.life > 0);
 
     if (s.phase === "wave") {
+      // Time warp decay
+      const gs = s as GS & { _warpFrames?: number };
+      if (gs._warpFrames && gs._warpFrames > 0) gs._warpFrames--;
       // Spawn
       s.spawnTimer++;
       const ready = s.spawnQueue.filter(e => e.delay <= s.spawnTimer);
@@ -672,6 +675,22 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
       const sec=Math.ceil(s.betweenTimer/60);
       ctx.fillText(sec>0?`Next wave in ${sec}s — or tap START`:"Tap START WAVE",GW/2,GH/2+22);
     }
+    // Wave milestone flash
+    const MILESTONES = [5,10,25,50,100,200];
+    if (s.phase==="between" && MILESTONES.includes(s.wave) && s.betweenTimer>540) {
+      const pct = (s.betweenTimer-540)/60;
+      ctx.globalAlpha=pct*0.92;
+      ctx.fillStyle="rgba(200,255,0,0.12)"; ctx.fillRect(0,0,GW,GH);
+      ctx.globalAlpha=pct;
+      ctx.font="bold 28px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillStyle="#c8ff00"; ctx.shadowColor="#c8ff00"; ctx.shadowBlur=30;
+      ctx.fillText(`🌟 WAVE ${s.wave} 🌟`,GW/2,GH/2-60);
+      ctx.font="14px sans-serif"; ctx.fillStyle="#fff"; ctx.shadowBlur=0;
+      const labels: Record<number,string> = {5:"Beginner",10:"Warrior",25:"Elite",50:"Master",100:"Legend",200:"MYTHIC"};
+      ctx.fillText(labels[s.wave]??`Tier ${s.wave}`,GW/2,GH/2-28);
+      ctx.globalAlpha=1;
+    }
+
     if (s.phase==="gameover") {
       ctx.fillStyle="rgba(0,0,0,0.84)"; ctx.fillRect(0,0,GW,GH);
       ctx.font="bold 28px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
