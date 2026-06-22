@@ -146,7 +146,7 @@ export default function GamesPage() {
         </div>
       </div>
 
-      <div className="px-4 pt-4 pb-24 space-y-3" style={{ position: "relative", zIndex: 1 }}>
+      <div className="px-4 pt-4 pb-24 space-y-2" style={{ position: "relative", zIndex: 1 }}>
 
         {/* ── Featured Daily Challenge Banner ──────────────────────────────────── */}
         <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
@@ -165,7 +165,7 @@ export default function GamesPage() {
                 background: `linear-gradient(135deg, ${featuredGame.bg}, #0a0a0a 60%, ${featuredGame.accent}0a)`,
                 border: `3px solid ${featuredGame.accent}`,
                 borderRadius: 20,
-                padding: "20px 18px",
+                padding: "14px 18px",
                 position: "relative",
                 overflow: "hidden",
               }}
@@ -178,7 +178,7 @@ export default function GamesPage() {
               }} />
 
               {/* Top chip */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                 <motion.div
                   animate={{ opacity: [1, 0.6, 1] }}
                   transition={{ repeat: Infinity, duration: 1.4 }}
@@ -200,22 +200,22 @@ export default function GamesPage() {
               </div>
 
               {/* Main content row */}
-              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                 {/* Big emoji */}
                 <motion.div
                   animate={{ scale: [1, 1.08, 1], rotate: [0, -4, 4, 0] }}
                   transition={{ duration: 3, repeat: Infinity, repeatDelay: 1 }}
-                  style={{ fontSize: "5rem", lineHeight: 1, flexShrink: 0 }}
+                  style={{ fontSize: "3rem", lineHeight: 1, flexShrink: 0 }}
                 >
                   {featuredGame.emoji}
                 </motion.div>
 
                 {/* Text */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 22, fontWeight: 900, color: "#fff", letterSpacing: "-0.03em", marginBottom: 2 }}>
+                  <div style={{ fontSize: 20, fontWeight: 900, color: "#fff", letterSpacing: "-0.03em", marginBottom: 2 }}>
                     {featuredGame.name}
                   </div>
-                  <div style={{ fontSize: 11, color: "#666", marginBottom: 10, lineHeight: 1.4 }}>
+                  <div style={{ fontSize: 11, color: "#666", marginBottom: 8, lineHeight: 1.4 }}>
                     {featuredGame.tagline}
                   </div>
 
@@ -223,7 +223,7 @@ export default function GamesPage() {
                   <div style={{
                     display: "inline-flex", alignItems: "center", gap: 6,
                     background: `${featuredGame.accent}18`, border: `1px solid ${featuredGame.accent}44`,
-                    borderRadius: 10, padding: "5px 10px", marginBottom: 12,
+                    borderRadius: 10, padding: "4px 10px", marginBottom: 8,
                   }}>
                     <span style={{ fontSize: 9, fontWeight: 800, color: "#888", letterSpacing: "0.06em" }}>BONUS:</span>
                     <span style={{ fontSize: 12, fontWeight: 900, color: featuredGame.accent }}>+50 KARMA today</span>
@@ -238,7 +238,7 @@ export default function GamesPage() {
                         display: "inline-flex", alignItems: "center", gap: 6,
                         background: featuredCompleted ? "#22c55e" : featuredGame.accent,
                         color: "#000", fontSize: 12, fontWeight: 900,
-                        padding: "8px 18px", borderRadius: 10, letterSpacing: "0.04em",
+                        padding: "7px 16px", borderRadius: 10, letterSpacing: "0.04em",
                       }}
                     >
                       {featuredCompleted ? "✓ PLAY AGAIN →" : "PLAY NOW →"}
@@ -264,8 +264,8 @@ export default function GamesPage() {
               transition={{ repeat: Infinity, duration: 3 }}
               style={{
                 background: "linear-gradient(135deg, #0f1a00, #0a0a0a)",
-                border: "2px solid #c8ff0055", borderRadius: 20, padding: "14px 16px",
-                display: "flex", alignItems: "center", gap: 14,
+                border: "2px solid #c8ff0055", borderRadius: 16, padding: "10px 14px",
+                display: "flex", alignItems: "center", gap: 12,
                 position: "relative", overflow: "hidden",
               }}
             >
@@ -275,22 +275,22 @@ export default function GamesPage() {
               <motion.div
                 animate={{ scale: [1, 1.12, 1], rotate: [0, -8, 8, 0] }}
                 transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 1 }}
-                style={{ fontSize: "2.2rem", flexShrink: 0 }}
+                style={{ fontSize: "1.8rem", flexShrink: 0 }}
               >💰</motion.div>
 
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                  <span style={{ fontSize: 15, fontWeight: 900, color: "#c8ff00" }}>KARMA POTTEN</span>
+                  <span style={{ fontSize: 14, fontWeight: 900, color: "#c8ff00" }}>KARMA POTTEN</span>
                   <motion.span
                     animate={{ opacity: [1, 0.4, 1] }}
                     transition={{ repeat: Infinity, duration: 1.2 }}
                     style={{ fontSize: 9, fontWeight: 800, background: "#ff2d8d", color: "#fff", padding: "2px 6px", borderRadius: 4 }}
                   >LIVE 🔴</motion.span>
                 </div>
-                <div style={{ fontSize: 11, color: "#555", marginBottom: 4 }}>Spela → tjäna biljetter → vinn riktiga pengar</div>
-                <div style={{ fontSize: 14, fontWeight: 900, color: "#ff6b35" }}>Daglig: 249 kr · Vecka: 1 249 kr</div>
+                <div style={{ fontSize: 10, color: "#555" }}>Spela → tjäna biljetter → vinn riktiga pengar</div>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#ff6b35" }}>Daglig: 249 kr · Vecka: 1 249 kr</div>
               </div>
-              <div style={{ color: "#c8ff00", fontSize: 20, flexShrink: 0 }}>→</div>
+              <div style={{ color: "#c8ff00", fontSize: 18, flexShrink: 0 }}>→</div>
             </motion.div>
           </Link>
         </motion.div>
@@ -302,19 +302,19 @@ export default function GamesPage() {
               whileTap={{ scale: 0.97 }}
               style={{
                 background: "linear-gradient(135deg, #0d1a00, #111)",
-                border: "2px solid #c8ff0066", borderRadius: 20, padding: "14px 16px",
-                display: "flex", alignItems: "center", gap: 14,
+                border: "2px solid #c8ff0066", borderRadius: 16, padding: "10px 14px",
+                display: "flex", alignItems: "center", gap: 12,
                 boxShadow: "0 0 20px #c8ff0011",
               }}
             >
               <div style={{
-                width: 52, height: 52, borderRadius: 14, flexShrink: 0,
+                width: 44, height: 44, borderRadius: 12, flexShrink: 0,
                 background: "#c8ff0018", border: "2px solid #c8ff0055",
-                display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.6rem",
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.4rem",
               }}>📋</div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                  <span style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>DAILY QUESTS</span>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>DAILY QUESTS</span>
                   {questsDone < dailyQuests.length && (
                     <span style={{ fontSize: 9, fontWeight: 700, background: "#ff2d8d", color: "#fff", padding: "2px 6px", borderRadius: 4 }}>
                       {dailyQuests.length - questsDone} LEFT
@@ -324,177 +324,120 @@ export default function GamesPage() {
                     <span style={{ fontSize: 9, fontWeight: 700, background: "#c8ff00", color: "#000", padding: "2px 6px", borderRadius: 4 }}>COMPLETE ✅</span>
                   )}
                 </div>
-                <div style={{ fontSize: 11, color: "#555" }}>Complete quests for huge karma bonuses</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-                  {/* Mini progress dots */}
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
                   {dailyQuests.map((q) => (
                     <div key={q.id} style={{
-                      width: 20, height: 4, borderRadius: 2,
+                      width: 18, height: 3, borderRadius: 2,
                       background: questClaimed.includes(q.id) ? "#c8ff00" : "#222",
                     }} />
                   ))}
-                  <span style={{ fontSize: 10, color: "#c8ff00", fontWeight: 700, marginLeft: 4 }}>
-                    {questsDone}/{dailyQuests.length} · +1000 ⚡ bonus
+                  <span style={{ fontSize: 9, color: "#c8ff00", fontWeight: 700, marginLeft: 4 }}>
+                    {questsDone}/{dailyQuests.length} · +1000 ⚡
                   </span>
                 </div>
               </div>
-              <div style={{ width: 28, height: 28, borderRadius: 8, background: "#c8ff0022", border: "1.5px solid #c8ff0044", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>→</div>
+              <div style={{ width: 26, height: 26, borderRadius: 8, background: "#c8ff0022", border: "1.5px solid #c8ff0044", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>→</div>
             </motion.div>
           </Link>
         </motion.div>
 
         {/* ── Section header ──────────────────────────────────────────────────── */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: 2 }}>
           <Flame size={14} color="#ff6b35" fill="#ff6b35" />
           <span style={{ fontSize: 11, fontWeight: 800, color: "#555", letterSpacing: "0.1em" }}>ALL GAMES</span>
           <div style={{ flex: 1, height: 1, background: "#1a1a1a" }} />
           <span style={{ fontSize: 10, color: "#333", fontWeight: 600 }}>{GAMES.length} total</span>
         </div>
 
-        {/* ── Game cards ──────────────────────────────────────────────────────── */}
-        {GAMES.map((g, i) => {
-          const score = gameScores[g.id as keyof typeof gameScores] ?? 0;
-          return (
+        {/* ── Game cards — 2-column compact grid ──────────────────────────────── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          {GAMES.map((g, i) => (
             <motion.div
               key={g.id}
-              initial={{ opacity: 0, x: -16 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.05 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.04 }}
             >
-              <Link href={g.href} style={{ textDecoration: "none" }}>
+              <Link href={g.href} style={{ textDecoration: "none", display: "block" }}>
                 <motion.div
-                  whileTap={{ scale: 0.97 }}
+                  whileTap={{ scale: 0.96 }}
                   style={{
                     background: g.bg,
                     border: `2px solid ${g.accent}44`,
-                    borderRadius: 20, padding: "14px 14px",
-                    display: "flex", alignItems: "center", gap: 12,
+                    borderRadius: 14, padding: "10px 10px",
+                    display: "flex", flexDirection: "column", gap: 6,
                     position: "relative", overflow: "hidden",
-                    boxShadow: g.hot ? `0 0 24px ${g.accent}11` : "none",
+                    boxShadow: g.hot ? `0 0 16px ${g.accent}11` : "none",
+                    height: "100%",
                     transition: "all 0.15s",
                   }}
                 >
                   {/* Background gradient accent */}
-                  <div style={{ position: "absolute", top: 0, right: 0, width: 100, height: "100%", background: `linear-gradient(90deg, transparent, ${g.accent}08)`, pointerEvents: "none" }} />
+                  <div style={{ position: "absolute", top: 0, right: 0, width: "60%", height: "100%", background: `linear-gradient(90deg, transparent, ${g.accent}07)`, pointerEvents: "none" }} />
 
-                  {/* Game icon */}
-                  <motion.div
-                    animate={g.hot ? { boxShadow: [`0 0 8px ${g.accent}22`, `0 0 20px ${g.accent}44`, `0 0 8px ${g.accent}22`] } : {}}
-                    transition={{ repeat: Infinity, duration: 2.5 }}
-                    style={{
-                      width: 54, height: 54, borderRadius: 16, flexShrink: 0,
-                      background: `${g.accent}18`, border: `2px solid ${g.accent}55`,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: "1.8rem",
-                    }}
-                  >
-                    {g.emoji}
-                  </motion.div>
-
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                      <span style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{g.name}</span>
-                      {g.tag && (
-                        <span style={{ fontSize: 8, fontWeight: 800, background: g.accent, color: "#000", padding: "2px 6px", borderRadius: 4, letterSpacing: "0.04em" }}>
-                          {g.tag}
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ fontSize: 11, color: "#444", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {g.tagline}
-                    </div>
-                    {/* Personal best pill */}
-                    {score > 0 && (
-                      <div style={{ display: "inline-flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
-                        <span style={{
-                          fontSize: 9, fontWeight: 800,
-                          background: `${g.accent}18`, border: `1px solid ${g.accent}44`,
-                          color: g.accent, padding: "2px 7px", borderRadius: 20,
-                          letterSpacing: "0.04em",
-                        }}>
-                          🏆 PB: {score}
-                        </span>
-                      </div>
-                    )}
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 11, fontWeight: 800, color: g.accent, opacity: 0.9 }}>{g.reward}</span>
-                      {g.players && (
-                        <span style={{ fontSize: 9, color: "#333", display: "flex", alignItems: "center", gap: 2 }}>
-                          <Users size={8} color="#333" /> {g.players}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
-                    {score > 0 && (
-                      <span style={{ fontSize: 10, fontWeight: 700, color: g.accent, display: "flex", alignItems: "center", gap: 2 }}>
-                        <Trophy size={9} color={g.accent} /> {score}
-                      </span>
-                    )}
+                  {/* Tag badge top-right */}
+                  {g.tag && (
                     <div style={{
-                      width: 30, height: 30, borderRadius: 8,
+                      position: "absolute", top: 6, right: 6,
+                      fontSize: 7, fontWeight: 800, background: g.accent, color: "#000",
+                      padding: "2px 5px", borderRadius: 4, letterSpacing: "0.04em",
+                      zIndex: 1,
+                    }}>
+                      {g.tag}
+                    </div>
+                  )}
+
+                  {/* Top row: icon + arrow */}
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                    <motion.div
+                      animate={g.hot ? { boxShadow: [`0 0 6px ${g.accent}22`, `0 0 14px ${g.accent}44`, `0 0 6px ${g.accent}22`] } : {}}
+                      transition={{ repeat: Infinity, duration: 2.5 }}
+                      style={{
+                        width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                        background: `${g.accent}18`, border: `2px solid ${g.accent}55`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: "1.5rem",
+                      }}
+                    >
+                      {g.emoji}
+                    </motion.div>
+                    <div style={{
+                      width: 22, height: 22, borderRadius: 6,
                       background: `${g.accent}22`, border: `1.5px solid ${g.accent}44`,
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: "1rem", color: g.accent,
+                      fontSize: "0.8rem", color: g.accent, flexShrink: 0,
                     }}>→</div>
+                  </div>
+
+                  {/* Name */}
+                  <div style={{ fontSize: 12, fontWeight: 900, color: "#fff", letterSpacing: "-0.01em", lineHeight: 1.1 }}>
+                    {g.name}
+                  </div>
+
+                  {/* Tagline — 1 line truncated */}
+                  <div style={{ fontSize: 9, color: "#444", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", lineHeight: 1.2 }}>
+                    {g.tagline}
+                  </div>
+
+                  {/* Reward */}
+                  <div style={{ fontSize: 10, fontWeight: 800, color: g.accent, opacity: 0.9 }}>
+                    {g.reward}
                   </div>
                 </motion.div>
               </Link>
             </motion.div>
-          );
-        })}
-
-        {/* ── Daily Challenge mini tracker ─────────────────────────────────────── */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
-          <div style={{
-            background: "linear-gradient(135deg, #0a2000, #111)",
-            border: "2px solid #c8ff0066", borderRadius: 20, padding: "16px",
-            boxShadow: "0 0 24px #c8ff0011",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <Zap size={14} color="#c8ff00" fill="#c8ff00" />
-                <span style={{ fontSize: 12, fontWeight: 900, color: "#c8ff00", letterSpacing: "0.08em" }}>DAILY CHALLENGE</span>
-              </div>
-              <span style={{ fontSize: 10, color: "#555", fontWeight: 600 }}>Play 3 games → +500 ⚡</span>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              {["fishing", "cases", "breaker"].map(id => {
-                const g = GAMES.find(x => x.id === id)!;
-                const done = (gameScores[id as keyof typeof gameScores] ?? 0) > 0;
-                return (
-                  <div key={id} style={{
-                    flex: 1, padding: "10px 4px", borderRadius: 12, textAlign: "center",
-                    background: done ? `${g.accent}22` : "#111",
-                    border: `1.5px solid ${done ? g.accent : "#222"}`,
-                    boxShadow: done ? `0 0 12px ${g.accent}22` : "none",
-                    transition: "all 0.3s",
-                  }}>
-                    <div style={{ fontSize: "1.3rem", marginBottom: 2 }}>{done ? "✅" : g.emoji}</div>
-                    <div style={{ fontSize: 9, color: done ? g.accent : "#333", fontWeight: 800, letterSpacing: "0.04em" }}>
-                      {g.name.split(" ")[0]}
-                    </div>
-                  </div>
-                );
-              })}
-              <div style={{ flex: 1, padding: "10px 4px", borderRadius: 12, textAlign: "center", background: "#c8ff0011", border: "1.5px solid #c8ff0033" }}>
-                <div style={{ fontSize: "1.3rem", marginBottom: 2 }}>🎁</div>
-                <div style={{ fontSize: 9, color: "#c8ff00", fontWeight: 800 }}>+500 ⚡</div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
+          ))}
+        </div>
 
         {/* ── Weekly Leaderboard Teaser ────────────────────────────────────────── */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
           <div style={{
             background: "#0d0d0d",
             border: "1px solid #1a1a1a",
-            borderRadius: 16, padding: "16px",
+            borderRadius: 14, padding: "12px 14px",
           }}>
             {/* Header */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <Trophy size={14} color="#FFD700" fill="#FFD700" />
                 <span style={{ fontSize: 12, fontWeight: 900, color: "#fff", letterSpacing: "0.08em" }}>WEEKLY LEADERBOARD</span>
@@ -505,36 +448,31 @@ export default function GamesPage() {
             </div>
 
             {/* Top 3 rows */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {LEADERBOARD.map((player, idx) => (
                 <motion.div
                   key={player.name}
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.65 + idx * 0.07 }}
+                  transition={{ delay: 0.55 + idx * 0.07 }}
                   style={{
                     display: "flex", alignItems: "center", gap: 10,
                     background: idx === 0 ? "#1a1500" : "#111",
                     border: `1px solid ${idx === 0 ? "#FFD70033" : "#1a1a1a"}`,
-                    borderRadius: 10, padding: "9px 12px",
+                    borderRadius: 10, padding: "8px 10px",
                   }}
                 >
-                  {/* Rank badge */}
                   <div style={{
-                    width: 24, height: 24, borderRadius: 6, flexShrink: 0,
+                    width: 22, height: 22, borderRadius: 6, flexShrink: 0,
                     background: `${player.color}22`, border: `1.5px solid ${player.color}66`,
                     display: "flex", alignItems: "center", justifyContent: "center",
                     fontSize: 11, fontWeight: 900, color: player.color,
                   }}>
                     {player.rank}
                   </div>
-
-                  {/* Username */}
-                  <span style={{ flex: 1, fontSize: 13, fontWeight: 800, color: idx === 0 ? "#FFD700" : "#ccc" }}>
+                  <span style={{ flex: 1, fontSize: 12, fontWeight: 800, color: idx === 0 ? "#FFD700" : "#ccc" }}>
                     @{player.name}
                   </span>
-
-                  {/* Score */}
                   <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                     <Zap size={10} color={player.color} fill={player.color} />
                     <span style={{ fontSize: 12, fontWeight: 900, color: player.color }}>
@@ -552,13 +490,13 @@ export default function GamesPage() {
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8 }}
+            transition={{ delay: 0.65 }}
             whileTap={{ scale: 0.97 }}
             style={{
               background: "linear-gradient(135deg, #1a0010 0%, #0d001a 50%, #050020 100%)",
               border: "2px solid #ff2d8d",
-              borderRadius: 20, padding: "20px 18px",
-              display: "flex", alignItems: "center", gap: 14,
+              borderRadius: 16, padding: "14px 16px",
+              display: "flex", alignItems: "center", gap: 12,
               marginBottom: 8,
               boxShadow: "0 0 30px #ff2d8d22",
             }}
@@ -566,19 +504,19 @@ export default function GamesPage() {
             <motion.div
               animate={{ scale: [1, 1.06, 1] }}
               transition={{ duration: 2, repeat: Infinity }}
-              style={{ fontSize: "2.5rem" }}
+              style={{ fontSize: "2rem" }}
             >
               📺
             </motion.div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: "1rem", fontWeight: 900, color: "#fff", marginBottom: 3 }}>
+              <div style={{ fontSize: "0.95rem", fontWeight: 900, color: "#fff", marginBottom: 2 }}>
                 KARMA TV <span style={{ fontSize: "0.65rem", color: "#ff2d8d", letterSpacing: "0.1em", background: "#ff2d8d22", borderRadius: 8, padding: "2px 6px" }}>LIVE</span>
               </div>
-              <div style={{ fontSize: "0.78rem", color: "#888", lineHeight: 1.4 }}>
+              <div style={{ fontSize: "0.75rem", color: "#888", lineHeight: 1.4 }}>
                 Watch & react to the hottest pet moments. Duel strangers. Go viral.
               </div>
             </div>
-            <div style={{ fontSize: "1.2rem", color: "#ff2d8d" }}>→</div>
+            <div style={{ fontSize: "1.1rem", color: "#ff2d8d" }}>→</div>
           </motion.div>
         </Link>
 

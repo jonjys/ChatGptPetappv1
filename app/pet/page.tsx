@@ -394,10 +394,10 @@ export default function PetPage() {
     <div style={{ background: "var(--bg)", minHeight: "100dvh" }}>
 
       {/* ── Sticky Header ── */}
-      <div className="sticky top-0 z-30 px-4 pt-4 pb-3 flex items-center justify-between"
+      <div className="sticky top-0 z-30 px-4 pt-3 pb-2 flex items-center justify-between"
         style={{ background: "var(--bg)", borderBottom: "3px solid #c8ff0044", boxShadow: "0 2px 24px #c8ff0011" }}>
         <div>
-          <h1 style={{ fontSize: "2rem", fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 1 }}>
+          <h1 style={{ fontSize: "1.6rem", fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 1 }}>
             <span style={{ background: "linear-gradient(135deg, #c8ff00, #00e5ff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>{pet.name}</span>
             <span style={{ fontSize: "1rem", color: "#888", marginLeft: 8, WebkitTextFillColor: "#888" }}>· {evolLabel}</span>
           </h1>
@@ -457,7 +457,7 @@ export default function PetPage() {
       <div className="px-4 pt-3 pb-6 space-y-4">
 
         {/* ── XP Bar (always visible) ── */}
-        <div className="neo-card p-3">
+        <div style={{ padding: "4px 0" }}>
           <XPBar xp={pet.xp} xpToNext={xpToNext} progress={progress} level={pet.level} compact />
         </div>
 
@@ -468,15 +468,16 @@ export default function PetPage() {
             const isSquad = t === "squad";
             const activeColor = isVille ? "#ff9d00" : isSquad ? "#06b6d4" : "#c8ff00";
             const activeShadow = isVille ? "0 0 14px #ff9d0055" : isSquad ? "0 0 14px #06b6d444" : "0 0 14px #c8ff0044";
-            const label = isVille ? "🏙️ VILLE" : isSquad ? "👥 SQUAD" : t.toUpperCase();
+            const labelMap: Record<string, string> = { room: "🏠 ROOM", train: "⚔️ TRAIN", bond: "💖 BOND", grow: "🌱 GROW", squad: "👥 SQUAD", ville: "🏙️ VILLE" };
+            const label = labelMap[t] ?? t.toUpperCase();
             return (
               <button key={t} onClick={() => setTab(t)}
                 style={{
-                  flex: 1, padding: "9px 4px",
+                  flex: 1, padding: "7px 2px",
                   background: tab === t ? "#0a0a0a" : "#111",
                   border: tab === t ? `2.5px solid ${activeColor}` : "2.5px solid #222",
                   borderRadius: 12,
-                  fontSize: isVille || isSquad ? 10 : 11, fontWeight: 700,
+                  fontSize: 9, fontWeight: 700,
                   color: tab === t ? activeColor : "#666",
                   letterSpacing: "0.03em",
                   cursor: "pointer",
@@ -501,7 +502,7 @@ export default function PetPage() {
               boxShadow: `0 0 50px ${world.accent}22, 0 0 100px ${world.accent}0a`,
             }}>
               {/* Room viewport */}
-              <div style={{ height: 460, background: world.petRoomBg, position: "relative", overflow: "hidden" }}>
+              <div style={{ height: 360, background: world.petRoomBg, position: "relative", overflow: "hidden" }}>
 
                 {/* Time-of-day tint */}
                 <div style={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none", background: timeOverlay }} />
@@ -854,6 +855,35 @@ export default function PetPage() {
                     );
                   })}
                 </div>
+
+                {/* Care action overlay — bottom-right floating buttons */}
+                <div style={{
+                  position: "absolute", bottom: 100, right: 10, zIndex: 20,
+                  display: "flex", flexDirection: "column", gap: 6,
+                }}>
+                  {[
+                    { label: "Feed",  emoji: "🍖", color: "#ff6b35", onClick: () => handleFeed("basic") },
+                    { label: "Play",  emoji: "🎾", color: "#4caf50", onClick: handlePlay },
+                    { label: "Rest",  emoji: "💤", color: "#3b82f6", onClick: handleRest },
+                  ].map(a => (
+                    <button key={a.label} onClick={a.onClick}
+                      style={{
+                        height: 36, width: 80,
+                        background: "rgba(0,0,0,0.72)",
+                        border: `1.5px solid ${a.color}`,
+                        borderRadius: 10,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        gap: 5,
+                        fontSize: 11, fontWeight: 700, color: a.color,
+                        cursor: "pointer",
+                        backdropFilter: "blur(4px)",
+                        boxShadow: `0 0 10px ${a.color}33`,
+                      }}>
+                      <span style={{ fontSize: "1rem" }}>{a.emoji}</span>
+                      {a.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Status strip */}
@@ -882,10 +912,7 @@ export default function PetPage() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
                 {[
-                  { label: "FEED",   emoji: "🍖", color: "#ff6b35", bg: "#1a0800", sub: "-50 ⚡", onClick: () => handleFeed("basic"), badge: null },
                   { label: "FEAST",  emoji: "🥩", color: "#ffde00", bg: "#1a1200", sub: "-150 ⚡", onClick: () => handleFeed("premium"), badge: "BEST" },
-                  { label: "PLAY",   emoji: "🎾", color: "#4caf50", bg: "#081808", sub: "-18 nrg", onClick: handlePlay, badge: null },
-                  { label: "REST",   emoji: "💤", color: "#3b82f6", bg: "#081018", sub: "+45 nrg", onClick: handleRest, badge: null },
                   { label: "BATTLE", emoji: "⚔️", color: "#ff2d8d", bg: "#1a0012", sub: "+karma", href: "/games/battle", badge: null },
                   { label: "SHOP",   emoji: "💊", color: "#8b5cf6", bg: "#100820", sub: "heal+items", href: "/shop", badge: null },
                 ].map(a => {

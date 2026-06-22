@@ -503,202 +503,360 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
     if (!ctx) return;
     const s = sRef.current;
     const theme = getTheme(s.wave);
+    const f = s.frame;
 
     ctx.clearRect(0, 0, GW, GH);
 
     // Screen shake
     const shaking = s.screenShake > 0;
-    if (shaking) { ctx.save(); ctx.translate(Math.sin(s.frame*3)*s.screenShake*0.5, Math.cos(s.frame*2.2)*s.screenShake*0.3); }
+    if (shaking) { ctx.save(); ctx.translate(Math.sin(f*3)*s.screenShake*0.5, Math.cos(f*2.2)*s.screenShake*0.3); }
 
-    // BG
+    // ── BG gradient ────────────────────────────────────────────────────────
     const bg = ctx.createLinearGradient(0,0,0,GH);
-    bg.addColorStop(0, theme.bg1); bg.addColorStop(1, theme.bg2);
+    bg.addColorStop(0, theme.bg1); bg.addColorStop(0.6, theme.bg2); bg.addColorStop(1, theme.bg1);
     ctx.fillStyle = bg; ctx.fillRect(0,0,GW,GH);
-    // Grid
-    ctx.strokeStyle = "rgba(255,255,255,0.025)"; ctx.lineWidth = 1;
-    for (let x = 0; x < GW; x += 38) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,GH); ctx.stroke(); }
 
-    // Lanes
-    for (let i = 0; i < LANE_COUNT; i++) {
-      ctx.fillStyle = theme.lane;
-      ctx.fillRect(0, LANE_Y[i], GW, LANE_H);
-      ctx.strokeStyle = "rgba(255,255,255,0.055)"; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(0,LANE_Y[i]); ctx.lineTo(GW,LANE_Y[i]); ctx.stroke();
-      ctx.fillStyle = "rgba(255,255,255,0.1)"; ctx.font = "bold 9px monospace";
-      ctx.textAlign = "left"; ctx.textBaseline = "top";
-      ctx.fillText(`L${i+1}`, 4, LANE_Y[i]+3);
+    // ── Animated stars ─────────────────────────────────────────────────────
+    for (let i=0; i<40; i++) {
+      const sx = (i*97+13)%GW, sy = (i*53+7)%(GH*0.55);
+      const twinkle = 0.15+0.35*Math.abs(Math.sin(f*0.02+i*0.7));
+      ctx.globalAlpha=twinkle; ctx.fillStyle=theme.acc;
+      ctx.beginPath(); ctx.arc(sx,sy,0.8+0.6*(i%3),0,Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha=1;
+
+    // ── Lane gaps (between lanes) ──────────────────────────────────────────
+    ctx.fillStyle="rgba(0,0,0,0.55)";
+    for (let i=0; i<LANE_COUNT; i++) {
+      if (i>0) ctx.fillRect(0, LANE_Y[i-1]+LANE_H, GW, LANE_Y[i]-(LANE_Y[i-1]+LANE_H));
+    }
+    ctx.fillRect(0, LANE_Y[LANE_COUNT-1]+LANE_H, GW, GH-(LANE_Y[LANE_COUNT-1]+LANE_H));
+
+    // ── Lanes with rich floor ───────────────────────────────────────────────
+    for (let i=0; i<LANE_COUNT; i++) {
+      const ly = LANE_Y[i];
+      // Lane fill with subtle gradient
+      const lg = ctx.createLinearGradient(0,ly,0,ly+LANE_H);
+      lg.addColorStop(0, theme.bg2+"cc"); lg.addColorStop(0.5, theme.lane); lg.addColorStop(1, theme.bg2+"cc");
+      ctx.fillStyle = lg; ctx.fillRect(0,ly,GW,LANE_H);
+      // Floor grid lines
+      ctx.strokeStyle = theme.acc+"18"; ctx.lineWidth=1;
+      for (let x=0; x<GW; x+=32) {
+        ctx.beginPath(); ctx.moveTo(x,ly); ctx.lineTo(x,ly+LANE_H); ctx.stroke();
+      }
+      // Lane top/bottom border
+      ctx.strokeStyle = theme.acc+"44"; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(0,ly); ctx.lineTo(GW,ly); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,ly+LANE_H); ctx.lineTo(GW,ly+LANE_H); ctx.stroke();
+      // Lane number badge
+      ctx.fillStyle = theme.acc+"33"; ctx.fillRect(0,ly,18,LANE_H);
+      ctx.fillStyle = theme.acc; ctx.font = "bold 8px monospace";
+      ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText(`${i+1}`, 9, ly+LANE_H/2);
+      // Spawn portal on left
+      const pulse = 0.5+0.5*Math.sin(f*0.07+i);
+      ctx.strokeStyle = theme.acc+"66"; ctx.lineWidth=2;
+      ctx.setLineDash([4,4]);
+      ctx.beginPath(); ctx.arc(0, laneCenter(i), 14+pulse*4, -Math.PI/2, Math.PI/2);
+      ctx.stroke(); ctx.setLineDash([]);
     }
 
-    // Empty slots
-    for (let lane = 0; lane < LANE_COUNT; lane++) {
-      for (let slot = 0; slot < 5; slot++) {
+    // ── Right-side base wall ────────────────────────────────────────────────
+    const wallX = BASE_X - 2;
+    const wallGrad = ctx.createLinearGradient(wallX,0,wallX+8,0);
+    wallGrad.addColorStop(0, theme.acc+"66"); wallGrad.addColorStop(1, "transparent");
+    ctx.fillStyle = wallGrad; ctx.fillRect(wallX, 0, 8, GH);
+
+    // ── Empty slots ─────────────────────────────────────────────────────────
+    for (let lane=0; lane<LANE_COUNT; lane++) {
+      for (let slot=0; slot<5; slot++) {
         if (s.towers.some(t => t.lane===lane && t.slot===slot)) continue;
         const p = slotXY(lane, slot);
         const isSel = selSlotRef.current?.lane===lane && selSlotRef.current?.slot===slot;
-        ctx.strokeStyle = isSel ? "#fbbf24" : "rgba(255,255,255,0.16)";
-        ctx.lineWidth = isSel ? 2 : 1; ctx.setLineDash([3,3]);
-        ctx.strokeRect(p.x-15, p.y-15, 30, 30); ctx.setLineDash([]);
-        ctx.fillStyle = isSel ? "rgba(251,191,36,0.55)" : "rgba(255,255,255,0.1)";
-        ctx.font = "13px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText("+", p.x, p.y);
+        const pulse2 = 0.4+0.3*Math.sin(f*0.1+slot*0.8+lane*1.2);
+        if (isSel) {
+          ctx.fillStyle="rgba(251,191,36,0.2)"; ctx.fillRect(p.x-16,p.y-16,32,32);
+          ctx.strokeStyle="#fbbf24"; ctx.lineWidth=2; ctx.setLineDash([]);
+          ctx.strokeRect(p.x-16,p.y-16,32,32);
+          ctx.fillStyle="#fbbf24"; ctx.font="bold 14px sans-serif";
+          ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("+",p.x,p.y);
+        } else {
+          ctx.strokeStyle=`rgba(255,255,255,${0.1+pulse2*0.08})`; ctx.lineWidth=1;
+          ctx.setLineDash([3,3]); ctx.strokeRect(p.x-12,p.y-12,24,24); ctx.setLineDash([]);
+          ctx.fillStyle=`rgba(255,255,255,${pulse2*0.12})`; ctx.font="10px sans-serif";
+          ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("+",p.x,p.y);
+        }
       }
     }
 
-    // Towers
+    // ── Towers ──────────────────────────────────────────────────────────────
     for (const tower of s.towers) {
       const p = slotXY(tower.lane, tower.slot);
       const def = TOWER_DEFS[tower.type];
       const isSel = selTowerRef.current?.id === tower.id;
-      const fs = tower.level===3 ? 24 : tower.level===2 ? 20 : 17;
-      ctx.shadowColor = def.color; ctx.shadowBlur = tower.level===3?22:tower.level===2?12:5;
-      ctx.font = `${fs}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(def.emoji, p.x, p.y); ctx.shadowBlur = 0;
-      // Level pips
-      for (let lv=1;lv<=3;lv++) {
-        ctx.fillStyle = lv<=tower.level ? def.color : "rgba(255,255,255,0.08)";
-        ctx.beginPath(); ctx.arc(p.x+(lv-2)*6, p.y+14, 2.5, 0, Math.PI*2); ctx.fill();
+      const fs = tower.level===3 ? 26 : tower.level===2 ? 21 : 17;
+      // Platform base
+      const baseR = tower.level===3?20:tower.level===2?17:14;
+      const platformGrad = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,baseR);
+      platformGrad.addColorStop(0, def.color+"44"); platformGrad.addColorStop(1, def.color+"08");
+      ctx.fillStyle=platformGrad; ctx.beginPath(); ctx.arc(p.x,p.y,baseR,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle=def.color+"66"; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.arc(p.x,p.y,baseR,0,Math.PI*2); ctx.stroke();
+      // Range ring when selected
+      if (isSel) {
+        ctx.strokeStyle=def.color+"33"; ctx.lineWidth=1; ctx.setLineDash([4,6]);
+        ctx.beginPath(); ctx.arc(p.x,laneCenter(tower.lane),70,0,Math.PI*2); ctx.stroke();
+        ctx.setLineDash([]); ctx.strokeStyle="#fbbf24"; ctx.lineWidth=2;
+        ctx.strokeRect(p.x-18,p.y-18,36,36);
       }
-      // Cooldown arc
-      const pct = 1 - tower.cooldown / tower.fireRate;
-      ctx.beginPath(); ctx.arc(p.x, p.y-18, 7, -Math.PI/2, -Math.PI/2+pct*Math.PI*2);
-      ctx.strokeStyle = def.color; ctx.lineWidth = 2; ctx.stroke();
-      if (isSel) { ctx.strokeStyle="#fbbf24"; ctx.lineWidth=2; ctx.strokeRect(p.x-17,p.y-17,34,34); }
+      // Tower emoji with glow
+      ctx.shadowColor=def.color; ctx.shadowBlur=tower.level===3?28:tower.level===2?16:8;
+      ctx.font=`${fs}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText(def.emoji, p.x, p.y); ctx.shadowBlur=0;
+      // Level pips (stars for L3)
+      for (let lv=1;lv<=3;lv++) {
+        const pip = lv<=tower.level ? def.color : "rgba(255,255,255,0.06)";
+        ctx.fillStyle=pip;
+        ctx.beginPath(); ctx.arc(p.x+(lv-2)*6, p.y+baseR+3, tower.level===3?3:2.5, 0, Math.PI*2); ctx.fill();
+        if (lv<=tower.level) { ctx.strokeStyle=pip; ctx.lineWidth=0.5; ctx.stroke(); }
+      }
+      // Cooldown arc (outer ring)
+      const pct = tower.fireRate>0 ? 1-tower.cooldown/tower.fireRate : 1;
+      ctx.beginPath(); ctx.arc(p.x,p.y,baseR+4,-Math.PI/2,-Math.PI/2+pct*Math.PI*2);
+      ctx.strokeStyle=pct>0.8?def.color:def.color+"88"; ctx.lineWidth=2.5; ctx.stroke();
     }
 
-    // Projectiles
+    // ── Projectiles ─────────────────────────────────────────────────────────
     for (const proj of s.projectiles) {
-      ctx.globalAlpha = Math.min(1, proj.life/10);
+      const a = Math.min(1, proj.life/8);
+      ctx.globalAlpha=a;
+      // Gradient trail
+      const tg = ctx.createLinearGradient(proj.x1,proj.y1,proj.x2,proj.y2);
+      tg.addColorStop(0,"transparent"); tg.addColorStop(1,proj.color);
       ctx.beginPath(); ctx.moveTo(proj.x1,proj.y1); ctx.lineTo(proj.x2,proj.y2);
-      ctx.strokeStyle = proj.color; ctx.lineWidth = 2;
-      ctx.shadowColor = proj.color; ctx.shadowBlur = 6; ctx.stroke(); ctx.shadowBlur = 0;
-      ctx.beginPath(); ctx.arc(proj.x2,proj.y2,3,0,Math.PI*2);
-      ctx.fillStyle = proj.color; ctx.fill(); ctx.globalAlpha = 1;
+      ctx.strokeStyle=tg; ctx.lineWidth=2.5;
+      ctx.shadowColor=proj.color; ctx.shadowBlur=8; ctx.stroke(); ctx.shadowBlur=0;
+      // Impact dot
+      ctx.fillStyle=proj.color;
+      ctx.beginPath(); ctx.arc(proj.x2,proj.y2,3.5,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha=1;
     }
 
-    // Particles
+    // ── Particles ───────────────────────────────────────────────────────────
     for (const p of s.particles) {
       const a = p.life/p.maxLife;
-      ctx.globalAlpha = a; ctx.fillStyle = p.color;
+      ctx.globalAlpha = a*0.9; ctx.fillStyle=p.color;
+      ctx.shadowColor=p.color; ctx.shadowBlur=4;
       ctx.beginPath(); ctx.arc(p.x,p.y,p.size*a,0,Math.PI*2); ctx.fill();
+      ctx.shadowBlur=0;
     }
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha=1;
 
-    // Enemies
+    // ── Enemies ─────────────────────────────────────────────────────────────
     for (const enemy of s.enemies) {
       const def = ENEMY_DEFS[enemy.type];
       const cy = laneCenter(enemy.lane);
       const big = enemy.type==="boss"||enemy.type==="mega_boss";
-      const es = enemy.type==="mega_boss"?34:big?28:enemy.type==="swarm"?13:20;
-      if (enemy.frozen>0) { ctx.fillStyle="rgba(56,189,248,0.22)"; ctx.beginPath(); ctx.arc(enemy.x,cy,es/2+7,0,Math.PI*2); ctx.fill(); }
-      if (enemy.hitFlash>0) { ctx.fillStyle="rgba(255,255,255,0.3)"; ctx.beginPath(); ctx.arc(enemy.x,cy,es/2+5,0,Math.PI*2); ctx.fill(); }
-      if (enemy.poisoned>0) { ctx.fillStyle="rgba(132,204,22,0.18)"; ctx.beginPath(); ctx.arc(enemy.x,cy,es/2+9,0,Math.PI*2); ctx.fill(); }
-      ctx.font = `${es}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
-      ctx.shadowColor=def.color; ctx.shadowBlur=big?18:8; ctx.fillText(def.emoji,enemy.x,cy); ctx.shadowBlur=0;
-      const bw = big?44:28; const by = cy-es/2-9;
-      if (enemy.maxShield>0) {
-        ctx.fillStyle="rgba(0,0,0,0.5)"; ctx.fillRect(enemy.x-bw/2,by-5,bw,3);
-        ctx.fillStyle="#6366f1"; ctx.fillRect(enemy.x-bw/2,by-5,bw*(enemy.shield/enemy.maxShield),3);
+      const es = enemy.type==="mega_boss"?36:big?30:enemy.type==="swarm"?13:21;
+      // Status auras
+      if (enemy.frozen>0) {
+        const fra=0.15+0.2*Math.abs(Math.sin(f*0.15));
+        ctx.fillStyle=`rgba(56,189,248,${fra})`; ctx.beginPath(); ctx.arc(enemy.x,cy,es/2+9,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle="#38bdf866"; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(enemy.x,cy,es/2+9,0,Math.PI*2); ctx.stroke();
       }
-      ctx.fillStyle="rgba(0,0,0,0.55)"; ctx.fillRect(enemy.x-bw/2,by,bw,3);
-      const hp = Math.max(0,enemy.hp/enemy.maxHp);
-      ctx.fillStyle = hp>.5?"#4ade80":hp>.25?"#facc15":"#f87171";
-      ctx.fillRect(enemy.x-bw/2,by,bw*hp,3);
-      if (enemy.frozen>0) { ctx.font="9px sans-serif"; ctx.fillStyle="#38bdf8"; ctx.fillText("❄",enemy.x,by-6); }
-      if (enemy.poisoned>0) { ctx.font="9px sans-serif"; ctx.fillStyle="#84cc16"; ctx.fillText("☠",enemy.x+8,by-6); }
+      if (enemy.poisoned>0) {
+        ctx.fillStyle="rgba(132,204,22,0.12)"; ctx.beginPath(); ctx.arc(enemy.x,cy,es/2+11,0,Math.PI*2); ctx.fill();
+      }
+      if (enemy.hitFlash>0) {
+        ctx.fillStyle=`rgba(255,255,255,${enemy.hitFlash*0.06})`; ctx.beginPath(); ctx.arc(enemy.x,cy,es/2+6,0,Math.PI*2); ctx.fill();
+      }
+      // Shadow blob
+      ctx.fillStyle="rgba(0,0,0,0.35)"; ctx.beginPath(); ctx.ellipse(enemy.x,cy+es/2+3,es/2,4,0,0,Math.PI*2); ctx.fill();
+      // Emoji
+      ctx.font=`${es}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.shadowColor=def.color; ctx.shadowBlur=big?24:10; ctx.fillText(def.emoji,enemy.x,cy); ctx.shadowBlur=0;
+      // Health bar (gradient)
+      const bw=big?50:32; const by=cy-es/2-12;
+      ctx.fillStyle="rgba(0,0,0,0.7)"; ctx.beginPath(); ctx.roundRect?ctx.roundRect(enemy.x-bw/2,by,bw,5,2):ctx.fillRect(enemy.x-bw/2,by,bw,5); ctx.fill();
+      const hp=Math.max(0,enemy.hp/enemy.maxHp);
+      const hpGrad=ctx.createLinearGradient(enemy.x-bw/2,0,enemy.x-bw/2+bw,0);
+      hpGrad.addColorStop(0,hp>.5?"#22c55e":"#f59e0b"); hpGrad.addColorStop(1,hp>.5?"#4ade80":hp>.25?"#fbbf24":"#f87171");
+      ctx.fillStyle=hpGrad; ctx.beginPath(); ctx.roundRect?ctx.roundRect(enemy.x-bw/2,by,bw*hp,5,2):ctx.fillRect(enemy.x-bw/2,by,bw*hp,5); ctx.fill();
+      // Shield bar above
+      if (enemy.maxShield>0) {
+        ctx.fillStyle="rgba(0,0,0,0.7)"; ctx.fillRect(enemy.x-bw/2,by-6,bw,3);
+        const sg=ctx.createLinearGradient(enemy.x-bw/2,0,enemy.x-bw/2+bw,0);
+        sg.addColorStop(0,"#6366f1"); sg.addColorStop(1,"#818cf8");
+        ctx.fillStyle=sg; ctx.fillRect(enemy.x-bw/2,by-6,bw*(enemy.shield/enemy.maxShield),3);
+      }
+      // Status icons
+      if (enemy.frozen>0) { ctx.font="8px sans-serif"; ctx.fillStyle="#38bdf8"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("❄️",enemy.x-bw/2-6,by+2); }
+      if (enemy.poisoned>0) { ctx.font="8px sans-serif"; ctx.fillStyle="#84cc16"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("☠",enemy.x+bw/2+6,by+2); }
     }
 
-    // Heroes on right of each lane
+    // ── Heroes on right side of each lane ──────────────────────────────────
     for (let lane=0; lane<LANE_COUNT; lane++) {
-      const heroId = s.heroLane[lane];
-      if (!heroId) continue;
-      const hdef = HERO_DEFS[heroId];
-      const hx = BASE_X - 34; const hy = laneCenter(lane);
-      ctx.fillStyle = hdef.color+"22"; ctx.beginPath(); ctx.arc(hx,hy,17,0,Math.PI*2); ctx.fill();
-      ctx.strokeStyle = hdef.color; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(hx,hy,17,0,Math.PI*2); ctx.stroke();
-      ctx.font="14px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(hdef.emoji,hx,hy);
-      const cd = s.heroCd[heroId]??0; const maxCd = hdef.cooldownSec*60;
-      const cdPct = cd>0 ? 1-cd/maxCd : 1;
-      ctx.beginPath(); ctx.arc(hx,hy,17,-Math.PI/2,-Math.PI/2+cdPct*Math.PI*2);
-      ctx.strokeStyle = cdPct>=1?"#fff":hdef.color+"55"; ctx.lineWidth=3; ctx.stroke();
+      const heroId=s.heroLane[lane]; if (!heroId) continue;
+      const hdef=HERO_DEFS[heroId];
+      const hx=BASE_X-26; const hy=laneCenter(lane);
+      // Hero circle
+      const hg=ctx.createRadialGradient(hx,hy,0,hx,hy,18);
+      hg.addColorStop(0,hdef.color+"44"); hg.addColorStop(1,hdef.color+"11");
+      ctx.fillStyle=hg; ctx.beginPath(); ctx.arc(hx,hy,18,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle=hdef.color; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(hx,hy,18,0,Math.PI*2); ctx.stroke();
+      ctx.font="16px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(hdef.emoji,hx,hy);
+      // CD arc
+      const cd=s.heroCd[heroId]??0; const maxCd=hdef.cooldownSec*60;
+      const cdPct=cd>0?1-cd/maxCd:1;
+      ctx.beginPath(); ctx.arc(hx,hy,22,-Math.PI/2,-Math.PI/2+cdPct*Math.PI*2);
+      ctx.strokeStyle=cdPct>=1?`${hdef.color}cc`:hdef.color+"33"; ctx.lineWidth=3; ctx.stroke();
+      // Ready flash
+      if (cdPct>=1 && s.phase==="wave") {
+        const rp=0.5+0.5*Math.sin(f*0.15);
+        ctx.strokeStyle=`rgba(255,255,255,${rp*0.6})`; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(hx,hy,25,0,Math.PI*2); ctx.stroke();
+      }
     }
 
-    // Base
-    const bx=BASE_X+16; const by2=GH/2; const hf=s.baseHp/100;
-    ctx.shadowColor=theme.acc; ctx.shadowBlur=16+Math.sin(s.frame*0.08)*6;
-    ctx.beginPath(); ctx.arc(bx,by2,25,-Math.PI/2,-Math.PI/2+hf*Math.PI*2);
-    ctx.strokeStyle = hf>.5?"#4ade80":hf>.25?"#facc15":"#f87171"; ctx.lineWidth=5; ctx.stroke(); ctx.shadowBlur=0;
+    // ── Base / Castle ────────────────────────────────────────────────────────
+    const bx=BASE_X+18; const by2=GH/2; const hf=s.baseHp/100;
+    const hpColor=hf>.5?"#4ade80":hf>.25?"#facc15":"#f87171";
+    // Castle glow
+    ctx.shadowColor=hpColor; ctx.shadowBlur=20+Math.sin(f*0.07)*8;
+    // Castle body
+    ctx.fillStyle=theme.bg2+"ee"; ctx.beginPath(); ctx.arc(bx,by2,28,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle=hpColor+"88"; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(bx,by2,28,0,Math.PI*2); ctx.stroke();
+    ctx.shadowBlur=0;
+    // HP arc
+    ctx.beginPath(); ctx.arc(bx,by2,34,-Math.PI/2,-Math.PI/2+hf*Math.PI*2);
+    ctx.strokeStyle=hpColor; ctx.lineWidth=4.5;
+    ctx.shadowColor=hpColor; ctx.shadowBlur=12; ctx.stroke(); ctx.shadowBlur=0;
+    // Shield dome
     if (s.baseShield>0) {
-      ctx.beginPath(); ctx.arc(bx,by2,31,0,Math.PI*2); ctx.strokeStyle="#22d3ee"; ctx.lineWidth=2;
-      ctx.globalAlpha=0.5+0.4*Math.sin(s.frame*0.1); ctx.stroke(); ctx.globalAlpha=1;
+      const sa=0.4+0.35*Math.sin(f*0.12);
+      ctx.globalAlpha=sa; ctx.strokeStyle="#22d3ee"; ctx.lineWidth=2.5;
+      ctx.beginPath(); ctx.arc(bx,by2,40,0,Math.PI*2); ctx.stroke();
+      ctx.globalAlpha=1;
     }
-    ctx.font="26px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(petEmoji,bx,by2);
-    ctx.font="bold 9px sans-serif"; ctx.fillStyle="#fff"; ctx.fillText(`${s.baseHp}HP`,bx,by2+34);
+    // Pet emoji
+    ctx.font="28px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(petEmoji,bx,by2);
+    // HP text
+    ctx.font="bold 8px monospace"; ctx.fillStyle=hpColor; ctx.textAlign="center"; ctx.textBaseline="top";
+    ctx.fillText(`${s.baseHp}HP`,bx,by2+32);
+    // Turret pips (decorative)
+    for (let t=0;t<4;t++) {
+      const ta=(t/4)*Math.PI*2-Math.PI/4;
+      const tx=bx+Math.cos(ta)*36, ty=by2+Math.sin(ta)*36;
+      ctx.fillStyle=theme.acc+"66"; ctx.beginPath(); ctx.arc(tx,ty,3,0,Math.PI*2); ctx.fill();
+    }
 
     if (shaking) ctx.restore();
 
-    // HUD bar (no shake)
-    ctx.fillStyle="rgba(0,0,0,0.72)"; ctx.fillRect(0,0,GW,28);
-    ctx.font="bold 11px monospace"; ctx.textBaseline="middle";
-    ctx.textAlign="left"; ctx.fillStyle="#a855f7"; ctx.fillText(`Wave ${s.wave}`,7,14);
-    ctx.textAlign="center"; ctx.fillStyle="#fbbf24"; ctx.fillText(`⚡${s.localKarma}`,GW/2,14);
-    ctx.textAlign="right"; ctx.fillStyle=hf>.5?"#4ade80":"#f87171"; ctx.fillText(`❤️${s.baseHp}`,GW-52,14);
-    ctx.fillStyle="#444"; ctx.fillText(`🏆${s.bestWave}`,GW-8,14);
-    // Theme name
-    ctx.textAlign="left"; ctx.font="8px monospace"; ctx.fillStyle=theme.acc+"66"; ctx.fillText(theme.name,7,GH-4);
+    // ── HUD top bar (no shake) ───────────────────────────────────────────────
+    const hudGrad=ctx.createLinearGradient(0,0,GW,0);
+    hudGrad.addColorStop(0,"rgba(0,0,0,0.9)"); hudGrad.addColorStop(0.5,"rgba(10,5,25,0.95)"); hudGrad.addColorStop(1,"rgba(0,0,0,0.9)");
+    ctx.fillStyle=hudGrad; ctx.fillRect(0,0,GW,30);
+    ctx.strokeStyle=theme.acc+"44"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,30); ctx.lineTo(GW,30); ctx.stroke();
+    // Wave with theme accent
+    ctx.font="bold 10px monospace"; ctx.textBaseline="middle";
+    ctx.textAlign="left";
+    ctx.fillStyle=theme.acc; ctx.shadowColor=theme.acc; ctx.shadowBlur=6;
+    ctx.fillText(`W${s.wave}`,6,15); ctx.shadowBlur=0;
+    ctx.fillStyle=theme.acc+"66"; ctx.font="7px monospace"; ctx.fillText(theme.name,6+24,15);
+    // Karma center
+    ctx.textAlign="center"; ctx.fillStyle="#fbbf24"; ctx.font="bold 11px monospace";
+    ctx.shadowColor="#fbbf24"; ctx.shadowBlur=8; ctx.fillText(`⚡${s.localKarma}`,GW/2,15); ctx.shadowBlur=0;
+    // HP right
+    ctx.textAlign="right"; ctx.fillStyle=hpColor; ctx.font="bold 10px monospace";
+    ctx.fillText(`♥${s.baseHp}`,GW-38,15);
+    ctx.fillStyle="#333"; ctx.font="bold 10px monospace"; ctx.fillText(`★${s.bestWave}`,GW-4,15);
+    // Talent pts indicator
+    if (s.talentPts>0) {
+      ctx.fillStyle="#c8ff00"; ctx.font="bold 9px monospace";
+      ctx.textAlign="left"; ctx.fillText(`✦${s.talentPts}`,GW/2-50,15);
+    }
 
-    // Combo flash
+    // ── Combo flash ─────────────────────────────────────────────────────────
     if (s.comboFlash>0) {
-      ctx.globalAlpha=s.comboFlash/90; ctx.font="bold 22px sans-serif";
-      ctx.textAlign="center"; ctx.textBaseline="middle";
-      ctx.fillStyle="#fbbf24"; ctx.shadowColor="#fbbf24"; ctx.shadowBlur=22;
-      ctx.fillText(s.comboLabel,GW/2,GH/2-50); ctx.shadowBlur=0; ctx.globalAlpha=1;
-    }
-
-    // Overlays
-    if (s.phase==="idle") {
-      ctx.fillStyle="rgba(0,0,0,0.58)"; ctx.fillRect(0,GH/2-75,GW,150);
-      ctx.font="bold 21px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
-      ctx.fillStyle="#a855f7"; ctx.shadowColor="#a855f7"; ctx.shadowBlur=20;
-      ctx.fillText("🔮 KARMA DEFENSE ULTRA",GW/2,GH/2-36); ctx.shadowBlur=0;
-      ctx.font="12px sans-serif"; ctx.fillStyle="#94a3b8";
-      ctx.fillText("4 lanes · 5 slots · 8 towers · 5 heroes",GW/2,GH/2-8);
-      ctx.font="11px sans-serif"; ctx.fillStyle="#555";
-      ctx.fillText("Place towers · Assign heroes · Start wave",GW/2,GH/2+16);
-    }
-    if (s.phase==="between") {
-      ctx.fillStyle="rgba(0,0,0,0.62)"; ctx.fillRect(0,GH/2-70,GW,140);
-      ctx.font="bold 19px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
-      ctx.fillStyle="#fbbf24"; ctx.shadowColor="#fbbf24"; ctx.shadowBlur=18;
-      ctx.fillText(`✨ WAVE ${s.wave} CLEARED! ✨`,GW/2,GH/2-30); ctx.shadowBlur=0;
-      ctx.font="13px sans-serif"; ctx.fillStyle="#a3e635"; ctx.fillText(`+${s.waveBonus}⚡ earned`,GW/2,GH/2-4);
-      ctx.font="11px sans-serif"; ctx.fillStyle="#555";
-      const sec=Math.ceil(s.betweenTimer/60);
-      ctx.fillText(sec>0?`Next wave in ${sec}s — or tap START`:"Tap START WAVE",GW/2,GH/2+22);
-    }
-    // Wave milestone flash
-    const MILESTONES = [5,10,25,50,100,200];
-    if (s.phase==="between" && MILESTONES.includes(s.wave) && s.betweenTimer>540) {
-      const pct = (s.betweenTimer-540)/60;
-      ctx.globalAlpha=pct*0.92;
-      ctx.fillStyle="rgba(200,255,0,0.12)"; ctx.fillRect(0,0,GW,GH);
-      ctx.globalAlpha=pct;
-      ctx.font="bold 28px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
-      ctx.fillStyle="#c8ff00"; ctx.shadowColor="#c8ff00"; ctx.shadowBlur=30;
-      ctx.fillText(`🌟 WAVE ${s.wave} 🌟`,GW/2,GH/2-60);
-      ctx.font="14px sans-serif"; ctx.fillStyle="#fff"; ctx.shadowBlur=0;
-      const labels: Record<number,string> = {5:"Beginner",10:"Warrior",25:"Elite",50:"Master",100:"Legend",200:"MYTHIC"};
-      ctx.fillText(labels[s.wave]??`Tier ${s.wave}`,GW/2,GH/2-28);
+      const ca=s.comboFlash/90;
+      ctx.globalAlpha=ca;
+      ctx.font="bold 24px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillStyle="#fbbf24"; ctx.shadowColor="#fbbf24"; ctx.shadowBlur=28;
+      ctx.fillText(s.comboLabel,GW/2,GH/2-55); ctx.shadowBlur=0;
       ctx.globalAlpha=1;
     }
 
+    // ── Idle overlay ─────────────────────────────────────────────────────────
+    if (s.phase==="idle") {
+      ctx.fillStyle="rgba(0,0,0,0.65)"; ctx.fillRect(0,GH/2-90,GW,180);
+      // Title glow
+      ctx.shadowColor="#a855f7"; ctx.shadowBlur=30;
+      ctx.font="bold 20px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillStyle="#c8ff00"; ctx.fillText("🔮 KARMA DEFENSE ULTRA",GW/2,GH/2-48); ctx.shadowBlur=0;
+      // Subtitle
+      ctx.font="11px sans-serif"; ctx.fillStyle="#a855f7"; ctx.fillText("INFINITE WAVES · TALENT TREE · 5 HEROES",GW/2,GH/2-22);
+      // Stats row
+      ctx.font="10px monospace"; ctx.fillStyle="#555";
+      ctx.fillText("4 lanes  ·  5 slots  ·  8 towers",GW/2,GH/2+2);
+      // Best wave
+      if (s.bestWave>0) { ctx.fillStyle="#fbbf24"; ctx.font="bold 10px monospace"; ctx.fillText(`🏆 Best: Wave ${s.bestWave}`,GW/2,GH/2+26); }
+      // Instruction
+      ctx.fillStyle="#333"; ctx.font="9px monospace"; ctx.fillText("Place towers below · then START WAVE",GW/2,GH/2+50);
+    }
+
+    // ── Between waves overlay ─────────────────────────────────────────────────
+    if (s.phase==="between") {
+      ctx.fillStyle="rgba(0,0,0,0.7)"; ctx.fillRect(0,GH/2-80,GW,160);
+      ctx.font="bold 20px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillStyle="#fbbf24"; ctx.shadowColor="#fbbf24"; ctx.shadowBlur=22;
+      ctx.fillText(`⚡ WAVE ${s.wave} CLEARED! ⚡`,GW/2,GH/2-40); ctx.shadowBlur=0;
+      ctx.font="13px sans-serif"; ctx.fillStyle="#a3e635";
+      ctx.fillText(`+${s.waveBonus} karma earned`,GW/2,GH/2-12);
+      if (s.talentPts>0) {
+        ctx.font="bold 11px sans-serif"; ctx.fillStyle="#c8ff00";
+        ctx.shadowColor="#c8ff00"; ctx.shadowBlur=12;
+        ctx.fillText(`✦ ${s.talentPts} talent point${s.talentPts>1?"s":""} available!`,GW/2,GH/2+10); ctx.shadowBlur=0;
+      }
+      ctx.font="10px monospace"; ctx.fillStyle="#444";
+      const sec=Math.ceil(s.betweenTimer/60);
+      ctx.fillText(sec>0?`Next wave in ${sec}s — or tap START`:"Tap START WAVE",GW/2,GH/2+34);
+    }
+
+    // ── Wave milestone flash ──────────────────────────────────────────────────
+    const MILESTONES=[5,10,25,50,100,200];
+    if (s.phase==="between" && MILESTONES.includes(s.wave) && s.betweenTimer>540) {
+      const pct=(s.betweenTimer-540)/60;
+      ctx.globalAlpha=pct;
+      // Full screen flash
+      ctx.fillStyle=theme.acc+"18"; ctx.fillRect(0,0,GW,GH);
+      // Vignette glow
+      const vg=ctx.createRadialGradient(GW/2,GH/2,60,GW/2,GH/2,GW/2);
+      vg.addColorStop(0,theme.acc+"00"); vg.addColorStop(1,theme.acc+"22");
+      ctx.fillStyle=vg; ctx.fillRect(0,0,GW,GH);
+      ctx.font="bold 32px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillStyle=theme.acc; ctx.shadowColor=theme.acc; ctx.shadowBlur=40;
+      ctx.fillText(`★ WAVE ${s.wave} ★`,GW/2,GH/2-65); ctx.shadowBlur=0;
+      ctx.font="bold 15px sans-serif"; ctx.fillStyle="#fff";
+      const labels: Record<number,string>={5:"WARRIOR UNLOCKED",10:"ELITE RANK",25:"MASTER CLASS",50:"LEGEND STATUS",100:"MYTHIC TIER",200:"TRANSCENDENT"};
+      ctx.fillText(labels[s.wave]??`TIER ${s.wave}`,GW/2,GH/2-32);
+      ctx.globalAlpha=1;
+    }
+
+    // ── Game over overlay ─────────────────────────────────────────────────────
     if (s.phase==="gameover") {
-      ctx.fillStyle="rgba(0,0,0,0.84)"; ctx.fillRect(0,0,GW,GH);
-      ctx.font="bold 28px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
-      ctx.fillStyle="#f87171"; ctx.shadowColor="#f87171"; ctx.shadowBlur=24;
-      ctx.fillText("💀 GAME OVER",GW/2,GH/2-48); ctx.shadowBlur=0;
-      ctx.font="15px sans-serif"; ctx.fillStyle="#fbbf24"; ctx.fillText(`Waves: ${s.wave}`,GW/2,GH/2-12);
-      ctx.font="13px sans-serif"; ctx.fillStyle="#a3e635"; ctx.fillText(`Karma earned: ${s.earnedKarma}⚡`,GW/2,GH/2+14);
-      if (s.wave>=s.bestWave&&s.wave>0) { ctx.fillStyle="#fbbf24"; ctx.font="bold 13px sans-serif"; ctx.fillText("🏆 NEW RECORD!",GW/2,GH/2+40); }
+      ctx.fillStyle="rgba(0,0,0,0.88)"; ctx.fillRect(0,0,GW,GH);
+      ctx.font="bold 30px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillStyle="#f87171"; ctx.shadowColor="#f87171"; ctx.shadowBlur=28;
+      ctx.fillText("💀 GAME OVER",GW/2,GH/2-56); ctx.shadowBlur=0;
+      ctx.font="bold 16px sans-serif"; ctx.fillStyle="#fbbf24"; ctx.fillText(`Wave ${s.wave} reached`,GW/2,GH/2-22);
+      ctx.font="13px monospace"; ctx.fillStyle="#a3e635"; ctx.fillText(`⚡ ${s.earnedKarma} karma earned`,GW/2,GH/2+6);
+      if (s.wave>0&&s.wave>=s.bestWave) {
+        ctx.fillStyle="#c8ff00"; ctx.font="bold 14px sans-serif";
+        ctx.shadowColor="#c8ff00"; ctx.shadowBlur=16;
+        ctx.fillText("🏆 NEW RECORD!",GW/2,GH/2+34); ctx.shadowBlur=0;
+      }
+      // Tap hint
+      ctx.fillStyle="#333"; ctx.font="9px monospace"; ctx.fillText("Tap PLAY AGAIN to restart",GW/2,GH/2+58);
     }
   }, [petEmoji]);
 
