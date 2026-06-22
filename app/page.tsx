@@ -44,7 +44,8 @@ export default function LandingPage() {
   useEffect(() => {
     const karma = localStorage.getItem("karma_total_v1");
     const created = localStorage.getItem("pet_created_v1");
-    if (karma || created) {
+    const petData = localStorage.getItem("karma_pet_v1");
+    if (karma || created || petData) {
       router.replace("/feed");
       return;
     }

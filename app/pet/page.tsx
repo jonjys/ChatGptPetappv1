@@ -634,6 +634,55 @@ export default function PetPage() {
 
                   {/* PET CIRCLE — 168px with XP ring */}
                   <div style={{ position: "relative" }}>
+                    {/* Rarity aura rings */}
+                    {pet.rarity !== "common" && (
+                      <>
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: pet.rarity === "legendary" ? 4 : pet.rarity === "epic" ? 6 : 10, repeat: Infinity, ease: "linear" }}
+                          style={{
+                            position: "absolute",
+                            top: -28, left: -28,
+                            width: 224, height: 224, borderRadius: "50%",
+                            border: `2px solid transparent`,
+                            borderTopColor: rarityColor,
+                            borderRightColor: rarityColor + "55",
+                            pointerEvents: "none",
+                            filter: `drop-shadow(0 0 6px ${rarityColor})`,
+                          }}
+                        />
+                        {(pet.rarity === "epic" || pet.rarity === "legendary") && (
+                          <motion.div
+                            animate={{ rotate: -360 }}
+                            transition={{ duration: pet.rarity === "legendary" ? 3 : 7, repeat: Infinity, ease: "linear" }}
+                            style={{
+                              position: "absolute",
+                              top: -38, left: -38,
+                              width: 244, height: 244, borderRadius: "50%",
+                              border: `1.5px solid transparent`,
+                              borderBottomColor: rarityColor + "99",
+                              borderLeftColor: rarityColor + "44",
+                              pointerEvents: "none",
+                              filter: `drop-shadow(0 0 4px ${rarityColor}88)`,
+                            }}
+                          />
+                        )}
+                        {pet.rarity === "legendary" && (
+                          <motion.div
+                            animate={{ scale: [1, 1.06, 1], opacity: [0.6, 1, 0.6] }}
+                            transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                            style={{
+                              position: "absolute",
+                              top: -50, left: -50,
+                              width: 268, height: 268, borderRadius: "50%",
+                              border: `1px solid ${rarityColor}33`,
+                              pointerEvents: "none",
+                              boxShadow: `inset 0 0 30px ${rarityColor}11`,
+                            }}
+                          />
+                        )}
+                      </>
+                    )}
                     {/* SVG XP progress ring */}
                     <svg
                       style={{ position: "absolute", top: -15, left: -15, pointerEvents: "none", overflow: "visible" }}
