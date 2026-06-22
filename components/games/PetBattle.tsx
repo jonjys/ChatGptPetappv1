@@ -89,6 +89,39 @@ const THEMES = [
   { name:"Karma Heaven", bg1:"#151000", bg2:"#1a1500", lane:"rgba(200,255,0,0.07)",  acc:"#c8ff00" },
 ];
 
+// ─── Talent tree ───────────────────────────────────────────────────────────────
+type TalentBranch = "attack"|"economy"|"defense";
+type TalentId =
+  "sharp_edge"|"rapid_fire"|"death_ray"|
+  "tax_collector"|"gold_rush"|"karma_overflow"|
+  "reinforce"|"iron_wall"|"time_warp"|
+  "transcendence";
+
+interface TalentDef {
+  id: TalentId; branch: TalentBranch|"apex"; tier: 1|2|3|4;
+  name: string; desc: string; emoji: string;
+  requires: TalentId|null;
+}
+
+const TALENT_DEFS: TalentDef[] = [
+  // ── ATTACK ──
+  { id:"sharp_edge",     branch:"attack",  tier:1, name:"Sharp Edge",      desc:"+20% tower damage",              emoji:"🗡️",  requires:null },
+  { id:"rapid_fire",     branch:"attack",  tier:2, name:"Rapid Fire",       desc:"-20% tower fire delay",          emoji:"⚡",  requires:"sharp_edge" },
+  { id:"death_ray",      branch:"attack",  tier:3, name:"Death Ray",        desc:"All towers pierce 2 targets",    emoji:"🔴",  requires:"rapid_fire" },
+  // ── ECONOMY ──
+  { id:"tax_collector",  branch:"economy", tier:1, name:"Tax Collector",    desc:"+30% gold from kills",           emoji:"💰",  requires:null },
+  { id:"gold_rush",      branch:"economy", tier:2, name:"Gold Rush",        desc:"+50 bonus gold each wave",       emoji:"🤑",  requires:"tax_collector" },
+  { id:"karma_overflow", branch:"economy", tier:3, name:"Karma Overflow",   desc:"Wave bonus ×3",                  emoji:"🔮",  requires:"gold_rush" },
+  // ── DEFENSE ──
+  { id:"reinforce",      branch:"defense", tier:1, name:"Reinforce",        desc:"+40 max base HP",                emoji:"🛡️",  requires:null },
+  { id:"iron_wall",      branch:"defense", tier:2, name:"Iron Wall",        desc:"Enemies deal -30% HP dmg",       emoji:"🏰",  requires:"reinforce" },
+  { id:"time_warp",      branch:"defense", tier:3, name:"Time Warp",        desc:"Wave start: all enemies frozen 3s",emoji:"⏳", requires:"iron_wall" },
+  // ── APEX ──
+  { id:"transcendence",  branch:"apex",    tier:4, name:"Pet Transcendence",desc:"All bonuses ×1.3 · hero CD ÷2", emoji:"✨",  requires:null },
+];
+
+const TALENT_MAP: Record<TalentId, TalentDef> = Object.fromEntries(TALENT_DEFS.map(t => [t.id, t])) as Record<TalentId, TalentDef>;
+
 // ─── Game state interfaces ─────────────────────────────────────────────────────
 interface Tower {
   id: string; type: TowerType;
@@ -131,6 +164,44 @@ interface GS {
   killStreak: number; killStreakTimer: number;
   comboMult: number; comboFlash: number; comboLabel: string;
   screenShake: number; waveBonus: number; bestWave: number;
+  talentPts: number; talents: Set<TalentId>;
+}
+
+// ─── Talent helpers ────────────────────────────────────────────────────────────
+function hasTalent(s: GS, id: TalentId) { return s.talents.has(id); }
+function talentDmgMult(s: GS) {
+  let m = 1;
+  if (hasTalent(s, "sharp_edge"))   m *= 1.20;
+  if (hasTalent(s, "transcendence")) m *= 1.30;
+  return m;
+}
+function talentFireMult(s: GS) {
+  let m = 1;
+  if (hasTalent(s, "rapid_fire"))   m *= 0.80;
+  if (hasTalent(s, "transcendence")) m *= 0.80;
+  return m;
+}
+function talentGoldMult(s: GS) {
+  let m = 1;
+  if (hasTalent(s, "tax_collector")) m *= 1.30;
+  if (hasTalent(s, "transcendence")) m *= 1.30;
+  return m;
+}
+function talentWaveBonusMult(s: GS) {
+  let m = 1;
+  if (hasTalent(s, "karma_overflow")) m *= 3;
+  if (hasTalent(s, "transcendence"))  m *= 1.30;
+  return m;
+}
+function talentBaseHpBonus(s: GS) {
+  let b = 0;
+  if (hasTalent(s, "reinforce")) b += 40;
+  return b;
+}
+function talentDmgReduction(s: GS) {
+  let r = 1;
+  if (hasTalent(s, "iron_wall")) r *= 0.70;
+  return r;
 }
 
 // ─── Module-level helpers ──────────────────────────────────────────────────────
@@ -156,7 +227,7 @@ function doKillEnemy(s: GS, enemy: Enemy) {
   const prev = s.comboMult;
   s.comboMult = s.killStreak >= 20 ? 3 : s.killStreak >= 10 ? 2 : s.killStreak >= 5 ? 1.5 : 1;
   if (s.comboMult !== prev) { s.comboFlash = 90; s.comboLabel = `x${s.comboMult} COMBO!`; }
-  const earned = Math.floor(def.reward * s.comboMult);
+  const earned = Math.floor(def.reward * s.comboMult * talentGoldMult(s));
   s.localKarma += earned; s.earnedKarma += earned; s.waveBonus += earned;
   if (enemy.type === "exploder") {
     spawnBurst(s, enemy.x, laneCenter(enemy.lane), "#fb923c", 14, 6);
@@ -174,7 +245,7 @@ function applyDmgToEnemy(s: GS, tower: Tower, enemy: Enemy, rawDmg: number, towe
   const frostBonus = frostLane && enemy.frozen > 0 ? 1.3 : 1;
   const petBonus = s.heroLane[tower.lane] === "pet" ? 1.25 : 1;
   const enemyDef = ENEMY_DEFS[enemy.type];
-  let dmg = Math.max(1, Math.floor(rawDmg * petBonus * frostBonus) - enemyDef.armor);
+  let dmg = Math.max(1, Math.floor(rawDmg * petBonus * frostBonus * talentDmgMult(s)) - enemyDef.armor);
   if (enemy.type === "ghost" && !enemy.ghostPhased) { enemy.ghostPhased = true; return false; }
   if (enemy.shield > 0) { enemy.shield = Math.max(0, enemy.shield - dmg); }
   else { enemy.hp -= dmg; }
@@ -184,9 +255,9 @@ function applyDmgToEnemy(s: GS, tower: Tower, enemy: Enemy, rawDmg: number, towe
   return false;
 }
 
-function buildWaveQueue(wave: number): GS["spawnQueue"] {
+function buildWaveQueue(wave: number, s?: GS): GS["spawnQueue"] {
   const q: GS["spawnQueue"] = [];
-  const perLane = Math.min(3 + Math.floor(wave * 1.2), 18);
+  const perLane = Math.min(3 + Math.floor(wave * 1.2), 24);
   const isMega = wave % 10 === 0 && wave > 0;
   const isBoss = !isMega && wave % 5 === 0 && wave > 0;
   const pool: EnemyType[] = ["grunt"];
@@ -215,6 +286,10 @@ function buildWaveQueue(wave: number): GS["spawnQueue"] {
   return q;
 }
 
+function scaleEnemyHp(baseHp: number, wave: number) {
+  return Math.floor(baseHp * Math.pow(1.12, wave - 1));
+}
+
 function mkGS(): GS {
   const best = typeof window !== "undefined" ? parseInt(localStorage.getItem(LS_BEST) ?? "0", 10) : 0;
   return {
@@ -225,6 +300,7 @@ function mkGS(): GS {
     betweenTimer:0, spawnQueue:[], spawnTimer:0, frame:0,
     killStreak:0, killStreakTimer:0, comboMult:1, comboFlash:0, comboLabel:"",
     screenShake:0, waveBonus:0, bestWave:best,
+    talentPts:0, talents: new Set<TalentId>(),
   };
 }
 
@@ -250,6 +326,9 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
   const [heroCdUI, setHeroCdUI] = useState<Record<string,number>>({});
   const [bestWave, setBestWave] = useState(() => typeof window !== "undefined" ? parseInt(localStorage.getItem(LS_BEST)??"0",10) : 0);
   const [, setTick] = useState(0);
+  const [showTalents, setShowTalents] = useState(false);
+  const [uiTalentPts, setUiTalentPts] = useState(0);
+  const [uiTalents, setUiTalents] = useState<Set<TalentId>>(new Set());
 
   const petEmoji = petEmojiProp ?? (pet ? "🐾" : "🐾");
 
@@ -279,12 +358,14 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
       for (const sp of ready) {
         const def = ENEMY_DEFS[sp.type];
         const slowed = s.heroLane[sp.lane] === "shadow";
+        const scaledHp = scaleEnemyHp(def.maxHp, s.wave);
+        const warpFrz = (s as GS & { _warpFrames?: number })._warpFrames ?? 0;
         s.enemies.push({
           id: mkId(), type: sp.type, lane: sp.lane,
           x: SPAWN_X - Math.random() * 20,
-          hp: def.maxHp, maxHp: def.maxHp,
+          hp: scaledHp, maxHp: scaledHp,
           shield: def.shieldAmt, maxShield: def.shieldAmt,
-          frozen: 0, poisoned: 0, poisonDmg: 0,
+          frozen: warpFrz, poisoned: 0, poisonDmg: 0,
           ghostPhased: false, healTimer: 0, hitFlash: 0,
         });
         if (slowed) {
@@ -325,7 +406,8 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
         const slowMult = (s.heroLane[enemy.lane] === "shadow") ? 0.8 : 1;
         enemy.x += def.speed * slowMult;
         if (enemy.x >= BASE_X) {
-          const dmg = Math.max(1, Math.round(def.maxHp / 12));
+          const rawDmgBase = Math.max(1, Math.round(def.maxHp / 12));
+          const dmg = Math.max(1, Math.round(rawDmgBase * talentDmgReduction(s)));
           const sh = Math.min(s.baseShield, dmg);
           s.baseShield -= sh;
           s.baseHp = Math.max(0, s.baseHp - (dmg - sh));
@@ -347,7 +429,7 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
           const pos = slotXY(tower.lane, tower.slot);
           const laneEn = s.enemies.filter(e => e.lane === tower.lane && e.x > pos.x - 20).sort((a,b) => b.x - a.x);
           if (laneEn.length === 0) continue;
-          tower.cooldown = tower.fireRate;
+          tower.cooldown = Math.max(4, Math.floor(tower.fireRate * talentFireMult(s)));
 
           if (tower.type === "lightning") {
             for (const e of [...laneEn]) applyDmgToEnemy(s, tower, e, tower.damage, def, pos);
@@ -374,14 +456,20 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
               applyDmgToEnemy(s, tower, laneEn[i], Math.floor(tower.damage * (i === 0 ? 1 : 0.55)), def, pos);
           } else {
             applyDmgToEnemy(s, tower, laneEn[0], tower.damage, def, pos);
+            if (hasTalent(s, "death_ray") && laneEn[1]) {
+              applyDmgToEnemy(s, tower, laneEn[1], Math.floor(tower.damage * 0.6), def, pos);
+            }
           }
         }
         s.projectiles = s.projectiles.map(p => ({...p, life: p.life - 1})).filter(p => p.life > 0);
 
         // Wave cleared?
         if (s.enemies.length === 0 && s.spawnQueue.length === 0) {
-          const bonus = 20 + s.wave * 5;
+          const goldRushBonus = hasTalent(s, "gold_rush") ? 50 : 0;
+          const baseBonus = 20 + s.wave * 5 + goldRushBonus;
+          const bonus = Math.floor(baseBonus * talentWaveBonusMult(s));
           s.localKarma += bonus; s.earnedKarma += bonus; s.waveBonus += bonus;
+          s.talentPts++;
           s.phase = "between"; s.betweenTimer = 600;
           const cols = ["#c8ff00","#ff2d8d","#00e5ff","#fbbf24","#a855f7"];
           for (let i = 0; i < 5; i++) spawnBurst(s, GW * 0.2 * (i+1), GH * 0.4, cols[i], 8, 4.5);
@@ -399,6 +487,8 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
     setUiBaseHp(s.baseHp); setUiBetween(s.betweenTimer);
     setHeroLaneUI({...s.heroLane}); setHeroCdUI({...s.heroCd});
     setBestWave(s.bestWave);
+    setUiTalentPts(s.talentPts);
+    setUiTalents(new Set(s.talents));
     setTick(t => t + 1);
   }, []);
 
@@ -708,8 +798,9 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
   // ─── START WAVE ───────────────────────────────────────────────────────────
   const startWave = useCallback(() => {
     const s=sRef.current; if(s.phase==="gameover") return;
-    s.wave++; s.spawnQueue=buildWaveQueue(s.wave); s.spawnTimer=0;
+    s.wave++; s.spawnQueue=buildWaveQueue(s.wave, s); s.spawnTimer=0;
     s.enemies=[]; s.projectiles=[]; s.phase="wave"; s.betweenTimer=0; s.waveBonus=0;
+    if (hasTalent(s, "time_warp")) { (s as GS & { _warpFrames: number })._warpFrames = 180; }
     setUiPhase("wave"); setUiWave(s.wave);
     selSlotRef.current=null; selTowerRef.current=null; setSelSlot(null); setSelTower(null);
   }, []);
@@ -725,6 +816,29 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
     setHeroLaneUI({}); setHeroCdUI({});
     setUiPhase("idle"); setUiWave(0); setUiKarma(300); setUiBaseHp(100);
   }, [onEnd, onWin]);
+
+  // ─── UNLOCK TALENT ────────────────────────────────────────────────────────
+  const unlockTalent = useCallback((id: TalentId) => {
+    const s = sRef.current;
+    if (s.talentPts <= 0) return;
+    if (s.talents.has(id)) return;
+    const def = TALENT_MAP[id];
+    if (def.requires && !s.talents.has(def.requires)) return;
+    if (def.branch === "apex") {
+      const branches: TalentBranch[] = ["attack","economy","defense"];
+      const allTier3 = branches.every(b => {
+        const t3 = TALENT_DEFS.find(t => t.branch === b && t.tier === 3);
+        return t3 && s.talents.has(t3.id);
+      });
+      if (!allTier3) return;
+    }
+    s.talents = new Set([...s.talents, id]);
+    s.talentPts--;
+    if (id === "reinforce") s.baseHp = Math.min(140, s.baseHp + talentBaseHpBonus(s));
+    setUiTalentPts(s.talentPts);
+    setUiTalents(new Set(s.talents));
+    setUiBaseHp(s.baseHp);
+  }, []);
 
   // ─── SPEED TOGGLE ─────────────────────────────────────────────────────────
   const toggleSpeed = useCallback(() => {
@@ -870,7 +984,101 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
             style={{ padding:"11px 14px", background:gameSpeed===2?"rgba(251,191,36,0.2)":"#111", border:`1.5px solid ${gameSpeed===2?"#fbbf24":"#222"}`, borderRadius:12, color:gameSpeed===2?"#fbbf24":"#444", fontWeight:700, fontSize:12, cursor:"pointer" }}>
             {gameSpeed===1?"⏩ 2x":"⏸ 1x"}
           </button>
+          <button onClick={()=>setShowTalents(v=>!v)}
+            style={{ position:"relative", padding:"11px 12px", background:showTalents?"rgba(200,255,0,0.18)":"#111", border:`1.5px solid ${uiTalentPts>0?"#c8ff00":"#222"}`, borderRadius:12, color:uiTalentPts>0?"#c8ff00":"#666", fontWeight:700, fontSize:11, cursor:"pointer" }}>
+            🌟
+            {uiTalentPts>0&&<span style={{ position:"absolute", top:-5, right:-5, background:"#c8ff00", color:"#000", borderRadius:"50%", width:16, height:16, fontSize:9, fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center" }}>{uiTalentPts}</span>}
+          </button>
         </div>
+
+        {/* Talent tree panel */}
+        {showTalents && (
+          <div style={{ background:"rgba(5,0,18,0.98)", border:"1.5px solid rgba(200,255,0,0.25)", borderRadius:14, padding:"12px 10px" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+              <div style={{ fontSize:12, fontWeight:800, color:"#c8ff00", letterSpacing:"0.1em" }}>
+                🌟 TALENT TREE
+              </div>
+              <div style={{ fontSize:11, color:"#fbbf24", fontWeight:700 }}>
+                {uiTalentPts} pts available
+              </div>
+            </div>
+
+            {/* 3 branches */}
+            {(["attack","economy","defense"] as TalentBranch[]).map(branch => {
+              const branchColors: Record<TalentBranch, string> = { attack:"#ef4444", economy:"#fbbf24", defense:"#38bdf8" };
+              const branchIcons: Record<TalentBranch, string> = { attack:"⚔️", economy:"💰", defense:"🛡️" };
+              const col = branchColors[branch];
+              const tiers = TALENT_DEFS.filter(t => t.branch === branch).sort((a,b)=>a.tier-b.tier);
+              return (
+                <div key={branch} style={{ marginBottom:8 }}>
+                  <div style={{ fontSize:9, fontWeight:700, color:col, letterSpacing:"0.12em", marginBottom:5 }}>
+                    {branchIcons[branch]} {branch.toUpperCase()}
+                  </div>
+                  <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+                    {tiers.map((td, ti) => {
+                      const unlocked = uiTalents.has(td.id);
+                      const reqOk = !td.requires || uiTalents.has(td.requires);
+                      const canUnlock = !unlocked && reqOk && uiTalentPts > 0;
+                      return (
+                        <div key={td.id} style={{ display:"flex", alignItems:"center", gap:4 }}>
+                          {ti>0&&<div style={{ width:16, height:2, background:unlocked?col:"#222" }} />}
+                          <button onClick={()=>canUnlock&&unlockTalent(td.id)}
+                            title={td.desc}
+                            style={{
+                              width:54, padding:"6px 4px",
+                              background:unlocked?`${col}22`:"rgba(255,255,255,0.03)",
+                              border:`1.5px solid ${unlocked?col:canUnlock?col+"55":"#1a1a1a"}`,
+                              borderRadius:10, textAlign:"center",
+                              cursor:canUnlock?"pointer":"default", opacity:reqOk||unlocked?1:0.35,
+                              boxShadow:unlocked?`0 0 10px ${col}55`:"none",
+                            }}>
+                            <div style={{ fontSize:"1.1rem" }}>{td.emoji}</div>
+                            <div style={{ fontSize:8, fontWeight:700, color:unlocked?col:"#444", lineHeight:1.2 }}>{td.name}</div>
+                            {unlocked&&<div style={{ fontSize:7, color:"#4ade80", marginTop:2 }}>✓</div>}
+                            {!unlocked&&canUnlock&&<div style={{ fontSize:7, color:"#fbbf24", marginTop:2 }}>1pt</div>}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Apex node */}
+            {(() => {
+              const td = TALENT_DEFS.find(t => t.branch === "apex")!;
+              const unlocked = uiTalents.has(td.id);
+              const allTier3 = (["attack","economy","defense"] as TalentBranch[]).every(b => {
+                const t3 = TALENT_DEFS.find(t => t.branch === b && t.tier === 3);
+                return t3 && uiTalents.has(t3.id);
+              });
+              const canUnlock = !unlocked && allTier3 && uiTalentPts > 0;
+              return (
+                <button onClick={()=>canUnlock&&unlockTalent(td.id)}
+                  style={{
+                    width:"100%", padding:"10px 12px", marginTop:4,
+                    background:unlocked?"rgba(200,255,0,0.12)":canUnlock?"rgba(200,255,0,0.06)":"rgba(255,255,255,0.02)",
+                    border:`2px solid ${unlocked?"#c8ff00":canUnlock?"rgba(200,255,0,0.5)":"#1a1a1a"}`,
+                    borderRadius:12, display:"flex", alignItems:"center", gap:10,
+                    cursor:canUnlock?"pointer":"default",
+                    boxShadow:unlocked?"0 0 20px rgba(200,255,0,0.3)":"none",
+                    opacity:allTier3||unlocked?1:0.35,
+                  }}>
+                  <span style={{ fontSize:"1.5rem" }}>{td.emoji}</span>
+                  <div style={{ textAlign:"left" }}>
+                    <div style={{ fontSize:11, fontWeight:800, color:unlocked?"#c8ff00":"#555", letterSpacing:"0.06em" }}>
+                      {td.name} {!allTier3&&"— unlock all 3 branches first"}
+                    </div>
+                    <div style={{ fontSize:9, color:unlocked?"#a3e635":"#333" }}>{td.desc}</div>
+                  </div>
+                  {unlocked&&<span style={{ marginLeft:"auto", fontSize:12, color:"#4ade80" }}>✓</span>}
+                  {!unlocked&&canUnlock&&<span style={{ marginLeft:"auto", fontSize:10, color:"#fbbf24", fontWeight:700 }}>1pt</span>}
+                </button>
+              );
+            })()}
+          </div>
+        )}
 
         {/* Status strip */}
         <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:"rgba(255,255,255,0.2)", borderTop:"1px solid rgba(255,255,255,0.05)", paddingTop:6 }}>
