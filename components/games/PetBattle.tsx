@@ -13,12 +13,12 @@ interface PetBattleProps {
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const GW = 390;
-const GH = 448;
+const GH = 460;
 const LANE_COUNT = 4;
-const LANE_Y: number[] = [32, 128, 224, 328];
-const LANE_H = 84;
-const SLOTS: number[] = [48, 100, 152, 204, 256];
-const BASE_X = 346;
+const LANE_Y: number[] = [40, 135, 230, 325];
+const LANE_H = 88;
+const SLOTS: number[] = [52, 105, 158, 211, 264];
+const BASE_X = 348;
 const SPAWN_X = -30;
 const LS_BEST = "karma_defense_best_v1";
 
@@ -165,6 +165,7 @@ interface GS {
   comboMult: number; comboFlash: number; comboLabel: string;
   screenShake: number; waveBonus: number; bestWave: number;
   talentPts: number; talents: Set<TalentId>;
+  waveTotal: number; waveKilled: number;
 }
 
 // ─── Talent helpers ────────────────────────────────────────────────────────────
@@ -222,7 +223,7 @@ function spawnBurst(s: GS, x: number, y: number, color: string, n = 7, spd = 3.5
 
 function doKillEnemy(s: GS, enemy: Enemy) {
   const def = ENEMY_DEFS[enemy.type];
-  s.killStreak++;
+  s.killStreak++; s.waveKilled++;
   s.killStreakTimer = 130;
   const prev = s.comboMult;
   s.comboMult = s.killStreak >= 20 ? 3 : s.killStreak >= 10 ? 2 : s.killStreak >= 5 ? 1.5 : 1;
@@ -301,6 +302,7 @@ function mkGS(): GS {
     killStreak:0, killStreakTimer:0, comboMult:1, comboFlash:0, comboLabel:"",
     screenShake:0, waveBonus:0, bestWave:best,
     talentPts:0, talents: new Set<TalentId>(),
+    waveTotal:0, waveKilled:0,
   };
 }
 
@@ -526,7 +528,7 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
     ctx.globalAlpha=1;
 
     // ── Lane gaps (between lanes) ──────────────────────────────────────────
-    ctx.fillStyle="rgba(0,0,0,0.55)";
+    ctx.fillStyle="rgba(0,0,0,0.65)";
     for (let i=0; i<LANE_COUNT; i++) {
       if (i>0) ctx.fillRect(0, LANE_Y[i-1]+LANE_H, GW, LANE_Y[i]-(LANE_Y[i-1]+LANE_H));
     }
@@ -534,31 +536,41 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
 
     // ── Lanes with rich floor ───────────────────────────────────────────────
     for (let i=0; i<LANE_COUNT; i++) {
-      const ly = LANE_Y[i];
-      // Lane fill with subtle gradient
+      const ly = LANE_Y[i]; const cy2 = laneCenter(i);
+      // Lane fill
       const lg = ctx.createLinearGradient(0,ly,0,ly+LANE_H);
-      lg.addColorStop(0, theme.bg2+"cc"); lg.addColorStop(0.5, theme.lane); lg.addColorStop(1, theme.bg2+"cc");
+      lg.addColorStop(0, theme.bg2+"dd"); lg.addColorStop(0.5, theme.lane); lg.addColorStop(1, theme.bg2+"dd");
       ctx.fillStyle = lg; ctx.fillRect(0,ly,GW,LANE_H);
-      // Floor grid lines
-      ctx.strokeStyle = theme.acc+"18"; ctx.lineWidth=1;
-      for (let x=0; x<GW; x+=32) {
-        ctx.beginPath(); ctx.moveTo(x,ly); ctx.lineTo(x,ly+LANE_H); ctx.stroke();
+      // Subtle tile grid
+      ctx.strokeStyle = theme.acc+"12"; ctx.lineWidth=0.5;
+      for (let x=20; x<GW; x+=28) { ctx.beginPath(); ctx.moveTo(x,ly+4); ctx.lineTo(x,ly+LANE_H-4); ctx.stroke(); }
+      // Lane top/bottom border lines
+      ctx.strokeStyle = theme.acc+"55"; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(20,ly); ctx.lineTo(BASE_X-10,ly); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(20,ly+LANE_H); ctx.lineTo(BASE_X-10,ly+LANE_H); ctx.stroke();
+      // CENTER PATH — dashed line showing enemy route
+      ctx.setLineDash([6,10]); ctx.strokeStyle = theme.acc+"25"; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(24,cy2); ctx.lineTo(BASE_X-20,cy2); ctx.stroke(); ctx.setLineDash([]);
+      // PATH ARROWS — show direction every ~55px
+      ctx.fillStyle = theme.acc+"30";
+      for (let ax=60; ax<BASE_X-40; ax+=55) {
+        ctx.beginPath(); ctx.moveTo(ax,cy2-5); ctx.lineTo(ax+10,cy2); ctx.lineTo(ax,cy2+5);
+        ctx.closePath(); ctx.fill();
       }
-      // Lane top/bottom border
-      ctx.strokeStyle = theme.acc+"44"; ctx.lineWidth=1.5;
-      ctx.beginPath(); ctx.moveTo(0,ly); ctx.lineTo(GW,ly); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0,ly+LANE_H); ctx.lineTo(GW,ly+LANE_H); ctx.stroke();
-      // Lane number badge
-      ctx.fillStyle = theme.acc+"33"; ctx.fillRect(0,ly,18,LANE_H);
-      ctx.fillStyle = theme.acc; ctx.font = "bold 8px monospace";
-      ctx.textAlign="center"; ctx.textBaseline="middle";
-      ctx.fillText(`${i+1}`, 9, ly+LANE_H/2);
-      // Spawn portal on left
-      const pulse = 0.5+0.5*Math.sin(f*0.07+i);
-      ctx.strokeStyle = theme.acc+"66"; ctx.lineWidth=2;
-      ctx.setLineDash([4,4]);
-      ctx.beginPath(); ctx.arc(0, laneCenter(i), 14+pulse*4, -Math.PI/2, Math.PI/2);
-      ctx.stroke(); ctx.setLineDash([]);
+      // Lane number circle (left)
+      ctx.fillStyle = theme.acc+"22";
+      ctx.beginPath(); ctx.arc(10,cy2,10,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle = theme.acc+"66"; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.arc(10,cy2,10,0,Math.PI*2); ctx.stroke();
+      ctx.fillStyle = theme.acc; ctx.font = "bold 9px monospace";
+      ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(`${i+1}`,10,cy2);
+      // ENTRY GATE — left side portal arch
+      const gp = 0.5+0.5*Math.sin(f*0.06+i*1.1);
+      ctx.strokeStyle = theme.acc; ctx.lineWidth=2.5;
+      ctx.shadowColor=theme.acc; ctx.shadowBlur=8+gp*6;
+      ctx.beginPath(); ctx.moveTo(22,ly+4); ctx.lineTo(22,ly+LANE_H-4); ctx.stroke();
+      ctx.shadowBlur=0;
+      ctx.fillStyle = theme.acc+"44"; ctx.fillRect(22,ly+4,4,LANE_H-8);
     }
 
     // ── Right-side base wall ────────────────────────────────────────────────
@@ -752,29 +764,71 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
 
     if (shaking) ctx.restore();
 
-    // ── HUD top bar (no shake) ───────────────────────────────────────────────
+    // ── HUD top bar (no shake, 38px tall) ───────────────────────────────────
     const hudGrad=ctx.createLinearGradient(0,0,GW,0);
-    hudGrad.addColorStop(0,"rgba(0,0,0,0.9)"); hudGrad.addColorStop(0.5,"rgba(10,5,25,0.95)"); hudGrad.addColorStop(1,"rgba(0,0,0,0.9)");
-    ctx.fillStyle=hudGrad; ctx.fillRect(0,0,GW,30);
-    ctx.strokeStyle=theme.acc+"44"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,30); ctx.lineTo(GW,30); ctx.stroke();
-    // Wave with theme accent
-    ctx.font="bold 10px monospace"; ctx.textBaseline="middle";
-    ctx.textAlign="left";
-    ctx.fillStyle=theme.acc; ctx.shadowColor=theme.acc; ctx.shadowBlur=6;
-    ctx.fillText(`W${s.wave}`,6,15); ctx.shadowBlur=0;
-    ctx.fillStyle=theme.acc+"66"; ctx.font="7px monospace"; ctx.fillText(theme.name,6+24,15);
-    // Karma center
-    ctx.textAlign="center"; ctx.fillStyle="#fbbf24"; ctx.font="bold 11px monospace";
-    ctx.shadowColor="#fbbf24"; ctx.shadowBlur=8; ctx.fillText(`⚡${s.localKarma}`,GW/2,15); ctx.shadowBlur=0;
-    // HP right
-    ctx.textAlign="right"; ctx.fillStyle=hpColor; ctx.font="bold 10px monospace";
-    ctx.fillText(`♥${s.baseHp}`,GW-38,15);
-    ctx.fillStyle="#333"; ctx.font="bold 10px monospace"; ctx.fillText(`★${s.bestWave}`,GW-4,15);
-    // Talent pts indicator
-    if (s.talentPts>0) {
-      ctx.fillStyle="#c8ff00"; ctx.font="bold 9px monospace";
-      ctx.textAlign="left"; ctx.fillText(`✦${s.talentPts}`,GW/2-50,15);
+    hudGrad.addColorStop(0,"rgba(0,0,0,0.95)"); hudGrad.addColorStop(0.5,"rgba(8,4,20,0.97)"); hudGrad.addColorStop(1,"rgba(0,0,0,0.95)");
+    ctx.fillStyle=hudGrad; ctx.fillRect(0,0,GW,38);
+    ctx.strokeStyle=theme.acc+"55"; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(0,38); ctx.lineTo(GW,38); ctx.stroke();
+
+    // WAVE badge (left)
+    ctx.fillStyle=theme.acc+"22"; ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(4,5,48,28,6); else ctx.rect(4,5,48,28);
+    ctx.fill();
+    ctx.strokeStyle=theme.acc+"66"; ctx.lineWidth=1;
+    if (ctx.roundRect) ctx.roundRect(4,5,48,28,6); else ctx.rect(4,5,48,28);
+    ctx.stroke();
+    ctx.fillStyle=theme.acc; ctx.font="bold 8px monospace"; ctx.textAlign="center"; ctx.textBaseline="top";
+    ctx.fillText("WAVE",28,7);
+    ctx.font="bold 14px monospace"; ctx.textBaseline="middle";
+    ctx.shadowColor=theme.acc; ctx.shadowBlur=10; ctx.fillText(`${s.wave}`,28,25); ctx.shadowBlur=0;
+
+    // Theme name tiny below wave
+    ctx.font="6px monospace"; ctx.fillStyle=theme.acc+"55"; ctx.textBaseline="bottom";
+    ctx.fillText(theme.name,28,38);
+
+    // KARMA center
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillStyle="#fbbf24"; ctx.font="bold 12px monospace";
+    ctx.shadowColor="#fbbf24"; ctx.shadowBlur=10; ctx.fillText(`⚡ ${s.localKarma}`,GW/2,14); ctx.shadowBlur=0;
+
+    // Wave progress bar (center bottom of HUD)
+    if (s.phase==="wave" && s.waveTotal>0) {
+      const prog=Math.min(1, s.waveKilled/s.waveTotal);
+      const bx2=GW/2-50; const bw2=100;
+      ctx.fillStyle="rgba(255,255,255,0.07)"; ctx.fillRect(bx2,24,bw2,6);
+      const wg=ctx.createLinearGradient(bx2,0,bx2+bw2,0);
+      wg.addColorStop(0,"#a855f7"); wg.addColorStop(1,"#c8ff00");
+      ctx.fillStyle=wg; ctx.fillRect(bx2,24,bw2*prog,6);
+      ctx.font="7px monospace"; ctx.textAlign="center"; ctx.fillStyle="#888";
+      ctx.fillText(`${s.waveKilled}/${s.waveTotal} killed`,GW/2,35);
+    } else if (s.phase==="between") {
+      ctx.font="9px monospace"; ctx.textAlign="center"; ctx.fillStyle="#a855f7";
+      ctx.fillText(`WAVE ${s.wave} CLEAR`,GW/2,30);
     }
+
+    // Talent pts (center, near karma)
+    if (s.talentPts>0) {
+      ctx.fillStyle="#c8ff00"; ctx.font="bold 9px monospace"; ctx.textAlign="center";
+      ctx.shadowColor="#c8ff00"; ctx.shadowBlur=8;
+      ctx.fillText(`✦+${s.talentPts}`,GW/2+64,14); ctx.shadowBlur=0;
+    }
+
+    // HP/SHIELD right badge
+    const hpBadgeX=GW-56;
+    ctx.fillStyle=`${hpColor}22`; ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(hpBadgeX,5,50,28,6); else ctx.rect(hpBadgeX,5,50,28);
+    ctx.fill();
+    ctx.strokeStyle=hpColor+"66"; ctx.lineWidth=1;
+    if (ctx.roundRect) ctx.roundRect(hpBadgeX,5,50,28,6); else ctx.rect(hpBadgeX,5,50,28);
+    ctx.stroke();
+    ctx.font="bold 8px monospace"; ctx.textAlign="center"; ctx.fillStyle=hpColor; ctx.textBaseline="top";
+    ctx.fillText("BASE HP",hpBadgeX+25,7);
+    ctx.font="bold 13px monospace"; ctx.textBaseline="middle";
+    ctx.shadowColor=hpColor; ctx.shadowBlur=8; ctx.fillText(`${s.baseHp}`,hpBadgeX+25,25); ctx.shadowBlur=0;
+
+    // Best wave tiny (far right)
+    ctx.font="7px monospace"; ctx.fillStyle="#333"; ctx.textAlign="right"; ctx.textBaseline="bottom";
+    ctx.fillText(`★${s.bestWave}`,GW-2,38);
 
     // ── Combo flash ─────────────────────────────────────────────────────────
     if (s.comboFlash>0) {
@@ -977,6 +1031,7 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
     const s=sRef.current; if(s.phase==="gameover") return;
     s.wave++; s.spawnQueue=buildWaveQueue(s.wave, s); s.spawnTimer=0;
     s.enemies=[]; s.projectiles=[]; s.phase="wave"; s.betweenTimer=0; s.waveBonus=0;
+    s.waveTotal=s.spawnQueue.length; s.waveKilled=0;
     if (hasTalent(s, "time_warp")) { (s as GS & { _warpFrames: number })._warpFrames = 180; }
     setUiPhase("wave"); setUiWave(s.wave);
     selSlotRef.current=null; selTowerRef.current=null; setSelSlot(null); setSelTower(null);
@@ -1040,24 +1095,52 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
         style={{ width:"100%", height:"auto", display:"block", cursor:"pointer", touchAction:"manipulation", borderRadius:"14px 14px 0 0", border:"2px solid rgba(168,85,247,0.35)", borderBottom:"none" }}
       />
 
-      {/* ── Bottom UI ── */}
-      <div style={{ width:"100%", background:"rgba(6,0,18,0.97)", border:"1px solid rgba(168,85,247,0.2)", borderTop:"none", borderRadius:"0 0 14px 14px", padding:"10px 10px 12px", display:"flex", flexDirection:"column", gap:8 }}>
+      {/* ── Bottom HUD — real TD game panel ── */}
+      <div style={{ width:"100%", background:"linear-gradient(180deg,rgba(4,0,14,0.98) 0%,rgba(8,2,22,0.99) 100%)", border:"1.5px solid rgba(168,85,247,0.3)", borderTop:"2px solid rgba(168,85,247,0.5)", borderRadius:"0 0 16px 16px", padding:"8px 8px 10px", display:"flex", flexDirection:"column", gap:6 }}>
 
-        {/* Selected empty slot → tower shop */}
+        {/* ── PRIMARY ACTION ROW ── */}
+        <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+          {canStart && (
+            <button onClick={startWave} style={{ flex:1, padding:"12px 0", background:"linear-gradient(135deg,#5b21b6,#7c3aed,#a855f7)", border:"2px solid #a855f7", borderRadius:12, color:"#fff", fontWeight:900, fontSize:15, cursor:"pointer", boxShadow:"0 0 24px rgba(168,85,247,0.6), inset 0 1px 0 rgba(255,255,255,0.1)", letterSpacing:"0.04em" }}>
+              {uiPhase==="idle"?"▶  START WAVE 1":`▶  WAVE ${uiWave+1}`}
+            </button>
+          )}
+          {inWave && (
+            <div style={{ flex:1, padding:"10px 0", background:"rgba(168,85,247,0.08)", border:"1.5px solid rgba(168,85,247,0.2)", borderRadius:12, textAlign:"center", fontSize:11, color:"#a855f7", fontWeight:700, letterSpacing:"0.06em" }}>
+              WAVE {uiWave} IN PROGRESS
+            </div>
+          )}
+          {isOver && (
+            <button onClick={restart} style={{ flex:1, padding:"12px 0", background:"linear-gradient(135deg,#7c3aed,#a855f7)", border:"none", borderRadius:12, color:"#fff", fontWeight:900, fontSize:14, cursor:"pointer", letterSpacing:"0.04em" }}>
+              🔄  PLAY AGAIN
+            </button>
+          )}
+          <button onClick={toggleSpeed} style={{ width:52, height:46, background:gameSpeed===2?"rgba(251,191,36,0.18)":"rgba(255,255,255,0.04)", border:`2px solid ${gameSpeed===2?"#fbbf24":"rgba(255,255,255,0.08)"}`, borderRadius:12, color:gameSpeed===2?"#fbbf24":"#444", fontWeight:900, fontSize:11, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:1 }}>
+            <span style={{ fontSize:16 }}>{gameSpeed===1?"⏩":"⏸"}</span>
+            <span style={{ fontSize:8, letterSpacing:"0.05em" }}>{gameSpeed===1?"2×":"1×"}</span>
+          </button>
+          <button onClick={()=>setShowTalents(v=>!v)} style={{ position:"relative", width:52, height:46, background:showTalents?"rgba(200,255,0,0.14)":"rgba(255,255,255,0.04)", border:`2px solid ${uiTalentPts>0?"#c8ff00":"rgba(255,255,255,0.08)"}`, borderRadius:12, color:uiTalentPts>0?"#c8ff00":"#555", fontWeight:900, fontSize:16, cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:1, boxShadow:uiTalentPts>0?"0 0 12px rgba(200,255,0,0.3)":"none" }}>
+            🌟
+            {uiTalentPts>0&&<span style={{ position:"absolute", top:-5, right:-5, background:"#c8ff00", color:"#000", borderRadius:"50%", width:16, height:16, fontSize:9, fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center" }}>{uiTalentPts}</span>}
+          </button>
+        </div>
+
+        {/* ── CONTEXT PANEL: tower shop / upgrade / hero ── */}
         {selSlot && !isOver && (
           <div>
-            <div style={{ fontSize:10, color:"#fbbf24", fontWeight:700, letterSpacing:"0.08em", marginBottom:6 }}>
-              PLACE TOWER — Lane {selSlot.lane+1}, Slot {selSlot.slot+1}
+            <div style={{ fontSize:9, color:"#fbbf24", fontWeight:800, letterSpacing:"0.1em", marginBottom:5, display:"flex", alignItems:"center", gap:5 }}>
+              <span style={{ background:"#fbbf24", color:"#000", borderRadius:4, padding:"1px 5px" }}>L{selSlot.lane+1}·S{selSlot.slot+1}</span>
+              PLACE TOWER
             </div>
-            <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
+            <div style={{ display:"flex", gap:4, overflowX:"auto", paddingBottom:2, scrollbarWidth:"none" }}>
               {TOWER_TYPES.map(type => {
                 const d=TOWER_DEFS[type]; const ok=uiKarma>=d.cost;
                 return (
                   <button key={type} onClick={()=>placeTower(type)} disabled={!ok}
-                    style={{ flex:"0 0 auto", minWidth:64, padding:"6px 6px", background:ok?`${d.color}18`:"rgba(255,255,255,0.03)", border:`1.5px solid ${ok?d.color:"#1a1a1a"}`, borderRadius:10, cursor:ok?"pointer":"not-allowed", textAlign:"center", opacity:ok?1:0.4 }}>
-                    <div style={{ fontSize:18 }}>{d.emoji}</div>
-                    <div style={{ fontSize:9, fontWeight:700, color:ok?d.color:"#444", letterSpacing:"0.04em" }}>{d.name}</div>
-                    <div style={{ fontSize:9, color:ok?"#fbbf24":"#f87171", fontWeight:700 }}>⚡{d.cost}</div>
+                    style={{ flex:"0 0 auto", width:66, padding:"7px 4px", background:ok?`linear-gradient(180deg,${d.color}20,${d.color}08)`:"rgba(255,255,255,0.02)", border:`2px solid ${ok?d.color:"#1a1a1a"}`, borderRadius:12, cursor:ok?"pointer":"not-allowed", textAlign:"center", opacity:ok?1:0.35, boxShadow:ok?`0 0 8px ${d.color}33`:"none" }}>
+                    <div style={{ fontSize:22, marginBottom:2 }}>{d.emoji}</div>
+                    <div style={{ fontSize:8, fontWeight:800, color:ok?d.color:"#333", letterSpacing:"0.04em", marginBottom:2 }}>{d.name}</div>
+                    <div style={{ fontSize:10, fontWeight:900, color:ok?"#fbbf24":"#f87171" }}>⚡{d.cost}</div>
                   </button>
                 );
               })}
@@ -1065,75 +1148,72 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
           </div>
         )}
 
-        {/* Selected existing tower → upgrade/sell */}
         {selTower && !isOver && (() => {
           const d=TOWER_DEFS[selTower.type];
           const uCost=Math.floor(d.cost*(selTower.level===1?1.5:3));
           const canUp=selTower.level<3&&uiKarma>=uCost;
           const refund=Math.floor(d.cost*0.5*selTower.level);
           return (
-            <div style={{ background:`${d.color}12`, border:`1.5px solid ${d.color}44`, borderRadius:12, padding:"8px 10px" }}>
-              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
-                <span style={{ fontSize:"1.6rem" }}>{d.emoji}</span>
-                <div>
-                  <div style={{ fontSize:12, fontWeight:700, color:d.color }}>{d.name} <span style={{ color:"#444", fontWeight:400 }}>Lv.{selTower.level}</span></div>
-                  <div style={{ fontSize:10, color:"#555" }}>DMG:{selTower.damage} · Fire:{selTower.fireRate}f · {d.special}</div>
+            <div style={{ background:`linear-gradient(135deg,${d.color}12,rgba(255,255,255,0.02))`, border:`2px solid ${d.color}55`, borderRadius:14, padding:"8px 10px" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+                <div style={{ width:44, height:44, borderRadius:12, background:`${d.color}22`, border:`2px solid ${d.color}55`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, boxShadow:`0 0 14px ${d.color}44` }}>{d.emoji}</div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13, fontWeight:800, color:d.color, letterSpacing:"0.02em" }}>{d.name}</div>
+                  <div style={{ display:"flex", gap:6, marginTop:2 }}>
+                    {["Lv.1","Lv.2","Lv.3"].map((l,i)=>(
+                      <span key={i} style={{ fontSize:8, fontWeight:700, padding:"1px 5px", borderRadius:4, background:i<selTower.level?d.color+"33":"#1a1a1a", color:i<selTower.level?d.color:"#333", border:`1px solid ${i<selTower.level?d.color+"55":"#222"}` }}>{l}</span>
+                    ))}
+                  </div>
+                  <div style={{ fontSize:9, color:"#555", marginTop:2 }}>DMG {selTower.damage} · Rate {selTower.fireRate}f · {d.special}</div>
                 </div>
               </div>
               <div style={{ display:"flex", gap:6 }}>
                 {selTower.level<3&&(
-                  <button onClick={upgradeTower} disabled={!canUp}
-                    style={{ flex:1, padding:"7px", background:canUp?"linear-gradient(135deg,#1a3300,#0a1a00)":"#111", border:`1.5px solid ${canUp?"#a3e635":"#222"}`, borderRadius:8, fontSize:11, fontWeight:700, color:canUp?"#a3e635":"#333", cursor:canUp?"pointer":"not-allowed" }}>
-                    ⬆️ Lv.{selTower.level+1} · ⚡{uCost}
+                  <button onClick={upgradeTower} disabled={!canUp} style={{ flex:1, padding:"9px 0", background:canUp?"linear-gradient(135deg,#14290a,#1a3a0a)":"#0d0d0d", border:`2px solid ${canUp?"#4ade80":"#1a1a1a"}`, borderRadius:10, fontSize:11, fontWeight:800, color:canUp?"#4ade80":"#222", cursor:canUp?"pointer":"not-allowed", letterSpacing:"0.04em" }}>
+                    ⬆ LV.{selTower.level+1} · ⚡{uCost}
                   </button>
                 )}
-                <button onClick={sellTower}
-                  style={{ padding:"7px 12px", background:"#1a0000", border:"1.5px solid #f87171", borderRadius:8, fontSize:11, fontWeight:700, color:"#f87171", cursor:"pointer" }}>
-                  Sell +{refund}⚡
+                <button onClick={sellTower} style={{ padding:"9px 14px", background:"#150005", border:"2px solid #f8717166", borderRadius:10, fontSize:11, fontWeight:800, color:"#f87171", cursor:"pointer", letterSpacing:"0.02em" }}>
+                  💸 +{refund}⚡
                 </button>
               </div>
             </div>
           );
         })()}
 
-        {/* Hero panel */}
-        {!isOver && (
+        {/* ── HEROES ROW (always visible unless game over) ── */}
+        {!isOver && !selSlot && !selTower && (
           <div>
-            <div style={{ fontSize:9, fontWeight:700, color:"#a855f7", letterSpacing:"0.1em", marginBottom:5 }}>
-              HEROES {selHero && <span style={{ color:"#fbbf24" }}>→ pick lane for {HERO_DEFS[selHero].name}</span>}
+            <div style={{ fontSize:8, fontWeight:800, color:"#a855f7", letterSpacing:"0.14em", marginBottom:5, display:"flex", alignItems:"center", gap:6 }}>
+              ◆ HEROES
+              {selHero&&<span style={{ color:"#fbbf24", fontWeight:700 }}>→ tap a lane below</span>}
             </div>
             <div style={{ display:"flex", gap:4 }}>
               {HERO_IDS.map(heroId => {
-                const hd=HERO_DEFS[heroId];
-                const assignedLane=heroToLane[heroId];
-                const isSel=selHero===heroId;
-                const cd=heroCdUI[heroId]??0;
-                const ready=cd===0;
+                const hd=HERO_DEFS[heroId]; const assignedLane=heroToLane[heroId];
+                const isSel=selHero===heroId; const cd=heroCdUI[heroId]??0; const ready=cd===0;
                 return (
                   <div key={heroId} style={{ flex:1, display:"flex", flexDirection:"column", gap:3 }}>
-                    <button onClick={()=>setSelHero(isSel?null:heroId)}
-                      style={{ background:isSel?`${hd.color}33`:`${hd.color}11`, border:`1.5px solid ${isSel?hd.color:hd.color+"44"}`, borderRadius:10, padding:"5px 2px", cursor:"pointer", textAlign:"center", boxShadow:isSel?`0 0 12px ${hd.color}66`:"none" }}
-                      title={hd.passiveDesc}>
-                      <div style={{ fontSize:"1.2rem" }}>{hd.emoji}</div>
-                      <div style={{ fontSize:8, fontWeight:700, color:hd.color, letterSpacing:"0.02em" }}>{hd.name.split(" ")[0]}</div>
-                      <div style={{ fontSize:8, color:"#555" }}>{assignedLane!==undefined?`L${assignedLane+1}`:"—"}</div>
+                    <button onClick={()=>setSelHero(isSel?null:heroId)} title={`${hd.passiveDesc} | Active: ${hd.activeDesc}`}
+                      style={{ background:isSel?`${hd.color}33`:`${hd.color}10`, border:`2px solid ${isSel?hd.color:hd.color+"33"}`, borderRadius:12, padding:"6px 2px", cursor:"pointer", textAlign:"center", boxShadow:isSel?`0 0 16px ${hd.color}55`:"none", transition:"all 0.15s" }}>
+                      <div style={{ fontSize:20 }}>{hd.emoji}</div>
+                      <div style={{ fontSize:7, fontWeight:800, color:isSel?hd.color:hd.color+"99", letterSpacing:"0.02em", marginTop:1 }}>{hd.name.split(" ")[0].toUpperCase()}</div>
+                      <div style={{ fontSize:7, color:assignedLane!==undefined?hd.color:"#333", fontWeight:700, marginTop:1 }}>{assignedLane!==undefined?`LANE ${assignedLane+1}`:"— "}</div>
                     </button>
-                    {/* Lane picker (when this hero selected) */}
-                    {isSel && (
+                    {isSel&&(
                       <div style={{ display:"flex", gap:2 }}>
                         {[0,1,2,3].map(lane=>(
                           <button key={lane} onClick={()=>heroLaneUI[lane]===heroId?removeHero(lane):assignHero(lane)}
-                            style={{ flex:1, padding:"3px 1px", background:heroLaneUI[lane]===heroId?`${hd.color}33`:"#111", border:`1px solid ${hd.color}55`, borderRadius:4, fontSize:9, color:hd.color, cursor:"pointer", fontWeight:700 }}>
-                            L{lane+1}
+                            style={{ flex:1, padding:"4px 1px", background:heroLaneUI[lane]===heroId?`${hd.color}33`:"#111", border:`1.5px solid ${hd.color}66`, borderRadius:6, fontSize:9, color:hd.color, cursor:"pointer", fontWeight:800 }}>
+                            {lane+1}
                           </button>
                         ))}
                       </div>
                     )}
-                    {/* Use ability button */}
-                    {assignedLane!==undefined && !isSel && inWave && (
+                    {assignedLane!==undefined&&!isSel&&inWave&&(
                       <button onClick={()=>useAbility(heroId)}
-                        style={{ padding:"4px 2px", background:ready?`${hd.color}22`:"#0a0a0a", border:`1px solid ${ready?hd.color:"#1a1a1a"}`, borderRadius:6, fontSize:8, fontWeight:700, color:ready?hd.color:"#333", cursor:ready?"pointer":"not-allowed" }}>
-                        {ready?"✨USE":`${Math.ceil(cd/60)}s`}
+                        style={{ padding:"5px 2px", background:ready?`${hd.color}22`:"#080808", border:`1.5px solid ${ready?hd.color:"#111"}`, borderRadius:8, fontSize:8, fontWeight:800, color:ready?hd.color:"#222", cursor:ready?"pointer":"not-allowed", boxShadow:ready?`0 0 10px ${hd.color}44`:"none" }}>
+                        {ready?"✨CAST":`⏱${Math.ceil(cd/60)}s`}
                       </button>
                     )}
                   </div>
@@ -1142,31 +1222,6 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
             </div>
           </div>
         )}
-
-        {/* Controls row */}
-        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-          {canStart && (
-            <button onClick={startWave}
-              style={{ flex:1, padding:"11px 16px", background:"linear-gradient(135deg,#7c3aed,#a855f7)", border:"none", borderRadius:12, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", boxShadow:"0 0 20px rgba(168,85,247,0.5)" }}>
-              {uiPhase==="idle"?`▶ START WAVE 1`:`▶ WAVE ${uiWave+1}`}
-            </button>
-          )}
-          {isOver && (
-            <button onClick={restart}
-              style={{ flex:1, padding:"11px 16px", background:"linear-gradient(135deg,#7c3aed,#a855f7)", border:"none", borderRadius:12, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer" }}>
-              🔄 Play Again
-            </button>
-          )}
-          <button onClick={toggleSpeed}
-            style={{ padding:"11px 14px", background:gameSpeed===2?"rgba(251,191,36,0.2)":"#111", border:`1.5px solid ${gameSpeed===2?"#fbbf24":"#222"}`, borderRadius:12, color:gameSpeed===2?"#fbbf24":"#444", fontWeight:700, fontSize:12, cursor:"pointer" }}>
-            {gameSpeed===1?"⏩ 2x":"⏸ 1x"}
-          </button>
-          <button onClick={()=>setShowTalents(v=>!v)}
-            style={{ position:"relative", padding:"11px 12px", background:showTalents?"rgba(200,255,0,0.18)":"#111", border:`1.5px solid ${uiTalentPts>0?"#c8ff00":"#222"}`, borderRadius:12, color:uiTalentPts>0?"#c8ff00":"#666", fontWeight:700, fontSize:11, cursor:"pointer" }}>
-            🌟
-            {uiTalentPts>0&&<span style={{ position:"absolute", top:-5, right:-5, background:"#c8ff00", color:"#000", borderRadius:"50%", width:16, height:16, fontSize:9, fontWeight:900, display:"flex", alignItems:"center", justifyContent:"center" }}>{uiTalentPts}</span>}
-          </button>
-        </div>
 
         {/* Talent tree panel */}
         {showTalents && (
