@@ -445,10 +445,12 @@ export default function GamesPage() {
                     <Link href={g.href} style={{ textDecoration: "none", display: "block" }}>
                       <motion.div
                         whileTap={{ scale: 0.95 }}
+                        animate={g.hot ? { boxShadow: [`0 0 0px ${g.accent}00`, `0 0 18px ${g.accent}55`, `0 0 0px ${g.accent}00`] } : {}}
+                        transition={g.hot ? { repeat: Infinity, duration: 2.5 } : {}}
                         style={{
-                          height: 120,
-                          background: `linear-gradient(160deg, ${g.bg} 0%, #0a0a0a 100%)`,
-                          border: `2px solid ${g.accent}66`,
+                          height: 148,
+                          background: `linear-gradient(160deg, ${g.bg} 0%, #0a0a0a 70%, ${g.accent}08 100%)`,
+                          border: `2px solid ${g.hot ? g.accent : g.accent+"66"}`,
                           borderRadius: 18,
                           position: "relative",
                           overflow: "hidden",
@@ -456,67 +458,63 @@ export default function GamesPage() {
                           flexDirection: "column",
                           alignItems: "center",
                           justifyContent: "center",
-                          padding: "10px 8px",
-                          gap: 4,
+                          padding: "10px 8px 28px",
+                          gap: 3,
                         }}
                       >
                         {/* Background glow */}
                         <div style={{
                           position: "absolute", inset: 0,
-                          background: `radial-gradient(ellipse at 50% 30%, ${g.accent}0a 0%, transparent 65%)`,
+                          background: `radial-gradient(ellipse at 50% 20%, ${g.accent}10 0%, transparent 65%)`,
                           pointerEvents: "none",
                         }} />
 
                         {/* Tag badge top-right */}
                         {g.tag && (
                           <div style={{
-                            position: "absolute", top: 6, right: 6,
+                            position: "absolute", top: 7, right: 7,
                             fontSize: 7, fontWeight: 900,
                             background: g.accent, color: "#000",
-                            padding: "2px 5px", borderRadius: 4,
+                            padding: "2px 6px", borderRadius: 4,
                             letterSpacing: "0.04em", zIndex: 2,
                           }}>
                             {g.tag}
                           </div>
                         )}
 
-                        {/* Players bottom-left */}
+                        {/* Bottom bar: players + arrow */}
                         <div style={{
-                          position: "absolute", bottom: 7, left: 8,
-                          fontSize: 9, color: "#333", fontWeight: 700,
+                          position: "absolute", bottom: 0, left: 0, right: 0,
+                          display: "flex", alignItems: "center", justifyContent: "space-between",
+                          background: `${g.accent}12`, borderTop: `1px solid ${g.accent}30`,
+                          padding: "5px 10px",
                         }}>
-                          👤 {g.players}
+                          <span style={{ fontSize: 9, color: g.accent+"99", fontWeight: 700 }}>👤 {g.players} live</span>
+                          <span style={{ fontSize: 12, color: g.accent, fontWeight: 900 }}>PLAY →</span>
                         </div>
 
-                        {/* Arrow bottom-right */}
+                        {/* Emoji */}
                         <div style={{
-                          position: "absolute", bottom: 6, right: 8,
-                          fontSize: 11, color: g.accent, fontWeight: 900,
-                        }}>
-                          →
-                        </div>
-
-                        {/* Emoji center-top */}
-                        <div style={{
-                          fontSize: "3rem", lineHeight: 1,
-                          filter: `drop-shadow(0 0 10px ${g.accent}66)`,
+                          fontSize: "3.2rem", lineHeight: 1,
+                          filter: `drop-shadow(0 0 14px ${g.accent}77)`,
                         }}>
                           {g.emoji}
                         </div>
 
                         {/* Name */}
                         <div style={{
-                          fontSize: 13, fontWeight: 900, color: "#fff",
+                          fontSize: 12, fontWeight: 900, color: "#fff",
                           letterSpacing: "-0.01em", textAlign: "center",
                           lineHeight: 1.1,
                         }}>
                           {g.name}
                         </div>
 
-                        {/* Reward */}
+                        {/* Reward chip */}
                         <div style={{
-                          fontSize: 10, fontWeight: 800, color: g.accent, opacity: 0.9,
-                          textAlign: "center",
+                          fontSize: 9, fontWeight: 800, color: g.accent,
+                          background: `${g.accent}18`, border: `1px solid ${g.accent}44`,
+                          borderRadius: 6, padding: "2px 7px", textAlign: "center",
                         }}>
                           {g.reward}
                         </div>

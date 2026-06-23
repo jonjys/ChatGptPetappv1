@@ -127,6 +127,7 @@ interface Tower {
   id: string; type: TowerType;
   lane: number; slot: number;
   level: number; cooldown: number; damage: number; fireRate: number;
+  flash: number;
 }
 
 interface Enemy {
@@ -148,6 +149,11 @@ interface Particle {
   life: number; maxLife: number; color: string; size: number;
 }
 
+interface DmgNumber {
+  id: string; x: number; y: number; value: number; color: string;
+  life: number; maxLife: number; crit: boolean;
+}
+
 type Phase = "idle"|"wave"|"between"|"gameover";
 
 interface GS {
@@ -166,6 +172,7 @@ interface GS {
   screenShake: number; waveBonus: number; bestWave: number;
   talentPts: number; talents: Set<TalentId>;
   waveTotal: number; waveKilled: number;
+  dmgNumbers: DmgNumber[];
 }
 
 // ─── Talent helpers ────────────────────────────────────────────────────────────
@@ -237,6 +244,7 @@ function doKillEnemy(s: GS, enemy: Enemy) {
   } else {
     spawnBurst(s, enemy.x, laneCenter(enemy.lane), def.color, 7, 3.5);
   }
+  s.dmgNumbers.push({ id:mkId(), x:enemy.x, y:laneCenter(enemy.lane)-32, value:earned, color:"#fbbf24", life:55, maxLife:55, crit:s.comboMult>1 });
   s.enemies = s.enemies.filter(e => e.id !== enemy.id);
   if (s.baseHp <= 0) s.phase = "gameover";
 }
@@ -251,6 +259,7 @@ function applyDmgToEnemy(s: GS, tower: Tower, enemy: Enemy, rawDmg: number, towe
   if (enemy.shield > 0) { enemy.shield = Math.max(0, enemy.shield - dmg); }
   else { enemy.hp -= dmg; }
   enemy.hitFlash = 5;
+  s.dmgNumbers.push({ id:mkId(), x:enemy.x+(Math.random()-0.5)*16, y:laneCenter(enemy.lane)-20, value:dmg, color:towerDef.color, life:40, maxLife:40, crit:dmg>80 });
   s.projectiles.push({ id: mkId(), x1: pos.x, y1: pos.y, x2: enemy.x, y2: laneCenter(enemy.lane), color: towerDef.color, life: 10 });
   if (enemy.hp <= 0) { doKillEnemy(s, enemy); return true; }
   return false;
@@ -303,6 +312,7 @@ function mkGS(): GS {
     screenShake:0, waveBonus:0, bestWave:best,
     talentPts:0, talents: new Set<TalentId>(),
     waveTotal:0, waveKilled:0,
+    dmgNumbers:[],
   };
 }
 
@@ -351,6 +361,12 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
     // Particles
     for (const p of s.particles) { p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.life--; }
     s.particles = s.particles.filter(p => p.life > 0);
+
+    // Damage numbers float up and fade
+    for (const dn of s.dmgNumbers) { dn.y -= 1.1; dn.life--; }
+    s.dmgNumbers = s.dmgNumbers.filter(d => d.life > 0);
+    // Tower fire flash decay
+    for (const t of s.towers) { if (t.flash > 0) t.flash--; }
 
     if (s.phase === "wave") {
       // Time warp decay
@@ -435,6 +451,7 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
           const laneEn = s.enemies.filter(e => e.lane === tower.lane && e.x > pos.x - 20).sort((a,b) => b.x - a.x);
           if (laneEn.length === 0) continue;
           tower.cooldown = Math.max(4, Math.floor(tower.fireRate * talentFireMult(s)));
+          tower.flash = 8;
 
           if (tower.type === "lightning") {
             for (const e of [...laneEn]) applyDmgToEnemy(s, tower, e, tower.damage, def, pos);
@@ -534,27 +551,43 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
     }
     ctx.fillRect(0, LANE_Y[LANE_COUNT-1]+LANE_H, GW, GH-(LANE_Y[LANE_COUNT-1]+LANE_H));
 
-    // ── Lanes with rich floor ───────────────────────────────────────────────
+    // ── Lanes — terrain sides + road center (real TD style) ────────────────
     for (let i=0; i<LANE_COUNT; i++) {
       const ly = LANE_Y[i]; const cy2 = laneCenter(i);
-      // Lane fill
+      // Terrain fill (grass/lava/ice/void on lane sides)
       const lg = ctx.createLinearGradient(0,ly,0,ly+LANE_H);
-      lg.addColorStop(0, theme.bg2+"dd"); lg.addColorStop(0.5, theme.lane); lg.addColorStop(1, theme.bg2+"dd");
+      lg.addColorStop(0, theme.bg1+"ff"); lg.addColorStop(0.3, theme.lane); lg.addColorStop(0.7, theme.lane); lg.addColorStop(1, theme.bg1+"ff");
       ctx.fillStyle = lg; ctx.fillRect(0,ly,GW,LANE_H);
-      // Subtle tile grid
-      ctx.strokeStyle = theme.acc+"12"; ctx.lineWidth=0.5;
-      for (let x=20; x<GW; x+=28) { ctx.beginPath(); ctx.moveTo(x,ly+4); ctx.lineTo(x,ly+LANE_H-4); ctx.stroke(); }
-      // Lane top/bottom border lines
+      // Terrain texture dots on the off-path areas (top/bottom)
+      ctx.fillStyle = theme.acc;
+      for (let tx=10; tx<GW-8; tx+=18) {
+        ctx.globalAlpha=0.17; ctx.beginPath(); ctx.arc(tx, ly+5+((tx*7+i*13)%5)*1.2, 2, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha=0.12; ctx.beginPath(); ctx.arc(tx, ly+LANE_H-5-((tx*11+i*7)%4)*1.2, 2, 0, Math.PI*2); ctx.fill();
+      }
+      ctx.globalAlpha=1;
+      // Road center strip (the cobblestone enemy path)
+      const roadY = cy2-16; const roadH = 32;
+      ctx.fillStyle="rgba(0,0,0,0.44)"; ctx.fillRect(0,roadY,GW,roadH);
+      ctx.strokeStyle="rgba(255,255,255,0.027)"; ctx.lineWidth=0.4;
+      for (let rx=6; rx<GW; rx+=24) {
+        ctx.beginPath(); ctx.rect(rx,roadY+4,18,10); ctx.stroke();
+        ctx.beginPath(); ctx.rect(rx+3,roadY+17,18,10); ctx.stroke();
+      }
+      // Road edge lines
+      ctx.strokeStyle=theme.acc+"38"; ctx.lineWidth=0.8; ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(24,roadY); ctx.lineTo(BASE_X-8,roadY); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(24,roadY+roadH); ctx.lineTo(BASE_X-8,roadY+roadH); ctx.stroke();
+      // Lane outer border lines
       ctx.strokeStyle = theme.acc+"55"; ctx.lineWidth=1.5;
       ctx.beginPath(); ctx.moveTo(20,ly); ctx.lineTo(BASE_X-10,ly); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(20,ly+LANE_H); ctx.lineTo(BASE_X-10,ly+LANE_H); ctx.stroke();
-      // CENTER PATH — dashed line showing enemy route
-      ctx.setLineDash([6,10]); ctx.strokeStyle = theme.acc+"25"; ctx.lineWidth=1;
+      // Center dashed line (enemy route marker)
+      ctx.setLineDash([8,14]); ctx.strokeStyle = theme.acc+"35"; ctx.lineWidth=1.5;
       ctx.beginPath(); ctx.moveTo(24,cy2); ctx.lineTo(BASE_X-20,cy2); ctx.stroke(); ctx.setLineDash([]);
-      // PATH ARROWS — show direction every ~55px
-      ctx.fillStyle = theme.acc+"30";
-      for (let ax=60; ax<BASE_X-40; ax+=55) {
-        ctx.beginPath(); ctx.moveTo(ax,cy2-5); ctx.lineTo(ax+10,cy2); ctx.lineTo(ax,cy2+5);
+      // Path arrows (direction indicators every 55px)
+      ctx.fillStyle = theme.acc+"48";
+      for (let ax=65; ax<BASE_X-40; ax+=55) {
+        ctx.beginPath(); ctx.moveTo(ax,cy2-6); ctx.lineTo(ax+12,cy2); ctx.lineTo(ax,cy2+6);
         ctx.closePath(); ctx.fill();
       }
       // Lane number circle (left)
@@ -607,6 +640,10 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
       const def = TOWER_DEFS[tower.type];
       const isSel = selTowerRef.current?.id === tower.id;
       const fs = tower.level===3 ? 26 : tower.level===2 ? 21 : 17;
+      // Dim range ring (always visible — shows tower coverage)
+      ctx.strokeStyle=def.color+"18"; ctx.lineWidth=0.7; ctx.setLineDash([4,9]);
+      ctx.beginPath(); ctx.arc(p.x,laneCenter(tower.lane),70,0,Math.PI*2); ctx.stroke();
+      ctx.setLineDash([]);
       // Platform base
       const baseR = tower.level===3?20:tower.level===2?17:14;
       const platformGrad = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,baseR);
@@ -622,7 +659,7 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
         ctx.strokeRect(p.x-18,p.y-18,36,36);
       }
       // Tower emoji with glow
-      ctx.shadowColor=def.color; ctx.shadowBlur=tower.level===3?28:tower.level===2?16:8;
+      ctx.shadowColor=def.color; ctx.shadowBlur=(tower.level===3?28:tower.level===2?16:8)+(tower.flash>0?tower.flash*3:0);
       ctx.font=`${fs}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
       ctx.fillText(def.emoji, p.x, p.y); ctx.shadowBlur=0;
       // Level pips (stars for L3)
@@ -761,6 +798,19 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
       const tx=bx+Math.cos(ta)*36, ty=by2+Math.sin(ta)*36;
       ctx.fillStyle=theme.acc+"66"; ctx.beginPath(); ctx.arc(tx,ty,3,0,Math.PI*2); ctx.fill();
     }
+
+    // ── Floating damage & reward numbers ────────────────────────────────────
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    for (const dn of s.dmgNumbers) {
+      const a = dn.life/dn.maxLife;
+      ctx.globalAlpha = a * 0.95;
+      ctx.font = `bold ${dn.crit?14:10}px monospace`;
+      ctx.fillStyle = dn.crit ? "#ffffff" : dn.color;
+      ctx.shadowColor = dn.color; ctx.shadowBlur = dn.crit ? 12 : 5;
+      ctx.fillText(`${dn.value}`, dn.x, dn.y);
+      ctx.shadowBlur = 0;
+    }
+    ctx.globalAlpha = 1;
 
     if (shaking) ctx.restore();
 
@@ -958,7 +1008,7 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
     if (s.towers.some(t=>t.lane===slot.lane&&t.slot===slot.slot)) return;
     s.localKarma-=def.cost;
     if (type==="freeze") s.baseShield+=30;
-    s.towers.push({ id:mkId(), type, lane:slot.lane, slot:slot.slot, level:1, cooldown:def.fireRate, damage:def.damage, fireRate:def.fireRate });
+    s.towers.push({ id:mkId(), type, lane:slot.lane, slot:slot.slot, level:1, cooldown:def.fireRate, damage:def.damage, fireRate:def.fireRate, flash:0 });
     spawnBurst(s, SLOTS[slot.slot], laneCenter(slot.lane), def.color, 8, 2.5);
     selSlotRef.current=null; selTowerRef.current=null; setSelSlot(null); setSelTower(null);
     setUiKarma(s.localKarma);
