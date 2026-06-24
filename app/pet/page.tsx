@@ -111,6 +111,16 @@ export default function PetPage() {
   const [petAction, setPetAction] = useState<string | null>(null);
   const [speechIdx, setSpeechIdx] = useState(0);
 
+  // ── Pet wandering / first-time state ──────────────────────────────────────
+  const [hasTappedPet, setHasTappedPet] = useState(() =>
+    typeof window !== "undefined" ? !!localStorage.getItem("pet_tapped_v1") : true
+  );
+  const [petOffset, setPetOffset] = useState({ x: 0, y: 0 });
+  const [dailyClaimedToday, setDailyClaimedToday] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("pet_daily_v2") === new Date().toDateString();
+  });
+
   // ── Room / accessory state ─────────────────────────────────────────────────
   const [particles, setParticles] = useState<Particle[]>([]);
   const [loveBubble, setLoveBubble] = useState(false);
@@ -165,6 +175,31 @@ export default function PetPage() {
     const t = setInterval(() => setSpeechIdx(i => i + 1), 5000);
     return () => clearInterval(t);
   }, []);
+
+  // ── Pet wanders based on mood ───────────────────────────────────────────────
+  useEffect(() => {
+    if (petAction) {
+      if (petAction === "eating")   setPetOffset({ x: 10, y: 22 });
+      else if (petAction === "sleeping") setPetOffset({ x: -70, y: 30 });
+      else if (petAction === "playing")  setPetOffset({ x: 50, y: -18 });
+      return;
+    }
+    const wander = setInterval(() => {
+      if (petMoodComputed === "excited") {
+        setPetOffset({ x: (Math.random() - 0.5) * 90, y: -Math.random() * 22 });
+      } else if (petMoodComputed === "happy") {
+        setPetOffset({ x: (Math.random() - 0.5) * 55, y: 0 });
+      } else if (petMoodComputed === "sleeping") {
+        setPetOffset({ x: -68, y: 28 });
+      } else if (petMoodComputed === "hungry" || petMoodComputed === "sad") {
+        // hungry pets drift toward food bowl
+        setPetOffset({ x: 5, y: 18 });
+      } else {
+        setPetOffset(p => ({ x: p.x * 0.25, y: p.y * 0.25 }));
+      }
+    }, 3600);
+    return () => clearInterval(wander);
+  }, [petAction, petMoodComputed]);
 
   // ── Training cooldown ticker ───────────────────────────────────────────────
   useEffect(() => {
@@ -224,6 +259,18 @@ export default function PetPage() {
     showToast("+45 energy 💤");
   }
 
+  function claimDailyReward() {
+    if (dailyClaimedToday) return;
+    const bonus = 50 + streak * 10;
+    addKarma(bonus, "Daily login reward");
+    addXP(30);
+    setDailyClaimedToday(true);
+    localStorage.setItem("pet_daily_v2", new Date().toDateString());
+    setPetAction("playing");
+    setTimeout(() => setPetAction(null), 1200);
+    showToast(`🎁 Daily reward! +${bonus} ⚡ +30 XP`);
+  }
+
   // ── Tap-to-pet ────────────────────────────────────────────────────────────
   function handlePetTap(e: React.MouseEvent<HTMLDivElement>) {
     const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
@@ -243,7 +290,9 @@ export default function PetPage() {
     setTimeout(() => setLoveBubble(false), 900);
     setPetAction("petting");
     setTimeout(() => setPetAction(null), 800);
+    if (!hasTappedPet) { setHasTappedPet(true); localStorage.setItem("pet_tapped_v1", "1"); }
     addXP(2);
+    addBond(1);
     showToast("+3 happiness, +2 XP 💗");
   }
 
@@ -507,6 +556,33 @@ export default function PetPage() {
                 {/* Time-of-day tint */}
                 <div style={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none", background: timeOverlay }} />
 
+                {/* ── Ville cityscape silhouette in background ── */}
+                <div style={{ position: "absolute", bottom: 88, left: 0, right: 0, height: 140, zIndex: 2, pointerEvents: "none", overflow: "hidden" }}>
+                  {villePlaced.map((p, i) => {
+                    const b = VILLE_BUILDINGS.find(bd => bd.id === p.buildingId);
+                    if (!b) return null;
+                    const bh = 35 + ((i * 29 + p.col * 13) % 55);
+                    const bx = 4 + ((p.col * 24 + p.row * 11) * 8) % 82;
+                    const bw = b.id === "castle" ? 46 : b.id === "tower" ? 20 : b.id === "stadium" ? 40 : 28;
+                    return (
+                      <div key={b.id} style={{
+                        position: "absolute", bottom: 0, left: `${bx}%`,
+                        width: bw, height: bh,
+                        background: `${world.accent}14`,
+                        borderRadius: `${bw/4}px ${bw/4}px 0 0`,
+                        display: "flex", alignItems: "flex-start", justifyContent: "center",
+                        paddingTop: 3, fontSize: "0.85rem", opacity: 0.6,
+                      }}>
+                        {b.emoji}
+                      </div>
+                    );
+                  })}
+                  {/* Castle from TD game — best wave trophy */}
+                  <div style={{ position: "absolute", bottom: 0, right: "6%", opacity: 0.55 }}>
+                    <div style={{ fontSize: "2.4rem", lineHeight: 1, filter: `drop-shadow(0 0 8px ${world.accent}66)` }}>🏰</div>
+                  </div>
+                </div>
+
                 {/* Perspective floor */}
                 <div style={{
                   position: "absolute", bottom: 0, left: 0, right: 0, height: 88,
@@ -598,7 +674,9 @@ export default function PetPage() {
                 )}
 
                 {/* PET — big tap zone */}
-                <div
+                <motion.div
+                  animate={{ x: petOffset.x, y: petOffset.y }}
+                  transition={{ type: "spring", stiffness: 65, damping: 14 }}
                   style={{
                     position: "absolute", bottom: 86, left: "50%", transform: "translateX(-50%)",
                     display: "flex", flexDirection: "column", alignItems: "center",
@@ -606,6 +684,24 @@ export default function PetPage() {
                   }}
                   onClick={handlePetTap}
                 >
+                  {/* TAP ME hint — first-time only */}
+                  {!hasTappedPet && (
+                    <motion.div
+                      animate={{ y: [0, -9, 0], opacity: [1, 0.72, 1] }}
+                      transition={{ repeat: Infinity, duration: 1 }}
+                      style={{
+                        position: "absolute", top: -52, left: "50%", transform: "translateX(-50%)",
+                        background: "#c8ff00", color: "#000",
+                        padding: "6px 18px", borderRadius: 99,
+                        fontSize: 12, fontWeight: 900, letterSpacing: "0.08em",
+                        whiteSpace: "nowrap", pointerEvents: "none",
+                        boxShadow: "0 0 28px #c8ff0099",
+                      }}
+                    >
+                      👆 TAP YOUR PET!
+                    </motion.div>
+                  )}
+
                   {/* Tap heart particles */}
                   <AnimatePresence>
                     {particles.map(p => (
@@ -781,7 +877,7 @@ export default function PetPage() {
                       />
                     </div>
                   </div>
-                </div>
+                </motion.div>
 
                 {/* Speech bubble — bottom-left */}
                 <AnimatePresence mode="wait">
@@ -901,6 +997,78 @@ export default function PetPage() {
                 </div>
               </div>
             </div>
+
+            {/* ── DAILY REWARD CHEST ── */}
+            {!dailyClaimedToday && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                onClick={claimDailyReward}
+                style={{
+                  background: "linear-gradient(135deg, #1a1200, #0d0d0d)",
+                  border: "2.5px solid #ffde00", borderRadius: 20,
+                  padding: "14px 16px", display: "flex", alignItems: "center", gap: 14,
+                  boxShadow: "0 0 30px #ffde0033", cursor: "pointer",
+                }}
+              >
+                <motion.div
+                  animate={{ scale: [1, 1.14, 1], rotate: [0, -6, 6, 0] }}
+                  transition={{ repeat: Infinity, duration: 1.4 }}
+                  style={{ fontSize: "2.6rem", flexShrink: 0 }}
+                >🎁</motion.div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 900, color: "#ffde00", letterSpacing: "0.02em" }}>
+                    DAILY REWARD READY!
+                  </div>
+                  <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
+                    Day {streak} streak · +{50 + streak * 10} ⚡ +30 XP
+                  </div>
+                </div>
+                <motion.div
+                  animate={{ scale: [1, 1.12, 1] }} transition={{ repeat: Infinity, duration: 0.9 }}
+                  style={{
+                    background: "#ffde00", color: "#000", padding: "9px 16px",
+                    borderRadius: 12, fontSize: 12, fontWeight: 900,
+                  }}
+                >CLAIM!</motion.div>
+              </motion.div>
+            )}
+
+            {/* ── EVOLUTION PROGRESS (when close) ── */}
+            {nextStage && evoProgress > 65 && (
+              <motion.div
+                animate={{ boxShadow: ["0 0 20px #a855f722", "0 0 44px #a855f755", "0 0 20px #a855f722"] }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                style={{
+                  background: "linear-gradient(135deg, #0a0015, #0d0d0d)",
+                  border: "2.5px solid #a855f7", borderRadius: 20, padding: "14px 16px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                  <motion.span
+                    animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.2 }}
+                    style={{ fontSize: "2.2rem" }}
+                  >{nextStage.emoji}</motion.span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 9, color: "#a855f7", fontWeight: 800, letterSpacing: "0.1em", marginBottom: 2 }}>
+                      EVOLUTION INCOMING!
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 900, color: "#fff" }}>
+                      → {nextStage.label}
+                    </div>
+                    <div style={{ fontSize: 10, color: "#666" }}>
+                      {Math.round(nextStage.xpReq - pet.xp)} XP away · play games to evolve faster
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: "#a855f7" }}>{Math.round(evoProgress)}%</div>
+                </div>
+                <div style={{ height: 8, background: "#111", borderRadius: 99, overflow: "hidden" }}>
+                  <motion.div
+                    animate={{ width: `${evoProgress}%` }} transition={{ duration: 1 }}
+                    style={{ height: "100%", borderRadius: 99, background: "linear-gradient(90deg, #7c3aed, #a855f7, #c084fc)", boxShadow: "0 0 10px #a855f788" }}
+                  />
+                </div>
+              </motion.div>
+            )}
 
             {/* ── CARE ACTIONS ── */}
             <div style={{

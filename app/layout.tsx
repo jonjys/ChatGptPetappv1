@@ -10,6 +10,7 @@ import PetCreationModal from "@/components/onboarding/PetCreationModal";
 import DailyReward from "@/components/ui/DailyReward";
 import TapEffect from "@/components/ui/TapEffect";
 import PetCompanion from "@/components/ui/PetCompanion";
+import OnboardingOverlay from "@/components/ui/OnboardingOverlay";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <PetCreationModal />
             <main className="page-wrapper">{children}</main>
             <DailyReward />
+            <OnboardingOverlay />
             <BottomNav />
             <PetCompanion />
             <TapEffect />
