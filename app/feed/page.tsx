@@ -62,12 +62,26 @@ export default function FeedPage() {
   const level = calculateLevel(user.xp);
   const [liveEvent, setLiveEvent] = useState(getCurrentEvent);
   const [secsLeft, setSecsLeft]   = useState(getSecondsLeft);
+  const [displayXP, setDisplayXP] = useState(0);
 
   useEffect(() => {
     const tick = () => { setLiveEvent(getCurrentEvent()); setSecsLeft(getSecondsLeft()); };
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    let start = 0;
+    const end = user.xp;
+    if (end === 0) return;
+    const step = Math.ceil(end / 40);
+    const timer = setInterval(() => {
+      start += step;
+      if (start >= end) { setDisplayXP(end); clearInterval(timer); }
+      else setDisplayXP(start);
+    }, 20);
+    return () => clearInterval(timer);
+  }, [user.xp]);
 
   const posts = filter === "BOUNTIES"
     ? FEED_POSTS.filter((p) => p.type === "bounty_complete" || p.bounty)
@@ -175,7 +189,7 @@ export default function FeedPage() {
                 borderRadius: 12, boxShadow: "3px 3px 0px #0a0a0a, 0 0 16px #c8ff0066",
               }}>
               <Zap size={14} color="#0a0a0a" fill="#0a0a0a" />
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#0a0a0a" }}>{formatXP(user.xp)} XP</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#0a0a0a" }}>{formatXP(displayXP)} XP</span>
             </div>
             <div style={{ position: "relative" }}>
               <button onClick={() => setShowNotifs(v => !v)}
@@ -376,6 +390,49 @@ export default function FeedPage() {
         </motion.div>
       )}
 
+      {/* BOUNTY BURST */}
+      {filter === "ALL" && (
+        <div style={{ margin: "12px 0 0", overflowX: "auto", scrollbarWidth: "none" as const }}>
+          <div style={{ display: "flex", gap: 10, paddingLeft: 16, paddingRight: 16 }}>
+            {[
+              { emoji: "🌳", title: "Plant a Tree", karma: 200, xp: 80, difficulty: "EASY", color: "#00ff88" },
+              { emoji: "🏃", title: "Run 5km", karma: 500, xp: 200, difficulty: "HARD", color: "#ff6b35" },
+              { emoji: "📚", title: "Read 30min", karma: 150, xp: 60, difficulty: "EASY", color: "#a855f7" },
+            ].map((b, i) => (
+              <Link key={b.title} href="/quests" style={{ textDecoration: "none", flexShrink: 0 }}>
+                <motion.div
+                  whileTap={{ scale: 0.95 }}
+                  animate={i === 0 ? { boxShadow: [`0 0 12px ${b.color}22`, `0 0 28px ${b.color}55`, `0 0 12px ${b.color}22`] } : {}}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  style={{
+                    width: 160, background: "#111",
+                    border: `2px solid ${b.color}44`,
+                    borderRadius: 16, padding: "12px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                    <span style={{ fontSize: "1.5rem" }}>{b.emoji}</span>
+                    <span style={{
+                      fontSize: 8, fontWeight: 800, letterSpacing: "0.08em",
+                      color: b.difficulty === "EASY" ? "#00ff88" : "#ff6b35",
+                      background: b.difficulty === "EASY" ? "#00ff8822" : "#ff6b3522",
+                      border: `1px solid ${b.difficulty === "EASY" ? "#00ff8844" : "#ff6b3544"}`,
+                      borderRadius: 6, padding: "2px 6px",
+                    }}>{b.difficulty}</span>
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#fff", marginBottom: 6 }}>{b.title}</div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#c8ff00" }}>+{b.karma}⚡</span>
+                    <span style={{ fontSize: 10, color: "#444" }}>·</span>
+                    <span style={{ fontSize: 10, color: "#555" }}>+{b.xp} XP</span>
+                  </div>
+                </motion.div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Quick action cards */}
       {filter === "ALL" && (
         <div style={{ display: "flex", gap: 8, padding: "12px 16px 0", overflowX: "auto", scrollbarWidth: "none" }}>
@@ -403,6 +460,57 @@ export default function FeedPage() {
               </motion.div>
             </Link>
           ))}
+        </div>
+      )}
+
+      {/* TRENDING CHALLENGES */}
+      {filter === "ALL" && (
+        <div style={{ padding: "12px 16px 0" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: "#555", letterSpacing: "0.12em" }}>⚡ TRENDING CHALLENGES</span>
+            <Link href="/quests" style={{ textDecoration: "none", fontSize: 10, fontWeight: 700, color: "#c8ff00" }}>SEE ALL →</Link>
+          </div>
+          <div style={{ display: "flex", gap: 10, overflowX: "auto", scrollbarWidth: "none" as const, paddingBottom: 4 }}>
+            {[
+              { emoji: "👟", name: "10K STEPS",      xp: 120, participants: "2.3k", timeLeft: "18h", color: "#00ff88", progress: 65 },
+              { emoji: "💧", name: "DRINK 2 LITERS", xp: 80,  participants: "1.8k", timeLeft: "18h", color: "#00e5ff", progress: 40 },
+              { emoji: "🧘", name: "5MIN MEDITATE",  xp: 60,  participants: "941",  timeLeft: "18h", color: "#a855f7", progress: 82 },
+              { emoji: "🥦", name: "EAT CLEAN",      xp: 100, participants: "1.2k", timeLeft: "18h", color: "#ff6b35", progress: 30 },
+            ].map((ch, i) => (
+              <motion.div
+                key={ch.name}
+                whileTap={{ scale: 0.95 }}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.07 }}
+                style={{
+                  flexShrink: 0, width: 130,
+                  background: "#111",
+                  border: `2px solid ${ch.color}44`,
+                  borderRadius: 16, padding: "12px",
+                  boxShadow: `0 0 20px ${ch.color}11`,
+                }}
+              >
+                <div style={{ fontSize: "1.8rem", marginBottom: 6 }}>{ch.emoji}</div>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "#fff", marginBottom: 2 }}>{ch.name}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 8 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: ch.color }}>+{ch.xp} XP</span>
+                  <span style={{ fontSize: 9, color: "#333" }}>·</span>
+                  <span style={{ fontSize: 9, color: "#444" }}>{ch.participants} joined</span>
+                </div>
+                {/* Progress bar */}
+                <div style={{ height: 4, background: "#1a1a1a", borderRadius: 2, overflow: "hidden", marginBottom: 6 }}>
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${ch.progress}%` }}
+                    transition={{ delay: 0.5 + i * 0.1, duration: 0.6 }}
+                    style={{ height: "100%", background: ch.color, borderRadius: 2 }}
+                  />
+                </div>
+                <div style={{ fontSize: 9, color: "#555" }}>ends in {ch.timeLeft}</div>
+              </motion.div>
+            ))}
+          </div>
         </div>
       )}
 

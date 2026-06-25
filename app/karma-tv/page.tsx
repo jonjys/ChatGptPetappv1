@@ -224,7 +224,7 @@ function DuelModal({ reel, onClose, onChallenge }: { reel: Reel; onClose: () => 
 // ─── Single Reel Card ─────────────────────────────────────────────────────────
 
 function ReelCard({
-  reel, isActive, userReactions, onReact, onFollow, following, onDuel, index,
+  reel, isActive, userReactions, onReact, onFollow, following, onDuel, index, totalReels,
 }: {
   reel: Reel;
   isActive: boolean;
@@ -234,6 +234,7 @@ function ReelCard({
   following: boolean;
   onDuel: (reel: Reel) => void;
   index: number;
+  totalReels: number;
 }) {
   const [burstKey, setBurstKey] = useState<ReactionKey | null>(null);
   const [doubleTapHeart, setDoubleTapHeart] = useState(false);
@@ -539,7 +540,7 @@ function ReelCard({
         display: "flex", flexDirection: "column", gap: 4,
         zIndex: 5,
       }}>
-        {REELS.map((_, i) => (
+        {Array.from({ length: totalReels }).map((_, i) => (
           <div key={i} style={{
             width: 3, height: i === index ? 16 : 6,
             borderRadius: 2,
@@ -554,13 +555,32 @@ function ReelCard({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+const TV_CATEGORIES = [
+  { key: "ALL",      label: "ALL",      emoji: "⚡" },
+  { key: "PETS",     label: "PETS",     emoji: "🐾" },
+  { key: "BATTLES",  label: "BATTLES",  emoji: "⚔️" },
+  { key: "BOUNTIES", label: "BOUNTIES", emoji: "🎯" },
+  { key: "STREAKS",  label: "STREAKS",  emoji: "🔥" },
+] as const;
+
+const CATEGORY_FILTER: Record<string, Reel["actionType"][]> = {
+  ALL:      ["bounty","level_up","battle_win","fishing","achievement","streak","case","brand"],
+  PETS:     ["level_up","fishing"],
+  BATTLES:  ["battle_win","case"],
+  BOUNTIES: ["bounty","achievement"],
+  STREAKS:  ["streak","brand"],
+};
+
 export default function KarmaTVPage() {
   const { addKarma, addXP, showToast, user, pet } = useApp();
   const [activeIdx, setActiveIdx] = useState(0);
+  const [tvCategory, setTvCategory] = useState<"ALL" | "PETS" | "BATTLES" | "BOUNTIES" | "STREAKS">("ALL");
   const [userReactions, setUserReactions] = useState<Record<string, Set<ReactionKey>>>({});
   const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set());
   const [duelTarget, setDuelTarget] = useState<Reel | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const filteredReels = REELS.filter(r => CATEGORY_FILTER[tvCategory].includes(r.actionType));
 
   // Track which reel is visible
   useEffect(() => {
@@ -568,11 +588,11 @@ export default function KarmaTVPage() {
     if (!el) return;
     const handler = () => {
       const idx = Math.round(el.scrollTop / el.clientHeight);
-      setActiveIdx(Math.max(0, Math.min(REELS.length - 1, idx)));
+      setActiveIdx(Math.max(0, Math.min(filteredReels.length - 1, idx)));
     };
     el.addEventListener("scroll", handler, { passive: true });
     return () => el.removeEventListener("scroll", handler);
-  }, []);
+  }, [filteredReels.length]);
 
   // Award karma for watching reels
   useEffect(() => {
@@ -627,7 +647,7 @@ export default function KarmaTVPage() {
   return (
     <div style={{ background: "#000", height: "calc(100dvh - 65px)", position: "relative", overflow: "hidden" }}>
       {/* Back button */}
-      <Link href="/social" style={{ textDecoration: "none" }}>
+      <Link href="/" style={{ textDecoration: "none" }}>
         <div style={{
           position: "absolute", top: 16, left: 16, zIndex: 100,
           width: 36, height: 36, borderRadius: "50%",
@@ -655,6 +675,38 @@ export default function KarmaTVPage() {
         <span style={{ fontSize: "0.7rem", color: "#c8ff00", fontWeight: 700 }}>{followedUsers.size} following</span>
       </div>
 
+      {/* Category filter */}
+      <div style={{
+        position: "absolute", top: 60, left: 0, right: 0,
+        zIndex: 100,
+        display: "flex", gap: 6,
+        overflowX: "auto", scrollbarWidth: "none",
+        padding: "0 14px",
+        pointerEvents: "auto",
+      }}>
+        {TV_CATEGORIES.map(cat => (
+          <motion.button
+            key={cat.key}
+            whileTap={{ scale: 0.93 }}
+            onClick={() => { setTvCategory(cat.key as typeof tvCategory); setActiveIdx(0); }}
+            style={{
+              flexShrink: 0,
+              display: "flex", alignItems: "center", gap: 4,
+              padding: "5px 12px",
+              background: tvCategory === cat.key ? "rgba(200,255,0,0.95)" : "rgba(0,0,0,0.55)",
+              border: `1.5px solid ${tvCategory === cat.key ? "#c8ff00" : "rgba(255,255,255,0.15)"}`,
+              borderRadius: 20,
+              fontSize: 10, fontWeight: 800,
+              color: tvCategory === cat.key ? "#000" : "rgba(255,255,255,0.8)",
+              cursor: "pointer", fontFamily: "inherit", letterSpacing: "0.06em",
+              backdropFilter: "blur(8px)",
+            }}
+          >
+            {cat.emoji} {cat.label}
+          </motion.button>
+        ))}
+      </div>
+
       {/* Main scroll container */}
       <div
         ref={scrollRef}
@@ -668,11 +720,12 @@ export default function KarmaTVPage() {
           scrollbarWidth: "none",
         } as React.CSSProperties}
       >
-        {REELS.map((reel, i) => (
+        {filteredReels.map((reel, i) => (
           <ReelCard
             key={reel.id}
             reel={reel}
             index={i}
+            totalReels={filteredReels.length}
             isActive={i === activeIdx}
             userReactions={userReactions[reel.id] ?? new Set()}
             onReact={handleReact}

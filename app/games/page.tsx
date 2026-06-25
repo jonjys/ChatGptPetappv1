@@ -68,6 +68,7 @@ export default function GamesPage() {
   const [liveIdx, setLiveIdx] = useState(0);
   const [tickerVisible, setTickerVisible] = useState(true);
   const [gameFilter, setGameFilter] = useState<FilterKey>("ALL");
+  const [gameCat, setGameCat] = useState("ALL");
 
   const [featuredGame] = useState<Game>(
     () => HOT_GAMES[Math.floor(Math.random() * HOT_GAMES.length)]
@@ -166,6 +167,53 @@ export default function GamesPage() {
       </div>
 
       <div className="px-4 pt-4 pb-24 space-y-3" style={{ position: "relative", zIndex: 1 }}>
+
+        {/* Tournament banner */}
+        <Link href="/games/battle" style={{ textDecoration: "none", display: "block", margin: "0 0 0px" }}>
+          <motion.div
+            animate={{ boxShadow: ["0 0 20px #ff2d8d22", "0 0 40px #ff2d8d66", "0 0 20px #ff2d8d22"] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            style={{
+              background: "linear-gradient(135deg, #1a0010, #0a0a0a)",
+              border: "2.5px solid #ff2d8d",
+              borderRadius: 18, padding: "14px 16px",
+              display: "flex", alignItems: "center", gap: 14,
+            }}
+          >
+            <motion.div
+              animate={{ scale: [1, 1.15, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+              style={{ fontSize: "2.5rem", flexShrink: 0 }}
+            >🏆</motion.div>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <motion.div
+                  animate={{ opacity: [1, 0.2, 1] }}
+                  transition={{ duration: 0.9, repeat: Infinity }}
+                  style={{ width: 6, height: 6, borderRadius: "50%", background: "#ff2d8d", boxShadow: "0 0 6px #ff2d8d" }}
+                />
+                <span style={{ fontSize: 9, fontWeight: 900, color: "#ff2d8d", letterSpacing: "0.15em" }}>LIVE TOURNAMENT</span>
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 900, color: "#fff" }}>KARMA DEFENSE WARS</div>
+              <div style={{ fontSize: 11, color: "#666", marginTop: 1 }}>147 players · Prize: 500 karma</div>
+            </div>
+            <div style={{ background: "#ff2d8d", color: "#fff", fontWeight: 900, fontSize: 11, borderRadius: 10, padding: "7px 13px" }}>JOIN →</div>
+          </motion.div>
+        </Link>
+
+        {/* Category pills */}
+        <div style={{ display: "flex", gap: 8, paddingLeft: 0, paddingRight: 0, marginBottom: 12, overflowX: "auto", scrollbarWidth: "none" as const }}>
+          {(["ALL", "⚔️ BATTLE", "🧠 BRAIN", "🎰 LUCK", "🏃 ACTION"] as const).map(cat => (
+            <button key={cat} onClick={() => setGameCat(cat)} style={{
+              flexShrink: 0, padding: "6px 14px",
+              background: gameCat === cat ? "#c8ff00" : "#111",
+              border: `2px solid ${gameCat === cat ? "#c8ff00" : "#222"}`,
+              borderRadius: 10, fontSize: 11, fontWeight: 800,
+              color: gameCat === cat ? "#000" : "#555",
+              cursor: "pointer", fontFamily: "inherit",
+            }}>{cat}</button>
+          ))}
+        </div>
 
         {/* ── Featured Daily Challenge Banner ──────────────────────────────────── */}
         <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>

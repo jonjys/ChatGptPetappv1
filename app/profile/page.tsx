@@ -72,6 +72,44 @@ export default function ProfilePage() {
         </motion.button>
       </div>
 
+      {/* ── Epic hero banner ─────────────────────────────────────────────────── */}
+      <div style={{ position: "relative", height: 140, overflow: "hidden", marginBottom: -50 }}>
+        <div style={{
+          position: "absolute", inset: 0,
+          background: `linear-gradient(135deg, ${classColor}22 0%, #080808 60%, #0a0015 100%)`,
+          borderBottom: `2px solid ${classColor}33`,
+        }} />
+        {/* Big faded class icon */}
+        <div style={{
+          position: "absolute", right: -10, top: -10,
+          fontSize: "8rem", opacity: 0.07, lineHeight: 1,
+          filter: "blur(2px)",
+          userSelect: "none",
+        }}>
+          {CLASS_ICON[user.petClass] ?? "⭐"}
+        </div>
+        {/* Level badge */}
+        <div style={{
+          position: "absolute", top: 16, left: 16,
+          background: "rgba(0,0,0,0.6)", border: `1.5px solid ${classColor}66`,
+          borderRadius: 10, padding: "4px 12px",
+          display: "flex", alignItems: "center", gap: 6,
+          backdropFilter: "blur(8px)",
+        }}>
+          <Zap size={10} color={classColor} />
+          <span style={{ fontSize: 10, fontWeight: 800, color: classColor, letterSpacing: "0.08em" }}>LEVEL {level}</span>
+        </div>
+        {/* Rank badge */}
+        <div style={{
+          position: "absolute", top: 16, right: 16,
+          background: "rgba(0,0,0,0.6)", border: "1.5px solid #ffd70066",
+          borderRadius: 10, padding: "4px 12px",
+          backdropFilter: "blur(8px)",
+        }}>
+          <span style={{ fontSize: 10, fontWeight: 800, color: "#ffd700", letterSpacing: "0.08em" }}>RANK #{user.rank}</span>
+        </div>
+      </div>
+
       <div className="px-4 pt-4 pb-24 space-y-4" style={{ position: "relative", zIndex: 1 }}>
 
         {/* ── Profile Card ─────────────────────────────────────────────────── */}
@@ -84,16 +122,18 @@ export default function ProfilePage() {
             borderRadius: 24, padding: "20px 18px",
             boxShadow: `0 0 32px ${classColor}11`,
             position: "relative", overflow: "hidden",
+            paddingTop: 60,
           }}
         >
           <div style={{ position: "absolute", top: -20, left: 18, width: 100, height: 100, borderRadius: "50%", background: `radial-gradient(circle, ${classColor}20 0%, transparent 70%)`, pointerEvents: "none" }} />
 
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+          {/* Avatar overlapping banner */}
+          <div style={{ position: "absolute", top: -40, left: 18 }}>
             <motion.div
-              animate={{ boxShadow: [`0 0 16px ${classColor}44`, `0 0 32px ${classColor}66`, `0 0 16px ${classColor}44`] }}
+              animate={{ boxShadow: [`0 0 16px ${classColor}44`, `0 0 36px ${classColor}88`, `0 0 16px ${classColor}44`] }}
               transition={{ repeat: Infinity, duration: 2.5 }}
               style={{
-                width: 76, height: 76, flexShrink: 0,
+                width: 80, height: 80,
                 background: "#111", border: `3px solid ${classColor}`,
                 borderRadius: "50%", display: "flex", alignItems: "center",
                 justifyContent: "center", fontSize: "2.6rem",
@@ -101,19 +141,11 @@ export default function ProfilePage() {
             >
               {user.avatarEmoji}
             </motion.div>
+          </div>
 
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: "1.25rem", fontWeight: 900, color: "#fff", marginBottom: 2 }}>{user.displayName}</div>
-              <div style={{ fontSize: 13, color: "#555", fontWeight: 600, marginBottom: 8 }}>@{user.username}</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.06em", background: classColor + "22", border: `1.5px solid ${classColor}66`, color: classColor, borderRadius: 6, padding: "2px 8px" }}>
-                  {CLASS_ICON[user.petClass] ?? "⭐"} {user.petClass}
-                </span>
-                <span style={{ fontSize: 10, fontWeight: 800, background: "#c8ff0022", border: "1.5px solid #c8ff0055", color: "#c8ff00", borderRadius: 6, padding: "2px 8px" }}>
-                  RANK #{user.rank}
-                </span>
-              </div>
-            </div>
+          <div style={{ paddingLeft: 96 }}>
+            <div style={{ fontSize: 22, fontWeight: 900, color: "#fff", marginBottom: 2 }}>{user.displayName}</div>
+            <div style={{ fontSize: 13, color: "#555", fontWeight: 600 }}>@{user.username}</div>
           </div>
 
           {user.bio && <p style={{ fontSize: 13, color: "#666", lineHeight: 1.55, marginTop: 14 }}>{user.bio}</p>}
@@ -121,31 +153,27 @@ export default function ProfilePage() {
           <div style={{ marginTop: 14 }}>
             <XPBar xp={user.xp} xpToNext={xpToNext} progress={progress} level={user.level} />
           </div>
-        </motion.div>
 
-        {/* ── Stats grid ───────────────────────────────────────────────────── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-          {[
-            { label: "KARMA",  value: user.karma.toLocaleString(), icon: "⚡", color: "#c8ff00", bg: "#111" },
-            { label: "LEVEL",  value: `LV ${level}`,               icon: "🌟", color: "#ffcc00", bg: "#1a1200" },
-            { label: "STREAK", value: `${streak}d`,                 icon: "🔥", color: "#ff6b35", bg: "#1a0800" },
-          ].map(({ label, value, icon, color, bg }) => (
-            <motion.div
-              key={label}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              style={{
-                background: bg, border: `2px solid ${color}33`,
-                borderRadius: 16, padding: "14px 8px", textAlign: "center",
-                boxShadow: `0 0 16px ${color}11`,
-              }}
-            >
-              <div style={{ fontSize: "1.5rem", marginBottom: 4 }}>{icon}</div>
-              <div style={{ fontSize: "1.3rem", fontWeight: 900, color }}>{value}</div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "#444", letterSpacing: "0.08em", marginTop: 2 }}>{label}</div>
-            </motion.div>
-          ))}
-        </div>
+          {/* Stats grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 14 }}>
+            {[
+              { label: "KARMA", value: user.karma?.toLocaleString() ?? "0", color: "#c8ff00", emoji: "⚡" },
+              { label: "XP", value: user.xp.toLocaleString(), color: classColor, emoji: "🔥" },
+              { label: "STREAK", value: `${streak}d`, color: "#ff6b35", emoji: "🏃" },
+            ].map(stat => (
+              <div key={stat.label} style={{
+                background: "#0a0a0a",
+                border: `1.5px solid ${stat.color}33`,
+                borderRadius: 12, padding: "10px 8px",
+                textAlign: "center",
+              }}>
+                <div style={{ fontSize: 16, marginBottom: 2 }}>{stat.emoji}</div>
+                <div style={{ fontSize: 14, fontWeight: 900, color: stat.color }}>{stat.value}</div>
+                <div style={{ fontSize: 8, color: "#555", letterSpacing: "0.1em", marginTop: 1 }}>{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
 
         {/* ── My Followers ─────────────────────────────────────────────────── */}
         <div style={{ background: "#111", border: "2px solid #222", borderRadius: 18, padding: "16px" }}>
@@ -261,6 +289,53 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* ── Weekly karma chart ───────────────────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          style={{
+            background: "#111",
+            border: "2px solid #1a1a1a",
+            borderRadius: 20, padding: "16px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: "#555", letterSpacing: "0.1em" }}>WEEKLY ACTIVITY</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#c8ff00" }}>THIS WEEK</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 60 }}>
+            {["M","T","W","T","F","S","S"].map((day, i) => {
+              const heights = [35, 55, 20, 70, 45, 90, 60];
+              const today = new Date().getDay();
+              const adjustedDay = (i + 1) % 7;
+              const isPast = adjustedDay <= today;
+              const isToday = adjustedDay === today;
+              const h = heights[i];
+              return (
+                <div key={day + i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                  <motion.div
+                    initial={{ height: 0 }}
+                    animate={{ height: isPast ? h : 6 }}
+                    transition={{ delay: 0.3 + i * 0.08, duration: 0.5, ease: "easeOut" }}
+                    style={{
+                      width: "100%",
+                      background: isToday ? "#c8ff00" : isPast ? `${classColor}88` : "#1a1a1a",
+                      borderRadius: 4,
+                      boxShadow: isToday ? "0 0 12px #c8ff0066" : "none",
+                    }}
+                  />
+                  <span style={{ fontSize: 8, fontWeight: isToday ? 800 : 600, color: isToday ? "#c8ff00" : "#444" }}>{day}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
+            <span style={{ fontSize: 10, color: "#444" }}>Total: <span style={{ color: "#fff", fontWeight: 700 }}>{(user.xp * 3).toLocaleString()} ⚡</span></span>
+            <span style={{ fontSize: 10, color: "#444" }}>Best day: <span style={{ color: "#c8ff00", fontWeight: 700 }}>Saturday</span></span>
+          </div>
+        </motion.div>
+
         {/* ── Spin Wheel ───────────────────────────────────────────────────── */}
         <SpinWheel />
 
@@ -360,25 +435,32 @@ export default function ProfilePage() {
               ACHIEVEMENTS ({achievements.length}/{ACHIEVEMENTS.length})
             </span>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
             {ACHIEVEMENTS.map((ach, i) => {
               const unlocked = achievements.includes(ach.id);
+              const glowColors = ["#c8ff00", "#ff2d8d", "#00e5ff", "#ff6b35", "#a855f7", "#ffcc00", "#4488ff", "#ff8c00"];
+              const glowColor = glowColors[i % glowColors.length];
               return (
-                <motion.div key={ach.id} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.02 }}
+                <motion.div
+                  key={ach.id}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: i * 0.02 }}
                   title={`${ach.name}: ${ach.description}`}
                   style={{
-                    background: unlocked ? "#1a1200" : "#0d0d0d",
-                    border: `2px solid ${unlocked ? "#ffcc0055" : "#1a1a1a"}`,
-                    borderRadius: 12, padding: "10px 4px", textAlign: "center",
-                    opacity: unlocked ? 1 : 0.35,
-                    boxShadow: unlocked ? "0 0 12px #ffcc0022" : "none",
+                    background: unlocked ? `${glowColor}12` : "#0d0d0d",
+                    border: `2px solid ${unlocked ? glowColor + "66" : "#1a1a1a"}`,
+                    borderRadius: 14, padding: "14px 6px", textAlign: "center",
+                    opacity: unlocked ? 1 : 0.3,
+                    boxShadow: unlocked ? `0 0 18px ${glowColor}44, inset 0 0 12px ${glowColor}11` : "none",
                     transition: "all 0.2s",
+                    filter: unlocked ? "none" : "grayscale(1)",
                   }}
                 >
-                  <div style={{ fontSize: "1.4rem", marginBottom: 3, filter: unlocked ? "none" : "grayscale(1)" }}>
+                  <div style={{ fontSize: "1.5rem", marginBottom: 5 }}>
                     {unlocked ? ach.emoji : "🔒"}
                   </div>
-                  <div style={{ fontSize: 8, fontWeight: 700, color: unlocked ? "#ffcc00" : "#333", lineHeight: 1.2 }}>
+                  <div style={{ fontSize: 8, fontWeight: 800, color: unlocked ? glowColor : "#333", lineHeight: 1.2, letterSpacing: "0.02em" }}>
                     {ach.name}
                   </div>
                 </motion.div>

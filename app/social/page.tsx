@@ -20,7 +20,7 @@ const STORY_DATA = [
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const TABS = ["FLASH", "FRIENDS", "TOP", "LIVE"] as const;
+const TABS = ["FLASH", "FRIENDS", "TOP", "WARS"] as const;
 type Tab = typeof TABS[number];
 
 type LiveFilter = "ALL" | "GAMES" | "BOUNTIES" | "LEVEL-UPS";
@@ -468,6 +468,7 @@ export default function SocialPage() {
   const { user, worldId, activities, showToast } = useApp();
   const [tab, setTab] = useState<Tab>("FLASH");
   const [liveFilter, setLiveFilter] = useState<LiveFilter>("ALL");
+  const [lbPeriod, setLbPeriod] = useState<"TODAY" | "WEEK" | "ALL">("WEEK");
   const [showCreate, setShowCreate] = useState(false);
   const [activeStory, setActiveStory] = useState<typeof STORY_DATA[0] | null>(null);
   const [seenStories, setSeenStories] = useState<Set<string>>(new Set());
@@ -653,12 +654,12 @@ export default function SocialPage() {
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
                 boxShadow: tab === t ? `0 2px 8px ${world.accent}55` : "none",
               }}>
-              {t === "LIVE" && (
+              {t === "WARS" && (
                 <motion.span
-                  animate={{ opacity: [1, 0.2, 1] }}
-                  transition={{ duration: 1.2, repeat: Infinity }}
-                  style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#4caf50", boxShadow: tab === "LIVE" ? "0 0 6px #4caf50" : "none" }}
-                />
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  style={{ display: "inline-block", fontSize: 10 }}
+                >⚔️</motion.span>
               )}
               {t}
             </button>
@@ -1110,6 +1111,20 @@ export default function SocialPage() {
       {/* ── TOP tab ── */}
       {tab === "TOP" && (
         <div className="px-4 pt-4 pb-28 space-y-3">
+          {/* Time period selector */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+            {(["TODAY","WEEK","ALL"] as const).map(p => (
+              <button key={p} onClick={() => setLbPeriod(p)} style={{
+                flex: 1, padding: "8px 0",
+                background: lbPeriod === p ? world.accent : "#111",
+                border: `2px solid ${lbPeriod === p ? world.accent : "#222"}`,
+                borderRadius: 10, fontSize: 11, fontWeight: 800,
+                color: lbPeriod === p ? "#000" : "#555",
+                cursor: "pointer", fontFamily: "inherit",
+                letterSpacing: "0.06em",
+              }}>{p === "TODAY" ? "⚡ TODAY" : p === "WEEK" ? "🔥 WEEK" : "🏆 ALL TIME"}</button>
+            ))}
+          </div>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#888", letterSpacing: "0.1em", marginBottom: 4 }}>GLOBAL KARMA RANKING</div>
 
           {/* Podium top 3 */}
@@ -1214,83 +1229,127 @@ export default function SocialPage() {
               <div style={{ fontSize: 13, fontWeight: 700, color: "#000" }}>{myRank.karma.toLocaleString()} ⚡</div>
             </div>
           )}
+
+          {/* KARMA WARS promo banner */}
+          <Link href="/squads" style={{ textDecoration: "none" }}>
+            <motion.div
+              animate={{ boxShadow: ["0 0 20px #ff2d8d22", "0 0 40px #ff2d8d66", "0 0 20px #ff2d8d22"] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              style={{
+                background: "linear-gradient(135deg, #1a0010, #0a0a0a)",
+                border: "2px solid #ff2d8d66",
+                borderRadius: 18, padding: "16px",
+                display: "flex", alignItems: "center", gap: 14,
+              }}
+            >
+              <div style={{ fontSize: "2.5rem" }}>⚔️</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 900, color: "#ff2d8d", letterSpacing: "0.06em" }}>KARMA WARS</div>
+                <div style={{ fontSize: 11, color: "#666", marginTop: 2 }}>Squad vs squad. Weekly prize pool. Join your squad now.</div>
+              </div>
+              <div style={{ background: "#ff2d8d", color: "#fff", fontWeight: 900, fontSize: 11, borderRadius: 10, padding: "6px 12px" }}>JOIN →</div>
+            </motion.div>
+          </Link>
         </div>
       )}
 
-      {/* ── LIVE tab ── */}
-      {tab === "LIVE" && (
-        <div className="px-4 pt-4 pb-24">
-          {/* Filter buttons */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 14, overflowX: "auto", paddingBottom: 4 }}>
-            {LIVE_FILTERS.map(f => (
-              <button
-                key={f}
-                onClick={() => setLiveFilter(f)}
+      {/* ── WARS tab ── */}
+      {tab === "WARS" && (
+        <div className="px-4 pt-4 pb-28">
+          {/* Header */}
+          <div style={{ textAlign: "center", marginBottom: 20 }}>
+            <motion.div
+              animate={{ scale: [1, 1.08, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              style={{ fontSize: "3rem", marginBottom: 6 }}
+            >⚔️</motion.div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: "#fff", letterSpacing: "-0.02em" }}>KARMA WARS</div>
+            <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>Squad vs Squad — Weekly Prize Pool</div>
+          </div>
+
+          {/* Live war cards */}
+          {[
+            { squad1: "IRON WOLVES 🐺", squad2: "NEON FOXES 🦊", karma1: 12843, karma2: 11234, color: "#ff6b35", timeLeft: "2h 14m" },
+            { squad1: "SHADOW GUILD 🌑", squad2: "LIGHT KINGS 👑", karma1: 8921, karma2: 9102, color: "#a855f7", timeLeft: "5h 32m" },
+            { squad1: "KARMA LORDS ⚡", squad2: "BOUNTY CREW 🎯", karma1: 15600, karma2: 14800, color: "#c8ff00", timeLeft: "FINAL HOUR" },
+          ].map((war, i) => {
+            const total = war.karma1 + war.karma2;
+            const pct1 = Math.round((war.karma1 / total) * 100);
+            return (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1 }}
                 style={{
-                  flexShrink: 0,
-                  padding: "6px 14px",
-                  background: liveFilter === f ? world.accent : "#1a1a1a",
-                  border: `2px solid ${liveFilter === f ? world.accent : "#333"}`,
-                  borderRadius: 10,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: liveFilter === f ? "#000" : "#888",
-                  cursor: "pointer",
-                  letterSpacing: "0.06em",
-                  transition: "all 0.12s",
-                  boxShadow: liveFilter === f ? `0 0 12px ${world.accent}66` : "none",
+                  background: "#111",
+                  border: `2px solid ${war.color}44`,
+                  borderRadius: 20, padding: "16px",
+                  marginBottom: 12,
+                  boxShadow: i === 2 ? `0 0 30px ${war.color}33` : "none",
                 }}
               >
-                {f}
-              </button>
-            ))}
-          </div>
-
-          {filteredActivity.length === 0 && (
-            <div style={{ textAlign: "center", padding: 40 }}>
-              <div style={{ fontSize: "2.5rem", marginBottom: 8 }}>📡</div>
-              <div style={{ fontWeight: 700, color: "#c8ff00", fontSize: 14 }}>No activity yet</div>
-              <div style={{ fontSize: 12, marginTop: 4, color: "#555" }}>Play games and complete bounties!</div>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            {filteredActivity.map((a, i) => (
-              <motion.div key={a.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
-                <div style={{
-                  background: a.isYou ? `${world.accent}10` : "#111",
-                  border: a.isYou ? `2px solid ${world.accent}66` : "2px solid #2a2a2a",
-                  borderLeft: `4px solid ${borderColor[a.category]}`,
-                  borderRadius: 14,
-                  padding: "10px 12px",
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 10,
-                  boxShadow: a.isYou ? `0 0 16px ${world.accent}22` : "none",
-                }}>
-                  <div style={{ width: 36, height: 36, background: a.isYou ? `${world.accent}22` : "#1a1a1a", border: `2px solid ${a.isYou ? world.accent : "#333"}`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", flexShrink: 0 }}>
-                    {a.emoji}
+                {i === 2 && (
+                  <div style={{ textAlign: "center", marginBottom: 10 }}>
+                    <motion.span
+                      animate={{ opacity: [1, 0.3, 1] }}
+                      transition={{ duration: 0.8, repeat: Infinity }}
+                      style={{ fontSize: 9, fontWeight: 900, color: "#ff2d8d", letterSpacing: "0.2em" }}
+                    >
+                      🔴 FINAL HOUR — WINNER TAKES ALL
+                    </motion.span>
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>
-                      <span style={{ color: a.isYou ? world.accent : "#ccc" }}>@{a.username} </span>
-                      {a.title.replace(`@${a.username} `, "")}
-                    </div>
-                    {a.detail && <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{a.detail}</div>}
-                    {a.rarity && (
-                      <span style={{ fontSize: 10, fontWeight: 700, color: a.rarity === "legendary" ? "#ffcc00" : a.rarity === "covert" ? "#ff3333" : "#888" }}>
-                        {a.rarity.toUpperCase()}
-                      </span>
-                    )}
+                )}
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{war.squad1}</span>
+                  <span style={{ fontSize: 10, color: "#555" }}>vs</span>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{war.squad2}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: war.color, minWidth: 50 }}>{war.karma1.toLocaleString()}</span>
+                  <div style={{ flex: 1, height: 8, background: "#1a1a1a", borderRadius: 4, overflow: "hidden" }}>
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${pct1}%` }}
+                      transition={{ delay: 0.5 + i * 0.2, duration: 0.8 }}
+                      style={{ height: "100%", background: war.color, borderRadius: 4 }}
+                    />
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, flexShrink: 0 }}>
-                    {a.value && <span style={{ fontSize: 12, fontWeight: 700, color: "#c8ff00", background: "#0a0a0a", padding: "2px 7px", borderRadius: 6 }}>{a.value}</span>}
-                    <span style={{ fontSize: 10, color: "#aaa" }}>{timeAgo(a.time)}</span>
-                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#666", minWidth: 50, textAlign: "right" }}>{war.karma2.toLocaleString()}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 9, color: "#555" }}>Ends in: <span style={{ color: war.color, fontWeight: 700 }}>{war.timeLeft}</span></span>
+                  <motion.button
+                    whileTap={{ scale: 0.93 }}
+                    style={{
+                      background: war.color, color: "#000",
+                      fontSize: 10, fontWeight: 900,
+                      border: "none", borderRadius: 8, padding: "5px 12px",
+                      cursor: "pointer", fontFamily: "inherit", letterSpacing: "0.06em",
+                    }}
+                  >JOIN WAR</motion.button>
                 </div>
               </motion.div>
-            ))}
-          </div>
+            );
+          })}
+
+          {/* My squad CTA */}
+          <Link href="/squads" style={{ textDecoration: "none" }}>
+            <motion.div
+              whileTap={{ scale: 0.97 }}
+              style={{
+                background: "linear-gradient(135deg, #c8ff0022, #0a0a0a)",
+                border: "2px solid #c8ff0055",
+                borderRadius: 18, padding: "18px",
+                textAlign: "center",
+                marginTop: 8,
+              }}
+            >
+              <div style={{ fontSize: "2rem", marginBottom: 8 }}>🏴</div>
+              <div style={{ fontSize: 14, fontWeight: 900, color: "#c8ff00" }}>JOIN A SQUAD</div>
+              <div style={{ fontSize: 11, color: "#555", marginTop: 4 }}>Team up, compete in wars, share rewards</div>
+            </motion.div>
+          </Link>
         </div>
       )}
 
