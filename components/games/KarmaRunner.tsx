@@ -61,11 +61,13 @@ type GS = {
 
 // ── World palette data ────────────────────────────────────────────────────────
 const WORLDS = [
-  { name: "NEON CITY",    bgTop: "#050510", bgBot: "#0a0020", ground: "#c8ff00", grid: "rgba(200,255,0,0.04)",   cloudAlpha: 0.07, bossEmoji: "🔥", ripEmoji: "💀" },
-  { name: "LAVA CORE",    bgTop: "#1a0000", bgBot: "#2a0800", ground: "#ff4400", grid: "rgba(255,100,0,0.05)",   cloudAlpha: 0.05, bossEmoji: "🔥", ripEmoji: "☠️" },
-  { name: "ICE REALM",    bgTop: "#000a1a", bgBot: "#001a2a", ground: "#00e5ff", grid: "rgba(0,200,255,0.05)",   cloudAlpha: 0.07, bossEmoji: "❄️", ripEmoji: "🧊" },
-  { name: "VOID SPACE",   bgTop: "#000000", bgBot: "#0a0010", ground: "#8b00ff", grid: "rgba(180,0,255,0.06)",   cloudAlpha: 0.04, bossEmoji: "🌑", ripEmoji: "👻" },
-  { name: "KARMA HEAVEN", bgTop: "#1a1400", bgBot: "#2a2000", ground: "#ffd700", grid: "rgba(255,215,0,0.07)",   cloudAlpha: 0.08, bossEmoji: "👑", ripEmoji: "✨" },
+  { name: "SUNSHINE PLAINS", bgTop: "#5ab8f5", bgBot: "#a8d8f0", ground: "#5ec95a", grid: "rgba(94,201,90,0.06)",   cloudAlpha: 0.95, bossEmoji: "☀️", ripEmoji: "🌈" },
+  { name: "CHERRY BLOSSOM",  bgTop: "#f7c8e0", bgBot: "#ffe4f0", ground: "#e085b4", grid: "rgba(224,133,180,0.06)", cloudAlpha: 0.9,  bossEmoji: "🌸", ripEmoji: "🌺" },
+  { name: "NEON CITY",       bgTop: "#050510", bgBot: "#0a0020", ground: "#c8ff00", grid: "rgba(200,255,0,0.04)",   cloudAlpha: 0.07, bossEmoji: "🔥", ripEmoji: "💀" },
+  { name: "LAVA CORE",       bgTop: "#1a0000", bgBot: "#2a0800", ground: "#ff4400", grid: "rgba(255,100,0,0.05)",   cloudAlpha: 0.05, bossEmoji: "🔥", ripEmoji: "☠️" },
+  { name: "ICE REALM",       bgTop: "#000a1a", bgBot: "#001a2a", ground: "#00e5ff", grid: "rgba(0,200,255,0.05)",   cloudAlpha: 0.07, bossEmoji: "❄️", ripEmoji: "🧊" },
+  { name: "VOID SPACE",      bgTop: "#000000", bgBot: "#0a0010", ground: "#8b00ff", grid: "rgba(180,0,255,0.06)",   cloudAlpha: 0.04, bossEmoji: "🌑", ripEmoji: "👻" },
+  { name: "KARMA HEAVEN",    bgTop: "#1a1400", bgBot: "#2a2000", ground: "#ffd700", grid: "rgba(255,215,0,0.07)",   cloudAlpha: 0.08, bossEmoji: "👑", ripEmoji: "✨" },
 ];
 const LANE_OFFSETS = [0, 80, 160]; // pixels above ground for each lane
 
@@ -169,6 +171,33 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, GW, GH);
 
+    // Draw sun for bright worlds (0 = Sunshine Plains, 1 = Cherry Blossom)
+    if (g.world <= 1) {
+      const SX = GW * 0.82, SY = 38;
+      const sunColor = g.world === 0 ? "#ffe57a" : "#ffaad4";
+      ctx.save();
+      ctx.shadowColor = sunColor;
+      ctx.shadowBlur = 24;
+      ctx.beginPath();
+      ctx.arc(SX, SY, 22, 0, Math.PI * 2);
+      ctx.fillStyle = sunColor;
+      ctx.fill();
+      ctx.restore();
+      // Sun rays
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2 + g.frame * 0.01;
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+        ctx.strokeStyle = sunColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(SX + Math.cos(angle) * 28, SY + Math.sin(angle) * 28);
+        ctx.lineTo(SX + Math.cos(angle) * 38, SY + Math.sin(angle) * 38);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
     // time_slow overlay
     if (g.hasTimeSlow) {
       ctx.fillStyle = "rgba(100,100,120,0.15)";
@@ -189,18 +218,51 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(GW, gy); ctx.stroke();
     }
 
-    // Stars
-    [[20,8],[75,5],[130,18],[195,7],[250,22],[310,11],[340,20],[55,34],[165,4],[295,28],[50,15],[225,16],[155,30],[380,9]].forEach(([sx, sy], i) => {
-      const tw = 0.2 + 0.3 * Math.sin(g.frame * 0.03 + i * 1.3);
-      ctx.fillStyle = `rgba(255,255,255,${tw})`; ctx.beginPath(); ctx.arc(sx!, sy!, 1, 0, Math.PI * 2); ctx.fill();
-    });
+    // Stars (only for dark worlds)
+    if (world.cloudAlpha <= 0.5) {
+      [[20,8],[75,5],[130,18],[195,7],[250,22],[310,11],[340,20],[55,34],[165,4],[295,28],[50,15],[225,16],[155,30],[380,9]].forEach(([sx, sy], i) => {
+        const tw = 0.2 + 0.3 * Math.sin(g.frame * 0.03 + i * 1.3);
+        ctx.fillStyle = `rgba(255,255,255,${tw})`; ctx.beginPath(); ctx.arc(sx!, sy!, 1, 0, Math.PI * 2); ctx.fill();
+      });
+    }
 
-    // Clouds (world-tinted)
-    ctx.font = "16px serif";
-    g.cx.forEach((cx, i) => {
-      ctx.globalAlpha = world.cloudAlpha + i * 0.01;
-      ctx.fillText("☁️", cx, g.cy[i]!);
-    });
+    // Draw clouds
+    if (world.cloudAlpha > 0.5) {
+      // Bright world fluffy clouds
+      for (let i = 0; i < 4; i++) {
+        const cx = ((g.cx[i]! * 3.5) % (GW + 120)) - 60;
+        const cy = g.cy[i]! * 10 + 15;
+        ctx.save();
+        ctx.fillStyle = "rgba(255,255,255,0.88)";
+        ctx.shadowColor = "rgba(255,255,255,0.4)";
+        ctx.shadowBlur = 8;
+        for (const [dx, dy, r] of [[0,0,16],[18,0,13],[-15,4,11],[8,-9,10]] as [number,number,number][]) {
+          ctx.beginPath();
+          ctx.arc(cx + dx, cy + dy, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+    } else {
+      // Dark world subtle clouds
+      ctx.save();
+      ctx.globalAlpha = world.cloudAlpha;
+      for (let i = 0; i < 4; i++) {
+        const cx = ((g.cx[i]! * 3.5) % (GW + 120)) - 60;
+        const cy = g.cy[i]! * 10 + 15;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 22, 0, Math.PI * 2);
+        ctx.fillStyle = "#fff";
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(cx + 18, cy, 16, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(cx - 14, cy + 4, 14, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
     ctx.globalAlpha = 1;
 
     // ── Speed lines at high speed ────────────────────────────────────────────
@@ -527,17 +589,28 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     ctx.restore();
 
     // ── HUD ──────────────────────────────────────────────────────────────────
-    ctx.fillStyle = "rgba(0,0,0,0.55)";
+    // For bright worlds, use a lighter panel and dark text; dark worlds keep existing style
+    const hudColor = g.world <= 1 ? "#1a1a1a" : "#ffffff";
+    const hudShadow = g.world <= 1 ? "rgba(255,255,255,0.8)" : "rgba(0,0,0,0.5)";
+    const hudPanel = g.world <= 1 ? "rgba(255,255,255,0.62)" : "rgba(0,0,0,0.55)";
+
+    ctx.fillStyle = hudPanel;
     ctx.fillRect(0, 0, GW, 46);
 
     ctx.font = "bold 12px monospace"; ctx.textAlign = "left";
-    ctx.fillStyle = "#ffdd00"; ctx.fillText(`⚡ ${g.karma}`, 8, 18);
-    ctx.fillStyle = "#888"; ctx.fillText(`📏 ${Math.floor(g.distance)}m`, 8, 34);
+    ctx.shadowColor = hudShadow; ctx.shadowBlur = 4;
+    ctx.fillStyle = g.world <= 1 ? "#c47a00" : "#ffdd00";
+    ctx.fillText(`⚡ ${g.karma}`, 8, 18);
+    ctx.fillStyle = g.world <= 1 ? "#444" : "#888";
+    ctx.fillText(`📏 ${Math.floor(g.distance)}m`, 8, 34);
+    ctx.shadowBlur = 0;
 
     const speedMult = (g.speed / BASE_SPD).toFixed(1);
-    ctx.fillStyle = g.speed > 9 ? "#ff4444" : g.speed > 7 ? "#ff9900" : "#c8ff00";
+    ctx.fillStyle = g.speed > 9 ? "#ff4444" : g.speed > 7 ? "#ff9900" : (g.world <= 1 ? "#2a7a00" : "#c8ff00");
     ctx.textAlign = "right";
+    ctx.shadowColor = hudShadow; ctx.shadowBlur = 4;
     ctx.fillText(`⚡ ×${speedMult}`, GW - 8, 18);
+    ctx.shadowBlur = 0;
 
     if (g.comboCount > 1 || g.karmaChain > 0) {
       ctx.fillStyle = g.inKarmaZone ? "#cc00ff" : "#ff6600";
@@ -545,7 +618,8 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     }
 
     if (g.karmaChain >= 5) {
-      ctx.fillStyle = "#ffdd00"; ctx.font = "bold 11px monospace"; ctx.textAlign = "center";
+      ctx.fillStyle = g.world <= 1 ? "#c47a00" : "#ffdd00";
+      ctx.font = "bold 11px monospace"; ctx.textAlign = "center";
       ctx.fillText(`CHAIN ×${g.karmaChain}!`, GW / 2, 42);
     }
     ctx.textAlign = "left";
@@ -562,15 +636,19 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
 
     // Lane indicator
     ctx.font = "bold 10px monospace";
-    ctx.fillStyle = "rgba(200,255,0,0.7)";
+    ctx.fillStyle = g.world <= 1 ? "rgba(50,120,0,0.85)" : "rgba(200,255,0,0.7)";
     ctx.textAlign = "right";
     ctx.fillText(`LN ${g.lane + 1}/3`, GW - 8, 44);
     ctx.textAlign = "left";
 
     // World indicator (bottom-left)
     ctx.font = "bold 9px monospace";
-    ctx.fillStyle = "rgba(255,255,255,0.4)";
+    ctx.fillStyle = g.world <= 1 ? "rgba(30,30,30,0.6)" : "rgba(255,255,255,0.4)";
+    ctx.shadowColor = hudShadow; ctx.shadowBlur = 2;
     ctx.fillText(`W${g.world + 1}: ${world.name}`, 6, GH - 8);
+    ctx.shadowBlur = 0;
+    // Satisfy TS (hudColor used via pattern for clarity)
+    void hudColor;
 
     // Karma zone banner
     if (g.inKarmaZone) {
@@ -1138,21 +1216,75 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
 
       {/* IDLE SCREEN */}
       {phase === "idle" && (
-        <div onClick={jump} style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(5,5,16,0.88)", borderRadius: 16, gap: 8, cursor: "pointer" }}>
+        <div
+          onClick={jump}
+          style={{
+            position: "absolute", inset: 0, display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center", borderRadius: 16, gap: 8, cursor: "pointer",
+            background: gs.current.world === 0
+              ? "linear-gradient(160deg,rgba(90,184,245,0.94) 0%,rgba(168,216,240,0.94) 100%)"
+              : gs.current.world === 1
+              ? "linear-gradient(160deg,rgba(247,200,224,0.94) 0%,rgba(255,228,240,0.94) 100%)"
+              : "rgba(5,5,16,0.88)",
+          }}
+        >
           <div style={{ fontSize: "3.2rem" }}>{petEmoji}</div>
-          <div style={{ color: "#c8ff00", fontSize: 22, fontWeight: 900, letterSpacing: 3, textShadow: "0 0 20px #c8ff00" }}>KARMA RUNNER</div>
-          <div style={{ color: "#666", fontSize: 11 }}>GEOMETRY DASH STYLE • 5 WORLDS • BOSS WAVES</div>
-          <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap", justifyContent: "center", maxWidth: 340 }}>
+          <div style={{
+            color: gs.current.world <= 1 ? "#1a4a00" : "#c8ff00",
+            fontSize: 22, fontWeight: 900, letterSpacing: 3,
+            textShadow: gs.current.world <= 1 ? "0 0 16px rgba(255,255,255,0.7)" : "0 0 20px #c8ff00",
+          }}>KARMA RUNNER</div>
+          <div style={{ color: gs.current.world <= 1 ? "#3a5a2a" : "#666", fontSize: 11 }}>GEOMETRY DASH STYLE • 7 WORLDS • BOSS WAVES</div>
+
+          {/* World selector */}
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "center", maxWidth: 350, marginTop: 2 }}>
+            {WORLDS.map((w, i) => (
+              <button
+                key={w.name}
+                onClick={e => { e.stopPropagation(); gs.current.world = i; setUi(u => ({ ...u, world: i })); }}
+                style={{
+                  padding: "4px 8px", borderRadius: 8, fontSize: 9, fontWeight: 800, cursor: "pointer",
+                  border: gs.current.world === i ? "2px solid #fff" : "1px solid rgba(0,0,0,0.2)",
+                  background: i === 0
+                    ? "linear-gradient(135deg,#74d7f7,#a8f0a8)"
+                    : i === 1
+                    ? "linear-gradient(135deg,#f9b8d8,#ffd6ec)"
+                    : "rgba(0,0,0,0.55)",
+                  color: i <= 1 ? "#1a3a00" : "#aaa",
+                  boxShadow: gs.current.world === i ? "0 0 8px rgba(255,255,255,0.6)" : "none",
+                  transform: gs.current.world === i ? "scale(1.08)" : "scale(1)",
+                  transition: "transform 0.12s",
+                }}
+              >
+                {w.bossEmoji} {w.name}
+              </button>
+            ))}
+          </div>
+
+          <div style={{
+            fontSize: 10, fontWeight: 700, marginTop: 0,
+            color: gs.current.world <= 1 ? "#2a5a00" : "#888",
+            background: gs.current.world <= 1 ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.06)",
+            padding: "3px 12px", borderRadius: 20,
+          }}>
+            STARTING: {WORLDS[Math.min(gs.current.world, WORLDS.length - 1)]?.name}
+          </div>
+
+          <div style={{ display: "flex", gap: 6, marginTop: 2, flexWrap: "wrap", justifyContent: "center", maxWidth: 340 }}>
             {([["🧱","WALL"],["⬆️","SPIKE"],["⬇️","PIT"],["🚧","CEILING"],["🚪","GATE"],["⚡","KARMA"],["👑","BOSS"],["🛤️","LANES"]] as [string,string][]).map(([e, t]) => (
-              <div key={t} style={{ textAlign: "center", background: "#0a0010", borderRadius: 8, padding: "5px 9px", border: "1px solid #2a0a3a" }}>
+              <div key={t} style={{
+                textAlign: "center", borderRadius: 8, padding: "5px 9px",
+                background: gs.current.world <= 1 ? "rgba(255,255,255,0.5)" : "#0a0010",
+                border: gs.current.world <= 1 ? "1px solid rgba(0,0,0,0.1)" : "1px solid #2a0a3a",
+              }}>
                 <div style={{ fontSize: "1rem" }}>{e}</div>
-                <div style={{ fontSize: 8, color: "#666", fontWeight: 700 }}>{t}</div>
+                <div style={{ fontSize: 8, color: gs.current.world <= 1 ? "#3a4a2a" : "#666", fontWeight: 700 }}>{t}</div>
               </div>
             ))}
           </div>
-          {best > 0 && <div style={{ color: "#888", fontSize: 11, marginTop: 2 }}>BEST: <span style={{ color: "#c8ff00", fontWeight: 700 }}>{best}</span></div>}
-          <div style={{ color: "#444", fontSize: 10, marginTop: 2 }}>TAP / SPACE TO START • SWIPE UP/DOWN TO CHANGE LANE</div>
-          <div style={{ color: "#333", fontSize: 9 }}>5 WORLDS • BOSS WAVES • KARMA ZONES • DOUBLE JUMP</div>
+          {best > 0 && <div style={{ color: gs.current.world <= 1 ? "#2a4a00" : "#888", fontSize: 11, marginTop: 2 }}>BEST: <span style={{ color: gs.current.world <= 1 ? "#1a7a00" : "#c8ff00", fontWeight: 700 }}>{best}</span></div>}
+          <div style={{ color: gs.current.world <= 1 ? "#3a5a2a" : "#444", fontSize: 10, marginTop: 2 }}>TAP / SPACE TO START • SWIPE UP/DOWN TO CHANGE LANE</div>
+          <div style={{ color: gs.current.world <= 1 ? "#4a6a3a" : "#333", fontSize: 9 }}>7 WORLDS • BOSS WAVES • KARMA ZONES • DOUBLE JUMP</div>
         </div>
       )}
 

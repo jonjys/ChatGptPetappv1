@@ -79,6 +79,8 @@ export default function CaseOpening({ karma, onSpend, onWin }: Props) {
   const [inventory, setInventory] = useState<CaseItem[]>([]);
   const [activeTab, setActiveTab] = useState<"open" | "inv">("open");
   const [errMsg, setErrMsg] = useState("");
+  const [showLegendaryPop, setShowLegendaryPop] = useState(false);
+  const [openFlash, setOpenFlash] = useState(false);
   const offsetRef = useRef(0);
 
   const ITEM_W = 96; // px per reel item
@@ -92,6 +94,10 @@ export default function CaseOpening({ karma, onSpend, onWin }: Props) {
       setTimeout(() => setPhase("select"), 1800);
       return;
     }
+    // Flash effect on open
+    setOpenFlash(true);
+    setTimeout(() => setOpenFlash(false), 400);
+
     const w = rollItem(c);
     const r = buildReel(w);
     setWinner(w);
@@ -109,6 +115,10 @@ export default function CaseOpening({ karma, onSpend, onWin }: Props) {
       };
       onWin(rarityKarma[w.rarity], rarityXP[w.rarity], w.name, w.rarity);
       setPhase("reveal");
+      if (w.rarity === "legendary") {
+        setShowLegendaryPop(true);
+        setTimeout(() => setShowLegendaryPop(false), 3500);
+      }
     }, 4200);
   }, [selectedCase, onSpend, onWin]);
 

@@ -71,6 +71,19 @@ const SYMBOL_WEIGHTS: Record<Symbol, number> = {
 
 const NEON_COLORS = ["#c8ff00", "#00e5ff", "#ff2d8d", "#ffde00", "#ff6b00"];
 
+const SYMBOL_COLORS: Record<Symbol, string> = {
+  "👑": "#ffd700",
+  "🌟": "#ffec3d",
+  "💎": "#00e5ff",
+  "⚡": "#c8ff00",
+  "🏆": "#ff8c00",
+  "🔥": "#ff4500",
+  "🐱": "#ff69b4",
+  "🐾": "#a0a0a0",
+  "🍖": "#cd853f",
+  "🌀": "#00ffcc",
+};
+
 // Bet levels
 const BET_LEVELS: Array<{ cost: number; mult: number; label: string }> = [
   { cost: 25, mult: 1, label: "25 ⚡" },
@@ -293,6 +306,7 @@ interface ReelWindowProps {
 }
 
 function ReelWindow({ symbol, spinning, stopped, spinIndex, isWinner, isUltraJackpot, showJackpot, isWild }: ReelWindowProps) {
+  const symColor = SYMBOL_COLORS[symbol] ?? "#c8ff00";
   const glowColor = isUltraJackpot
     ? "#bf00ff"
     : showJackpot
@@ -300,7 +314,7 @@ function ReelWindow({ symbol, spinning, stopped, spinIndex, isWinner, isUltraJac
     : isWild
     ? "#00ffcc"
     : isWinner
-    ? "#c8ff00"
+    ? "#ffd700"
     : "rgba(200,255,0,0.3)";
 
   const borderColor = isWinner || showJackpot || isWild ? glowColor : "rgba(200,255,0,0.3)";
@@ -318,7 +332,9 @@ function ReelWindow({ symbol, spinning, stopped, spinIndex, isWinner, isUltraJac
           position: "relative",
           flexShrink: 0,
           boxShadow: isWinner || isWild
-            ? `0 0 20px ${glowColor}, inset 0 0 10px ${glowColor}44`
+            ? `0 0 24px ${glowColor}, 0 0 48px ${glowColor}55, inset 0 0 10px ${glowColor}44`
+            : stopped
+            ? `0 0 8px ${symColor}44`
             : spinning
             ? "0 0 8px rgba(200,255,0,0.2)"
             : "none",
@@ -372,7 +388,22 @@ function ReelWindow({ symbol, spinning, stopped, spinIndex, isWinner, isUltraJac
               position: "relative",
             }}
           >
-            {(isWinner || isWild) && (
+            {/* Glow pulse for winner — golden shimmer */}
+            {isWinner && (
+              <motion.div
+                animate={{ opacity: [0.3, 1, 0.3], backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
+                transition={{ duration: 0.8, repeat: Infinity }}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: "linear-gradient(135deg, #ffd70033, #ffec3d66, #ffd70033)",
+                  backgroundSize: "200% 200%",
+                  borderRadius: 10,
+                }}
+              />
+            )}
+            {/* Wild glow */}
+            {isWild && !isWinner && (
               <motion.div
                 animate={{ opacity: [0.4, 1, 0.4] }}
                 transition={{ duration: 0.6, repeat: Infinity }}
@@ -384,14 +415,44 @@ function ReelWindow({ symbol, spinning, stopped, spinIndex, isWinner, isUltraJac
                 }}
               />
             )}
-            <span style={{ position: "relative", zIndex: 1 }}>{symbol}</span>
+            {/* Symbol with per-color glow */}
+            <span style={{
+              position: "relative",
+              zIndex: 1,
+              filter: stopped ? `drop-shadow(0 0 6px ${symColor}cc)` : "none",
+            }}>{symbol}</span>
           </motion.div>
         )}
+
+        {/* 3D depth top fade */}
+        <div style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 16,
+          background: "linear-gradient(to bottom, #0a0a0acc, transparent)",
+          pointerEvents: "none",
+          zIndex: 5,
+          borderRadius: "10px 10px 0 0",
+        }} />
+        {/* 3D depth bottom fade */}
+        <div style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 16,
+          background: "linear-gradient(to top, #0a0a0acc, transparent)",
+          pointerEvents: "none",
+          zIndex: 5,
+          borderRadius: "0 0 10px 10px",
+        }} />
       </div>
       <div style={{
         fontSize: 9,
         fontWeight: 700,
-        color: isWild ? "#00ffcc" : isWinner ? "#c8ff00" : "#444",
+        color: isWild ? "#00ffcc" : isWinner ? "#ffd700" : "#444",
         letterSpacing: 1,
         textAlign: "center",
         transition: "color 0.2s",
@@ -400,6 +461,12 @@ function ReelWindow({ symbol, spinning, stopped, spinIndex, isWinner, isUltraJac
       </div>
     </div>
   );
+}
+
+interface WinParticle {
+  id: number;
+  x: number;
+  emoji: string;
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -432,6 +499,8 @@ export default function KarmaSlots({ karma, onSpin, onWin }: Props) {
   const [showWinnerText, setShowWinnerText] = useState(false);
   const [screenShake, setScreenShake] = useState(false);
   const [stats, setStats] = useState<SlotStats>({ totalSpins: 0, totalWon: 0, bestWin: 0 });
+  const [winParticles, setWinParticles] = useState<WinParticle[]>([]);
+  const [shakeLose, setShakeLose] = useState(false);
   const statsInitialized = useRef(false);
 
   useEffect(() => {
@@ -456,6 +525,17 @@ export default function KarmaSlots({ karma, onSpin, onWin }: Props) {
   const betLevel = BET_LEVELS[betLevelIdx];
   const spinCost = betLevel.cost;
   const betMultiplier = betLevel.mult;
+
+  function triggerWinParticles() {
+    const emojis = ["⭐", "💎", "⚡", "🎉", "🔥"];
+    const newParticles: WinParticle[] = Array.from({ length: 12 }, (_, i) => ({
+      id: Date.now() + i,
+      x: 10 + Math.random() * 80,
+      emoji: emojis[i % 5],
+    }));
+    setWinParticles(newParticles);
+    addTimeout(() => setWinParticles([]), 2500);
+  }
 
   function triggerUltraJackpotCeremony(win: number) {
     setShowUltraJackpot(true);
@@ -641,6 +721,7 @@ export default function KarmaSlots({ karma, onSpin, onWin }: Props) {
               setWinnerReels(winners);
               setShowPayline(true);
 
+              triggerWinParticles();
               if (isUltraJackpot) triggerUltraJackpotCeremony(finalWin);
               else if (isJackpot) triggerJackpotCeremony();
               else if (isMegaWin) triggerMegaWinCelebration();
@@ -651,6 +732,8 @@ export default function KarmaSlots({ karma, onSpin, onWin }: Props) {
               const newLoss = lossStreak + 1;
               setLossStreak(newLoss);
               setWinStreak(0);
+              setShakeLose(true);
+              addTimeout(() => setShakeLose(false), 500);
               if (newLoss >= 3) {
                 setPetReaction("sad");
                 addTimeout(() => setPetReaction(null), 2800);
@@ -914,6 +997,18 @@ export default function KarmaSlots({ karma, onSpin, onWin }: Props) {
         ))}
       </AnimatePresence>
 
+      {/* ── Win Particles Burst ── */}
+      <AnimatePresence>
+        {winParticles.map(p => (
+          <motion.div key={p.id}
+            initial={{ y: "100%", opacity: 1, scale: 0.5 }}
+            animate={{ y: "-200%", opacity: 0, scale: 1.5 }}
+            transition={{ duration: 2.2, ease: "easeOut" }}
+            style={{ position: "fixed", left: `${p.x}%`, bottom: 0, fontSize: "1.6rem", pointerEvents: "none", zIndex: 50 }}
+          >{p.emoji}</motion.div>
+        ))}
+      </AnimatePresence>
+
       {/* ── Pet Reaction ── */}
       <AnimatePresence>
         {petReaction && (
@@ -972,28 +1067,68 @@ export default function KarmaSlots({ karma, onSpin, onWin }: Props) {
         <SidePanel side="left" />
         <SidePanel side="right" />
 
-        {/* KARMA SLOTS Logo */}
-        <div style={{ textAlign: "center", marginTop: 6, marginBottom: 4, position: "relative", zIndex: 1 }}>
+        {/* KARMA SLOTS Logo — glowing 3D header */}
+        <div style={{ textAlign: "center", marginTop: 6, marginBottom: 8, position: "relative", zIndex: 1 }}>
           <motion.div
-            animate={{
-              textShadow: [
-                "0 0 20px #c8ff00, 0 0 40px #c8ff0088",
-                "0 0 20px #00e5ff, 0 0 40px #00e5ff88",
-                "0 0 20px #ff2d8d, 0 0 40px #ff2d8d88",
-                "0 0 20px #ffde00, 0 0 40px #ffde0088",
-                "0 0 20px #c8ff00, 0 0 40px #c8ff0088",
-              ],
-              color: ["#c8ff00", "#00e5ff", "#ff2d8d", "#ffde00", "#c8ff00"],
+            animate={{ rotate: [0, 360] }}
+            transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+            style={{
+              position: "absolute",
+              inset: -6,
+              borderRadius: 16,
+              background: "linear-gradient(90deg, #c8ff00, #00e5ff, #ff2d8d, #ffde00, #ff6b00, #c8ff00)",
+              backgroundSize: "400% 100%",
+              opacity: 0.6,
+              filter: "blur(4px)",
+              zIndex: -1,
             }}
-            transition={{ duration: 4, repeat: Infinity }}
-            style={{ fontSize: 20, fontWeight: 900, letterSpacing: 4, lineHeight: 1 }}
+          />
+          <motion.div
+            animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+            style={{
+              fontSize: 22,
+              fontWeight: 900,
+              letterSpacing: 4,
+              lineHeight: 1,
+              background: "linear-gradient(90deg, #c8ff00, #00e5ff, #ff2d8d, #ffde00, #ff6b00, #c8ff00)",
+              backgroundSize: "300% 100%",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+              filter: "drop-shadow(0 0 8px #c8ff0088)",
+            }}
           >
-            ★ KARMA SLOTS ★
+            🎰 KARMA SLOTS 🎰
           </motion.div>
-          <div style={{ color: "#ffde0066", fontSize: 9, fontWeight: 600, letterSpacing: 2, marginTop: 2 }}>
+          <div style={{ color: "#ffde0066", fontSize: 9, fontWeight: 600, letterSpacing: 2, marginTop: 3 }}>
             SESSION: <span style={{ color: "#ffde00", fontWeight: 800 }}>{sessionKarma} ⚡</span>
           </div>
         </div>
+
+        {/* MEGA JACKPOT Counter */}
+        <motion.div
+          animate={{ scale: [1, 1.04, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          style={{
+            background: "linear-gradient(135deg, #1a0800, #2a1500)",
+            border: "2.5px solid #ffd700",
+            borderRadius: 16, padding: "10px 18px",
+            display: "flex", alignItems: "center", gap: 10,
+            marginBottom: 10,
+            boxShadow: "0 0 30px #ffd70044",
+            position: "relative", zIndex: 1,
+          }}
+        >
+          <motion.span animate={{ rotate: [0, 360] }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }} style={{ fontSize: "1.5rem" }}>🏆</motion.span>
+          <div>
+            <div style={{ fontSize: 9, color: "#ffd700", fontWeight: 800, letterSpacing: "0.15em" }}>MEGA JACKPOT</div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: "#fff" }}>1,337 ⚡</div>
+          </div>
+          <div style={{ marginLeft: "auto" }}>
+            <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1, repeat: Infinity }} style={{ width: 8, height: 8, borderRadius: "50%", background: "#4caf50", boxShadow: "0 0 6px #4caf50" }} />
+          </div>
+        </motion.div>
 
         {/* ════════════════════════════════════════
             INNER MACHINE BODY
@@ -1205,15 +1340,29 @@ export default function KarmaSlots({ karma, onSpin, onWin }: Props) {
 
           {/* ── SPIN BUTTON ── */}
           <motion.button
-            whileTap={{ scale: canSpin ? 0.95 : 1 }}
+            whileTap={{ scale: canSpin ? 0.93 : 1 }}
+            animate={
+              shakeLose
+                ? { x: [-6, 6, -5, 5, -3, 3, 0] }
+                : canSpin && !spinning
+                ? { boxShadow: [
+                    "0 6px 0 #000, 0 0 20px rgba(200,255,0,0.3)",
+                    "0 6px 0 #000, 0 0 40px rgba(200,255,0,0.8)",
+                    "0 6px 0 #000, 0 0 20px rgba(200,255,0,0.3)",
+                  ] }
+                : {}
+            }
+            transition={shakeLose ? { duration: 0.4 } : { duration: 1.4, repeat: Infinity }}
             onClick={spin}
             disabled={!canSpin}
             style={{
               width: "100%",
-              height: 48,
+              height: 52,
               padding: "0 16px",
               background: !canSpin
                 ? "#222"
+                : spinning
+                ? "#1a1a1a"
                 : inBonusActive
                 ? "linear-gradient(135deg, #ff6b00, #ffde00)"
                 : isNextLucky
@@ -1221,15 +1370,14 @@ export default function KarmaSlots({ karma, onSpin, onWin }: Props) {
                 : hotZone
                 ? "linear-gradient(135deg, #ff4000, #ffde00)"
                 : "linear-gradient(135deg, #ffde00, #c8ff00)",
-              border: `3px solid ${canSpin ? "#0a0a0a" : "#333"}`,
+              border: `3px solid ${canSpin && !spinning ? "#0a0a0a" : "#333"}`,
               borderRadius: 16,
-              fontSize: 20,
+              fontSize: spinning ? 16 : 20,
               fontWeight: 900,
-              color: canSpin ? "#0a0a0a" : "#555",
+              color: canSpin && !spinning ? "#0a0a0a" : spinning ? "#ffde00aa" : "#555",
               cursor: canSpin ? "pointer" : "not-allowed",
-              boxShadow: canSpin ? "0 6px 0 #000, 0 0 24px rgba(200,255,0,0.35)" : "none",
-              letterSpacing: 3,
-              transition: "all 0.1s",
+              letterSpacing: spinning ? 4 : 3,
+              transition: "background 0.15s, color 0.15s, font-size 0.15s",
               position: "relative",
               zIndex: 1,
               display: "flex",
@@ -1256,7 +1404,7 @@ export default function KarmaSlots({ karma, onSpin, onWin }: Props) {
             ) : hotZone ? (
               `🔥 SPIN! ⚡  (-${spinCost} ⚡  +50%!)`
             ) : (
-              `SPIN! ⚡  -${spinCost} ⚡`
+              `SPIN! 🎰  -${spinCost} ⚡`
             )}
           </motion.button>
 
