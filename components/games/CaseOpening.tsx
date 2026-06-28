@@ -126,7 +126,41 @@ export default function CaseOpening({ karma, onSpend, onWin }: Props) {
   const cfg = winner ? RARITY_CFG[winner.rarity] : null;
 
   return (
-    <div style={{ fontFamily: "var(--font-space-grotesk, sans-serif)" }}>
+    <div style={{ fontFamily: "var(--font-space-grotesk, sans-serif)", position: "relative" }}>
+
+      {/* ── White flash on open ── */}
+      <AnimatePresence>
+        {openFlash && (
+          <motion.div
+            key="open-flash"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.7 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            style={{ position: "fixed", inset: 0, background: "#ffffff", zIndex: 9990, pointerEvents: "none" }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── Legendary Pop Overlay ── */}
+      <AnimatePresence>
+        {showLegendaryPop && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{ position: "fixed", inset: 0, zIndex: 9999, background: "radial-gradient(circle, #ffd70044 0%, rgba(0,0,0,0.9) 70%)", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}
+          >
+            <motion.div
+              animate={{ scale: [0, 1.4, 1], rotate: [0, -10, 10, 0] }}
+              transition={{ type: "spring", stiffness: 200 }}
+              style={{ fontSize: "8rem" }}
+            >👑</motion.div>
+            <motion.div animate={{ opacity: [0, 1] }} transition={{ delay: 0.5 }} style={{ fontSize: 24, fontWeight: 900, color: "#ffd700", textAlign: "center", marginTop: 16 }}>LEGENDARY DROP!</motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Tabs */}
       <div className="flex gap-2 mb-4">
         {(["open","inv"] as const).map(t => (
@@ -157,9 +191,10 @@ export default function CaseOpening({ karma, onSpend, onWin }: Props) {
               return (
                 <motion.div key={i} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                   style={{
-                    background: `${rc.color}12`, border: `2px solid ${rc.color}`,
+                    background: `linear-gradient(135deg, ${rc.color}18, ${rc.color}08)`,
+                    border: `2px solid ${rc.color}`,
                     borderRadius: 14, padding: "14px 10px", textAlign: "center",
-                    boxShadow: `0 0 12px ${rc.glow}`,
+                    boxShadow: `0 0 16px ${rc.glow}`,
                   }}>
                   <div style={{ fontSize: "2rem" }}>{item.emoji}</div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: rc.color, marginTop: 4 }}>{item.name}</div>
@@ -173,23 +208,63 @@ export default function CaseOpening({ karma, onSpend, onWin }: Props) {
 
       {activeTab === "open" && (
         <>
-          {/* Case picker */}
+          {/* Case picker — beautiful cards */}
           <div className="flex gap-2 mb-4">
-            {CASES.map((cs, i) => (
-              <button key={i} onClick={() => setSelectedCase(i)}
-                disabled={phase === "spinning"}
-                style={{
-                  flex: 1, padding: "10px 6px", borderRadius: 14,
-                  background: selectedCase === i ? `${cs.color}18` : "#111",
-                  border: `2.5px solid ${selectedCase === i ? cs.color : "#2a2a2a"}`,
-                  cursor: "pointer", textAlign: "center",
-                  boxShadow: selectedCase === i ? `0 0 14px ${cs.color}44` : "none",
-                }}>
-                <div style={{ fontSize: "1.6rem" }}>{cs.emoji}</div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: selectedCase === i ? cs.color : "#888", marginTop: 3 }}>{cs.name}</div>
-                <div style={{ fontSize: 10, color: selectedCase === i ? cs.color : "#555" }}>{cs.price} ⚡</div>
-              </button>
-            ))}
+            {CASES.map((cs, i) => {
+              const isSelected = selectedCase === i;
+              return (
+                <motion.button
+                  key={i}
+                  onClick={() => setSelectedCase(i)}
+                  disabled={phase === "spinning"}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  style={{
+                    flex: 1, padding: "10px 6px", borderRadius: 14,
+                    background: isSelected
+                      ? `linear-gradient(135deg, ${cs.color}33, ${cs.color}18)`
+                      : "#111",
+                    border: `2.5px solid ${isSelected ? cs.color : "#2a2a2a"}`,
+                    cursor: phase === "spinning" ? "default" : "pointer",
+                    textAlign: "center",
+                    boxShadow: isSelected ? `0 0 20px ${cs.color}55, inset 0 0 20px ${cs.color}11` : "none",
+                    transition: "all 0.2s",
+                    position: "relative",
+                    overflow: "hidden",
+                  }}
+                >
+                  {/* Rarity glow stripe at top */}
+                  {isSelected && (
+                    <div style={{
+                      position: "absolute", top: 0, left: 0, right: 0, height: 3,
+                      background: `linear-gradient(90deg, transparent, ${cs.color}, transparent)`,
+                      boxShadow: `0 0 8px ${cs.color}`,
+                    }} />
+                  )}
+                  {/* Bobbing emoji */}
+                  <motion.div
+                    animate={isSelected ? { y: [0, -4, 0] } : {}}
+                    transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+                    style={{ fontSize: "1.8rem", display: "block" }}
+                  >
+                    {cs.emoji}
+                  </motion.div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: isSelected ? cs.color : "#888", marginTop: 4 }}>{cs.name}</div>
+                  {/* Price tag chip */}
+                  <div style={{
+                    display: "inline-block",
+                    marginTop: 5,
+                    background: isSelected ? `${cs.color}22` : "#1a1a1a",
+                    border: `1.5px solid ${isSelected ? cs.color : "#333"}`,
+                    borderRadius: 8, padding: "2px 8px",
+                    fontSize: 10, fontWeight: 800,
+                    color: isSelected ? cs.color : "#555",
+                  }}>
+                    {cs.price} ⚡
+                  </div>
+                </motion.button>
+              );
+            })}
           </div>
           <p style={{ fontSize: 11, color: "#555", textAlign: "center", marginBottom: 12 }}>{c.description}</p>
 
@@ -230,8 +305,9 @@ export default function CaseOpening({ karma, onSpend, onWin }: Props) {
                     <div key={i} style={{
                       minWidth: ITEM_W, height: 90, display: "flex", flexDirection: "column",
                       alignItems: "center", justifyContent: "center",
-                      background: i === 42 ? `${rc.color}22` : "#111",
+                      background: i === 42 ? `linear-gradient(135deg, ${rc.color}33, ${rc.color}11)` : "#111",
                       borderRight: "1px solid #1a1a1a",
+                      boxShadow: i === 42 ? `inset 0 0 12px ${rc.color}44` : "none",
                     }}>
                       <div style={{ fontSize: "1.8rem" }}>{item.emoji}</div>
                       <div style={{ fontSize: 9, color: rc.color, fontWeight: 700, marginTop: 2 }}>{rc.label}</div>
@@ -247,20 +323,39 @@ export default function CaseOpening({ karma, onSpend, onWin }: Props) {
             <div style={{ width: 0, height: 0, borderLeft: "8px solid transparent", borderRight: "8px solid transparent", borderBottom: "10px solid #c8ff00", display: "inline-block" }} />
           </div>
 
-          {/* Reveal overlay */}
+          {/* Reveal overlay — zoom spring + confetti particles */}
           <AnimatePresence>
             {phase === "reveal" && winner && cfg && (
               <motion.div
-                initial={{ scale: 0.6, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: [0, 1.3, 1], opacity: 1 }}
                 exit={{ scale: 0.6, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 280, damping: 18 }}
                 style={{
-                  background: `${cfg.color}18`, border: `3px solid ${cfg.color}`,
-                  borderRadius: 20, padding: "20px", textAlign: "center", marginBottom: 12,
-                  boxShadow: `0 0 30px ${cfg.glow}`,
+                  background: `linear-gradient(135deg, ${cfg.color}28, ${cfg.color}0a)`,
+                  border: `3px solid ${cfg.color}`,
+                  borderRadius: 20, padding: "24px 20px", textAlign: "center", marginBottom: 12,
+                  boxShadow: `0 0 40px ${cfg.glow}, 0 0 80px ${cfg.glow}`,
+                  position: "relative", overflow: "hidden",
                 }}
               >
-                <div style={{ fontSize: "3.5rem" }}>{winner.emoji}</div>
+                {/* Shimmer sweep */}
+                <motion.div
+                  animate={{ x: ["-100%", "200%"] }}
+                  transition={{ duration: 1.2, delay: 0.3, ease: "easeOut" }}
+                  style={{
+                    position: "absolute", top: 0, left: 0, bottom: 0, width: "60%",
+                    background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)",
+                    pointerEvents: "none",
+                  }}
+                />
+                <motion.div
+                  animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  style={{ fontSize: "4rem", display: "block" }}
+                >
+                  {winner.emoji}
+                </motion.div>
                 <div style={{ fontSize: 18, fontWeight: 700, color: cfg.color, marginTop: 8 }}>{winner.name}</div>
                 <div style={{ fontSize: 12, color: cfg.color, opacity: 0.8, letterSpacing: "0.1em", marginTop: 4 }}>{cfg.label}</div>
               </motion.div>
@@ -278,9 +373,11 @@ export default function CaseOpening({ karma, onSpend, onWin }: Props) {
           </AnimatePresence>
 
           {/* Open button */}
-          <button
+          <motion.button
             onClick={handleOpen}
             disabled={phase === "spinning"}
+            whileHover={phase !== "spinning" ? { scale: 1.02 } : {}}
+            whileTap={phase !== "spinning" ? { scale: 0.97 } : {}}
             style={{
               width: "100%", padding: "18px",
               background: phase === "spinning"
@@ -290,12 +387,12 @@ export default function CaseOpening({ karma, onSpend, onWin }: Props) {
               borderRadius: 16, fontSize: 17, fontWeight: 700,
               color: phase === "spinning" ? "#555" : "#000",
               cursor: phase === "spinning" ? "default" : "pointer",
-              boxShadow: phase !== "spinning" ? `4px 4px 0px #000, 0 0 20px ${c.color}44` : "none",
+              boxShadow: phase !== "spinning" ? `4px 4px 0px #000, 0 0 24px ${c.color}66` : "none",
               letterSpacing: "0.04em",
             }}
           >
             {phase === "spinning" ? "🎰 Opening..." : phase === "reveal" ? "📦 OPEN AGAIN" : `📦 OPEN — ${c.price} ⚡`}
-          </button>
+          </motion.button>
 
           {/* Odds table */}
           <div style={{ marginTop: 16, padding: "12px", background: "#111", borderRadius: 12, border: "1px solid #1a1a1a" }}>
