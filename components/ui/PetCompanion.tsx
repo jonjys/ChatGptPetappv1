@@ -139,7 +139,7 @@ export default function PetCompanion() {
         style={{
           position: "fixed",
           bottom: 80,
-          right: 10,
+          right: "max(10px, calc(50vw - 280px + 10px))",
           zIndex: 48,
           width: 14,
           height: 14,
@@ -158,7 +158,7 @@ export default function PetCompanion() {
       style={{
         position: "fixed",
         bottom: 80,
-        right: 10,
+        right: "max(10px, calc(50vw - 280px + 10px))",
         zIndex: 48,
         display: "flex",
         flexDirection: "column",

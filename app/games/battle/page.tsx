@@ -36,7 +36,7 @@ export default function BattlePage() {
         )}
       </div>
 
-      <div className="px-2 pt-3 pb-6">
+      <div className="px-3 pt-3 pb-6">
         <PetBattle pet={pet} petEmoji={getPetEmoji(pet.evolution, pet.class)} onEnd={handleEnd} />
       </div>
     </div>

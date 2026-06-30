@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import { MAP_PINS } from "@/lib/mock-data";
 
 const PIN_COLORS: Record<string, string> = {
@@ -9,6 +10,7 @@ const PIN_COLORS: Record<string, string> = {
   event: "#ff6b35",
   player: "#00e5ff",
   hotspot: "#ff2d8d",
+  ville: "#5ec95a",
 };
 
 export default function KarmaMap() {
@@ -24,6 +26,7 @@ export default function KarmaMap() {
           { type: "event", label: "Events" },
           { type: "player", label: "Players" },
           { type: "hotspot", label: "Hotspot" },
+          { type: "ville", label: "Karma World" },
         ].map(({ type, label }) => (
           <div key={type} className="flex items-center gap-1.5">
             <span
@@ -85,7 +88,14 @@ export default function KarmaMap() {
           >
             <motion.div
               className="map-pin-bubble"
-              animate={selectedPin === pin.id ? { scale: 1.2 } : { scale: 1 }}
+              animate={
+                selectedPin === pin.id
+                  ? { scale: 1.2 }
+                  : pin.type === "ville"
+                  ? { scale: [1, 1.15, 1], boxShadow: ["0 0 0 0 #5ec95a55", "0 0 0 8px #5ec95a00", "0 0 0 0 #5ec95a55"] }
+                  : { scale: 1 }
+              }
+              transition={pin.type === "ville" && selectedPin !== pin.id ? { duration: 1.8, repeat: Infinity } : undefined}
               style={{
                 background: PIN_COLORS[pin.type],
                 borderColor: "#0a0a0a",
@@ -113,7 +123,23 @@ export default function KarmaMap() {
                 {selected.type}
               </div>
             </div>
-            {selected.xp > 0 && (
+            {selected.type === "ville" ? (
+              <Link
+                href={(selected as { href?: string }).href ?? "/ville"}
+                style={{
+                  background: "#0a0a0a",
+                  color: "#5ec95a",
+                  padding: "6px 12px",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  textDecoration: "none",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                🏙️ Besök →
+              </Link>
+            ) : selected.xp > 0 ? (
               <span
                 style={{
                   background: "#0a0a0a",
@@ -126,7 +152,7 @@ export default function KarmaMap() {
               >
                 +{selected.xp} XP
               </span>
-            )}
+            ) : null}
           </div>
         </motion.div>
       )}

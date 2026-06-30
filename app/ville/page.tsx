@@ -560,16 +560,28 @@ export default function VillePage() {
           </div>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)" }}>Tryck på rutan för att bygga</div>
         </div>
-        <button
-          onClick={() => setVisitorsOpen(true)}
-          style={{
-            background: "rgba(255,255,255,0.25)", border: "1.5px solid rgba(255,255,255,0.4)",
-            borderRadius: 10, padding: "6px 10px", fontSize: 11, fontWeight: 700,
-            color: "#fff", cursor: "pointer",
-          }}
-        >
-          👥 {VISITORS.length}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <Link
+            href="/map"
+            style={{
+              background: "rgba(255,255,255,0.25)", border: "1.5px solid rgba(255,255,255,0.4)",
+              borderRadius: 10, padding: "6px 10px", fontSize: 11, fontWeight: 700,
+              color: "#fff", textDecoration: "none", display: "inline-block",
+            }}
+          >
+            🗺️ Karta
+          </Link>
+          <button
+            onClick={() => setVisitorsOpen(true)}
+            style={{
+              background: "rgba(255,255,255,0.25)", border: "1.5px solid rgba(255,255,255,0.4)",
+              borderRadius: 10, padding: "6px 10px", fontSize: 11, fontWeight: 700,
+              color: "#fff", cursor: "pointer",
+            }}
+          >
+            👥 {VISITORS.length}
+          </button>
+        </div>
       </div>
 
       {/* Stats bar */}

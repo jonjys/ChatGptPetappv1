@@ -28,7 +28,7 @@ body {
 }
 
 body {
-  background: var(--bg);
+  background: #050505;
   color: var(--ink);
   font-family: var(--font-space-grotesk), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -178,8 +178,19 @@ body {
 
 /* ─── PAGE WRAPPER ────────────────────────────────── */
 .page-wrapper {
+  position: relative;
   min-height: 100dvh;
+  max-width: 560px;
+  margin: 0 auto;
   padding-bottom: 90px;
+  background: var(--bg);
+  overflow-x: hidden;
+}
+
+@media (min-width: 561px) {
+  .page-wrapper {
+    box-shadow: 0 0 60px rgba(0, 0, 0, 0.5);
+  }
 }
 
 /* ─── TYPOGRAPHY ──────────────────────────────────── */

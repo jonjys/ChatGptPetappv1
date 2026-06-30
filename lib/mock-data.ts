@@ -178,6 +178,7 @@ export const MAP_PINS = [
   { id: "m7", type: "bounty", emoji: "🎯", x: 15, y: 75, label: "Book Donation", xp: 100 },
   { id: "m8", type: "event", emoji: "⚡", x: 80, y: 20, label: "Community Day", xp: 300 },
   { id: "m9", type: "player", emoji: "👤", x: 30, y: 45, label: "neonmiku", xp: 0 },
+  { id: "m10", type: "ville", emoji: "🌍", x: 50, y: 12, label: "Din Karma World", xp: 0, href: "/ville" },
 ];
 
 export const LEADERBOARD = [
