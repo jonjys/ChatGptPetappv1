@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import type { Pet } from "@/types/pet";
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
@@ -48,14 +49,14 @@ interface TowerDef {
 }
 
 const TOWER_DEFS: Record<TowerType, TowerDef> = {
-  arrow:     { type:"arrow",     emoji:"🏹", name:"Archer",  cost:40,  fireRate:28,  damage:15,  color:"#a3e635", special:"none" },
-  karma:     { type:"karma",     emoji:"🔮", name:"Karma",   cost:80,  fireRate:55,  damage:30,  color:"#a855f7", special:"splash" },
-  freeze:    { type:"freeze",    emoji:"❄️", name:"Cryo",    cost:140, fireRate:90,  damage:10,  color:"#38bdf8", special:"freeze" },
-  lightning: { type:"lightning", emoji:"⚡", name:"Tesla",   cost:230, fireRate:75,  damage:50,  color:"#fbbf24", special:"chain" },
-  cannon:    { type:"cannon",    emoji:"💣", name:"Cannon",  cost:200, fireRate:120, damage:100, color:"#f97316", special:"heavy" },
-  poison:    { type:"poison",    emoji:"☠️", name:"Toxin",   cost:160, fireRate:70,  damage:8,   color:"#84cc16", special:"dot" },
-  sniper:    { type:"sniper",    emoji:"🎯", name:"Sniper",  cost:280, fireRate:150, damage:200, color:"#e2e8f0", special:"pierce" },
-  laser:     { type:"laser",     emoji:"🔴", name:"Laser",   cost:350, fireRate:8,   damage:6,   color:"#ef4444", special:"beam" },
+  arrow:     { type:"arrow",     emoji:"🏹", name:"Archer",  cost:40,  fireRate:32,  damage:13,  color:"#a3e635", special:"none" },
+  karma:     { type:"karma",     emoji:"🔮", name:"Karma",   cost:75,  fireRate:48,  damage:32,  color:"#a855f7", special:"splash" },
+  freeze:    { type:"freeze",    emoji:"❄️", name:"Cryo",    cost:110, fireRate:78,  damage:14,  color:"#38bdf8", special:"freeze" },
+  lightning: { type:"lightning", emoji:"⚡", name:"Tesla",   cost:260, fireRate:85,  damage:46,  color:"#fbbf24", special:"chain" },
+  cannon:    { type:"cannon",    emoji:"💣", name:"Cannon",  cost:170, fireRate:105, damage:95,  color:"#f97316", special:"heavy" },
+  poison:    { type:"poison",    emoji:"☠️", name:"Toxin",   cost:120, fireRate:62,  damage:10,  color:"#84cc16", special:"dot" },
+  sniper:    { type:"sniper",    emoji:"🎯", name:"Sniper",  cost:300, fireRate:145, damage:185, color:"#e2e8f0", special:"pierce" },
+  laser:     { type:"laser",     emoji:"🔴", name:"Laser",   cost:230, fireRate:7,   damage:9,   color:"#ef4444", special:"beam" },
 };
 const TOWER_TYPES = Object.keys(TOWER_DEFS) as TowerType[];
 
@@ -127,7 +128,7 @@ interface Tower {
   id: string; type: TowerType;
   lane: number; slot: number;
   level: number; cooldown: number; damage: number; fireRate: number;
-  flash: number;
+  flash: number; spawnFrame: number;
 }
 
 interface Enemy {
@@ -154,6 +155,10 @@ interface DmgNumber {
   life: number; maxLife: number; crit: boolean;
 }
 
+interface LevelPopup {
+  id: string; level: number; life: number; maxLife: number;
+}
+
 type Phase = "idle"|"wave"|"between"|"gameover";
 
 interface GS {
@@ -173,6 +178,7 @@ interface GS {
   talentPts: number; talents: Set<TalentId>;
   waveTotal: number; waveKilled: number;
   dmgNumbers: DmgNumber[];
+  runXp: number; runLevel: number; levelPopups: LevelPopup[];
 }
 
 // ─── Talent helpers ────────────────────────────────────────────────────────────
@@ -219,6 +225,29 @@ const laneCenter = (l: number) => LANE_Y[l] + LANE_H / 2;
 const slotXY = (lane: number, slot: number) => ({ x: SLOTS[slot], y: laneCenter(lane) });
 const getTheme = (wave: number) => THEMES[Math.floor(wave / 10) % THEMES.length];
 
+function easeOutBack(t: number) {
+  const c1 = 1.70158, c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+}
+
+function runLevelForXp(xp: number): number {
+  let lvl = 1, need = 70, total = 0;
+  while (xp >= total + need) { total += need; lvl++; need = Math.floor(need * 1.16); }
+  return lvl;
+}
+
+function gainRunXp(s: GS, amount: number) {
+  if (amount <= 0) return;
+  s.runXp += amount;
+  const newLevel = runLevelForXp(s.runXp);
+  if (newLevel > s.runLevel) {
+    for (let lv = s.runLevel + 1; lv <= newLevel; lv++) {
+      s.levelPopups.push({ id: mkId(), level: lv, life: 150, maxLife: 150 });
+    }
+    s.runLevel = newLevel;
+  }
+}
+
 function spawnBurst(s: GS, x: number, y: number, color: string, n = 7, spd = 3.5) {
   for (let i = 0; i < n; i++) {
     const a = (Math.PI * 2 * i) / n + Math.random() * 0.6;
@@ -237,6 +266,7 @@ function doKillEnemy(s: GS, enemy: Enemy) {
   if (s.comboMult !== prev) { s.comboFlash = 90; s.comboLabel = `x${s.comboMult} COMBO!`; }
   const earned = Math.floor(def.reward * s.comboMult * talentGoldMult(s));
   s.localKarma += earned; s.earnedKarma += earned; s.waveBonus += earned;
+  gainRunXp(s, earned);
   if (enemy.type === "exploder") {
     spawnBurst(s, enemy.x, laneCenter(enemy.lane), "#fb923c", 14, 6);
     s.baseHp = Math.max(0, s.baseHp - 5);
@@ -313,7 +343,26 @@ function mkGS(): GS {
     talentPts:0, talents: new Set<TalentId>(),
     waveTotal:0, waveKilled:0,
     dmgNumbers:[],
+    runXp:0, runLevel:1, levelPopups:[],
   };
+}
+
+// ─── Count-up "zip" number ───────────────────────────────────────────────────
+function CountUpNumber({ value, duration = 1100 }: { value: number; duration?: number }) {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    let raf = 0;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplay(Math.floor(value * eased));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration]);
+  return <>{display.toLocaleString()}</>;
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────────
@@ -365,6 +414,9 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
     // Damage numbers float up and fade
     for (const dn of s.dmgNumbers) { dn.y -= 1.1; dn.life--; }
     s.dmgNumbers = s.dmgNumbers.filter(d => d.life > 0);
+    // Level popups decay
+    for (const lp of s.levelPopups) lp.life--;
+    s.levelPopups = s.levelPopups.filter(lp => lp.life > 0);
     // Tower fire flash decay
     for (const t of s.towers) { if (t.flash > 0) t.flash--; }
 
@@ -403,7 +455,7 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
         // Poison
         if (enemy.poisoned > 0) {
           enemy.poisoned--;
-          if (enemy.poisoned % 30 === 0 && enemy.poisoned > 0) {
+          if (enemy.poisoned % 24 === 0 && enemy.poisoned > 0) {
             const pdmg = Math.max(1, enemy.poisonDmg);
             if (enemy.shield > 0) enemy.shield = Math.max(0, enemy.shield - pdmg);
             else { enemy.hp -= pdmg; enemy.hitFlash = 4; }
@@ -463,19 +515,22 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
             }
           } else if (tower.type === "freeze") {
             const t = laneEn[0];
-            if (t) { applyDmgToEnemy(s, tower, t, tower.damage, def, pos); if (s.enemies.find(e => e.id === t.id)) t.frozen = 180; }
+            if (t) { applyDmgToEnemy(s, tower, t, tower.damage, def, pos); if (s.enemies.find(e => e.id === t.id)) t.frozen = 140 + tower.level * 45; }
           } else if (tower.type === "cannon") {
             const t = laneEn[0];
-            if (t) { for (const e of laneEn.filter(e => Math.abs(e.x - t.x) < 55)) applyDmgToEnemy(s, tower, e, tower.damage, def, pos); }
+            if (t) { for (const e of laneEn.filter(e => Math.abs(e.x - t.x) < 72)) applyDmgToEnemy(s, tower, e, tower.damage, def, pos); }
           } else if (tower.type === "poison") {
             const t = laneEn[0];
-            if (t) { applyDmgToEnemy(s, tower, t, tower.damage, def, pos); if (s.enemies.find(e=>e.id===t.id)) { t.poisoned = 240; t.poisonDmg = 8; } }
+            if (t) { applyDmgToEnemy(s, tower, t, tower.damage, def, pos); if (s.enemies.find(e=>e.id===t.id)) { t.poisoned = 240; t.poisonDmg = Math.max(6, Math.floor(tower.damage * 0.9)); } }
           } else if (tower.type === "sniper") {
             const t = [...s.enemies].filter(e => e.lane === tower.lane).sort((a,b) => b.hp - a.hp)[0];
             if (t) applyDmgToEnemy(s, tower, t, tower.damage, def, pos);
           } else if (tower.type === "karma") {
             for (let i = 0; i < Math.min(3, laneEn.length); i++)
-              applyDmgToEnemy(s, tower, laneEn[i], Math.floor(tower.damage * (i === 0 ? 1 : 0.55)), def, pos);
+              applyDmgToEnemy(s, tower, laneEn[i], Math.floor(tower.damage * (i === 0 ? 1 : 0.65)), def, pos);
+          } else if (tower.type === "laser") {
+            applyDmgToEnemy(s, tower, laneEn[0], tower.damage, def, pos);
+            if (laneEn[1]) applyDmgToEnemy(s, tower, laneEn[1], Math.floor(tower.damage * 0.65), def, pos);
           } else {
             applyDmgToEnemy(s, tower, laneEn[0], tower.damage, def, pos);
             if (hasTalent(s, "death_ray") && laneEn[1]) {
@@ -491,6 +546,7 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
           const baseBonus = 20 + s.wave * 5 + goldRushBonus;
           const bonus = Math.floor(baseBonus * talentWaveBonusMult(s));
           s.localKarma += bonus; s.earnedKarma += bonus; s.waveBonus += bonus;
+          gainRunXp(s, bonus);
           s.talentPts++;
           s.phase = "between"; s.betweenTimer = 600;
           const cols = ["#c8ff00","#ff2d8d","#00e5ff","#fbbf24","#a855f7"];
@@ -640,17 +696,20 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
       const def = TOWER_DEFS[tower.type];
       const isSel = selTowerRef.current?.id === tower.id;
       const fs = tower.level===3 ? 26 : tower.level===2 ? 21 : 17;
+      // Pop-in spawn animation (elastic overshoot)
+      const spawnAge = f - tower.spawnFrame;
+      const popScale = spawnAge < 14 ? Math.max(0.05, easeOutBack(Math.min(1, spawnAge/14))) : 1;
       // Dim range ring (always visible — shows tower coverage)
       ctx.strokeStyle=def.color+"18"; ctx.lineWidth=0.7; ctx.setLineDash([4,9]);
       ctx.beginPath(); ctx.arc(p.x,laneCenter(tower.lane),70,0,Math.PI*2); ctx.stroke();
       ctx.setLineDash([]);
       // Platform base
-      const baseR = tower.level===3?20:tower.level===2?17:14;
-      const platformGrad = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,baseR);
+      const baseR = (tower.level===3?20:tower.level===2?17:14) * popScale;
+      const platformGrad = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,Math.max(0.1,baseR));
       platformGrad.addColorStop(0, def.color+"44"); platformGrad.addColorStop(1, def.color+"08");
-      ctx.fillStyle=platformGrad; ctx.beginPath(); ctx.arc(p.x,p.y,baseR,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=platformGrad; ctx.beginPath(); ctx.arc(p.x,p.y,Math.max(0.1,baseR),0,Math.PI*2); ctx.fill();
       ctx.strokeStyle=def.color+"66"; ctx.lineWidth=1.5;
-      ctx.beginPath(); ctx.arc(p.x,p.y,baseR,0,Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(p.x,p.y,Math.max(0.1,baseR),0,Math.PI*2); ctx.stroke();
       // Range ring when selected
       if (isSel) {
         ctx.strokeStyle=def.color+"33"; ctx.lineWidth=1; ctx.setLineDash([4,6]);
@@ -659,8 +718,8 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
         ctx.strokeRect(p.x-18,p.y-18,36,36);
       }
       // Tower emoji with glow
-      ctx.shadowColor=def.color; ctx.shadowBlur=(tower.level===3?28:tower.level===2?16:8)+(tower.flash>0?tower.flash*3:0);
-      ctx.font=`${fs}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.shadowColor=def.color; ctx.shadowBlur=((tower.level===3?28:tower.level===2?16:8)+(tower.flash>0?tower.flash*3:0))*popScale;
+      ctx.font=`${Math.max(1,fs*popScale)}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
       ctx.fillText(def.emoji, p.x, p.y); ctx.shadowBlur=0;
       // Level pips (stars for L3)
       for (let lv=1;lv<=3;lv++) {
@@ -946,21 +1005,9 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
       ctx.globalAlpha=1;
     }
 
-    // ── Game over overlay ─────────────────────────────────────────────────────
+    // ── Game over dim (rich summary rendered as HTML overlay) ─────────────────
     if (s.phase==="gameover") {
-      ctx.fillStyle="rgba(0,0,0,0.88)"; ctx.fillRect(0,0,GW,GH);
-      ctx.font="bold 30px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
-      ctx.fillStyle="#f87171"; ctx.shadowColor="#f87171"; ctx.shadowBlur=28;
-      ctx.fillText("💀 GAME OVER",GW/2,GH/2-56); ctx.shadowBlur=0;
-      ctx.font="bold 16px sans-serif"; ctx.fillStyle="#fbbf24"; ctx.fillText(`Wave ${s.wave} reached`,GW/2,GH/2-22);
-      ctx.font="13px monospace"; ctx.fillStyle="#a3e635"; ctx.fillText(`⚡ ${s.earnedKarma} karma earned`,GW/2,GH/2+6);
-      if (s.wave>0&&s.wave>=s.bestWave) {
-        ctx.fillStyle="#c8ff00"; ctx.font="bold 14px sans-serif";
-        ctx.shadowColor="#c8ff00"; ctx.shadowBlur=16;
-        ctx.fillText("🏆 NEW RECORD!",GW/2,GH/2+34); ctx.shadowBlur=0;
-      }
-      // Tap hint
-      ctx.fillStyle="#333"; ctx.font="9px monospace"; ctx.fillText("Tap PLAY AGAIN to restart",GW/2,GH/2+58);
+      ctx.fillStyle="rgba(0,0,0,0.82)"; ctx.fillRect(0,0,GW,GH);
     }
   }, [petEmoji]);
 
@@ -1008,7 +1055,7 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
     if (s.towers.some(t=>t.lane===slot.lane&&t.slot===slot.slot)) return;
     s.localKarma-=def.cost;
     if (type==="freeze") s.baseShield+=30;
-    s.towers.push({ id:mkId(), type, lane:slot.lane, slot:slot.slot, level:1, cooldown:def.fireRate, damage:def.damage, fireRate:def.fireRate, flash:0 });
+    s.towers.push({ id:mkId(), type, lane:slot.lane, slot:slot.slot, level:1, cooldown:def.fireRate, damage:def.damage, fireRate:def.fireRate, flash:0, spawnFrame:s.frame });
     spawnBurst(s, SLOTS[slot.slot], laneCenter(slot.lane), def.color, 8, 2.5);
     selSlotRef.current=null; selTowerRef.current=null; setSelSlot(null); setSelTower(null);
     setUiKarma(s.localKarma);
@@ -1138,12 +1185,73 @@ export default function PetBattle({ pet, petEmoji: petEmojiProp, onEnd, onWin }:
 
   return (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", userSelect:"none", WebkitUserSelect:"none" } as React.CSSProperties}>
-      <canvas
-        ref={canvasRef} width={GW} height={GH}
-        onClick={handleCanvas}
-        onTouchStart={e=>{ e.preventDefault(); handleCanvas(e); }}
-        style={{ width:"100%", height:"auto", display:"block", cursor:"pointer", touchAction:"manipulation", borderRadius:"14px 14px 0 0", border:"2px solid rgba(168,85,247,0.35)", borderBottom:"none" }}
-      />
+      <div style={{ position:"relative", width:"100%" }}>
+        <canvas
+          ref={canvasRef} width={GW} height={GH}
+          onClick={handleCanvas}
+          onTouchStart={e=>{ e.preventDefault(); handleCanvas(e); }}
+          style={{ width:"100%", height:"auto", display:"block", cursor:"pointer", touchAction:"manipulation", borderRadius:"14px 14px 0 0", border:"2px solid rgba(168,85,247,0.35)", borderBottom:"none" }}
+        />
+
+        {/* ── In-run level-up popups ── */}
+        <div style={{ position:"absolute", top:10, left:0, right:0, display:"flex", flexDirection:"column", alignItems:"center", gap:6, pointerEvents:"none", zIndex:20 }}>
+          <AnimatePresence>
+            {sRef.current.levelPopups.slice(0,3).map(lp => (
+              <motion.div key={lp.id}
+                initial={{ opacity:0, y:-30, scale:0.6 }}
+                animate={{ opacity:1, y:0, scale:1 }}
+                exit={{ opacity:0, y:-20, scale:0.7 }}
+                transition={{ type:"spring", stiffness:300, damping:18 }}
+                style={{ background:"linear-gradient(135deg,#c8ff00,#7fd400)", color:"#000", fontWeight:900, fontSize:13, padding:"7px 16px", borderRadius:999, boxShadow:"0 0 24px rgba(200,255,0,0.7), 0 4px 0 rgba(0,0,0,0.3)", letterSpacing:"0.04em", display:"flex", alignItems:"center", gap:6 }}>
+                <span style={{ fontSize:16 }}>⭐</span> LEVEL UP! <span style={{ fontSize:16 }}>Lv.{lp.level}</span>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+
+        {/* ── Death / game-over summary ── */}
+        <AnimatePresence>
+          {isOver && (
+            <motion.div
+              initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+              style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", zIndex:30, padding:16 }}>
+              <motion.div
+                initial={{ scale:0.7, y:30, opacity:0 }} animate={{ scale:1, y:0, opacity:1 }}
+                transition={{ type:"spring", stiffness:200, damping:18 }}
+                style={{ width:"100%", maxWidth:300, background:"linear-gradient(160deg,rgba(10,0,20,0.97),rgba(20,0,35,0.97))", border:"2px solid #a855f7", borderRadius:18, padding:"18px 16px", textAlign:"center", boxShadow:"0 0 50px rgba(168,85,247,0.5)" }}>
+                <div style={{ fontSize:32 }}>💀</div>
+                <div style={{ fontSize:17, fontWeight:900, color:"#f87171", letterSpacing:"0.06em", marginTop:2 }}>GAME OVER</div>
+                <div style={{ fontSize:12, color:"#fbbf24", fontWeight:700, marginTop:4 }}>Wave {sRef.current.wave} reached</div>
+                {sRef.current.wave>0 && sRef.current.wave>=sRef.current.bestWave && (
+                  <div style={{ marginTop:7, display:"inline-block", background:"rgba(200,255,0,0.12)", border:"1.5px solid #c8ff00", borderRadius:8, padding:"3px 10px", color:"#c8ff00", fontWeight:800, fontSize:10 }}>🏆 NEW RECORD!</div>
+                )}
+
+                <div style={{ display:"flex", gap:8, marginTop:14 }}>
+                  <div style={{ flex:1, background:"rgba(255,255,255,0.04)", borderRadius:12, padding:"9px 4px" }}>
+                    <div style={{ fontSize:8, color:"#888", fontWeight:700, letterSpacing:"0.08em" }}>KARMA EARNED</div>
+                    <div style={{ fontSize:18, fontWeight:900, color:"#a3e635", marginTop:3 }}>⚡<CountUpNumber value={sRef.current.earnedKarma} /></div>
+                  </div>
+                  <div style={{ flex:1, background:"rgba(255,255,255,0.04)", borderRadius:12, padding:"9px 4px" }}>
+                    <div style={{ fontSize:8, color:"#888", fontWeight:700, letterSpacing:"0.08em" }}>TOTAL XP</div>
+                    <div style={{ fontSize:18, fontWeight:900, color:"#38bdf8", marginTop:3 }}>✨<CountUpNumber value={sRef.current.runXp} /></div>
+                  </div>
+                </div>
+
+                {sRef.current.runLevel > 1 && (
+                  <motion.div
+                    initial={{ scale:0.5, opacity:0 }} animate={{ scale:1, opacity:1 }} transition={{ delay:0.5, type:"spring", stiffness:220 }}
+                    style={{ marginTop:12, background:"linear-gradient(135deg,#c8ff00,#7fd400)", borderRadius:14, padding:"9px 14px" }}>
+                    <div style={{ fontSize:10, fontWeight:800, color:"#000", letterSpacing:"0.04em" }}>⭐ YOU LEVELED UP</div>
+                    <div style={{ fontSize:24, fontWeight:900, color:"#000" }}><CountUpNumber value={sRef.current.runLevel - 1} duration={1400} /> TIMES</div>
+                  </motion.div>
+                )}
+
+                <div style={{ fontSize:9, color:"#444", marginTop:12 }}>Tap PLAY AGAIN below to restart</div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* ── Bottom HUD — real TD game panel ── */}
       <div style={{ width:"100%", background:"linear-gradient(180deg,rgba(4,0,14,0.98) 0%,rgba(8,2,22,0.99) 100%)", border:"1.5px solid rgba(168,85,247,0.3)", borderTop:"2px solid rgba(168,85,247,0.5)", borderRadius:"0 0 16px 16px", padding:"8px 8px 10px", display:"flex", flexDirection:"column", gap:6 }}>
