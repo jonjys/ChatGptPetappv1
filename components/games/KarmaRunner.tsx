@@ -1173,7 +1173,7 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     setFin({ score: 0, karma: 0, maxCombo: 0, timeSec: 0, dist: 0 });
     setUi({ combo: 0, karmaChain: 0, shield: false, speed: BASE_SPD, lane: 0, world: 0 });
     setCopied(false); setShaking(false);
-    requestAnimationFrame(draw);
+    raf.current = requestAnimationFrame(draw);
   }
 
   function copyScore() {
@@ -1189,7 +1189,7 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       if (e.code === "ArrowUp" && e.shiftKey) { const g = gs.current; g.lane = Math.min(2, g.lane + 1); }
     };
     window.addEventListener("keydown", fn); return () => window.removeEventListener("keydown", fn);
-  });
+  }, []);
 
   const formatTime = (s: number) => `${Math.floor(s / 60)}m ${s % 60}s`;
   const speedMult = (ui.speed / BASE_SPD).toFixed(1);

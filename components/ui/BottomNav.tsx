@@ -63,7 +63,7 @@ export default function BottomNav() {
         WebkitBackdropFilter: "blur(12px)",
       }}
     >
-      <div className="flex items-center justify-around px-1 py-1.5">
+      <div className="flex items-center justify-around px-1 pt-1.5" style={{ paddingBottom: "calc(6px + env(safe-area-inset-bottom))" }}>
         {TABS.map(tab => {
           const active = path === tab.href || path.startsWith(tab.href + "/");
           const Icon = tab.icon;

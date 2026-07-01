@@ -322,11 +322,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // Daily login bonus
     const savedBonusDate = localStorage.getItem(STORE.dailyBonus) ?? "";
+    let bonusTimer: ReturnType<typeof setTimeout> | null = null;
     if (savedBonusDate !== today) {
       localStorage.setItem(STORE.dailyBonus, today);
       const str = load<number>(STORE.streak, 0);
       const bonusKarma = str >= 30 ? 500 : str >= 14 ? 300 : str >= 7 ? 200 : str >= 3 ? 100 : 50;
-      setTimeout(() => {
+      bonusTimer = setTimeout(() => {
         setUser(u => {
           const nk = u.karma + bonusKarma;
           localStorage.setItem(STORE.karma, String(nk));
@@ -335,6 +336,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         showToast(`Daily bonus! Streak ${str}d`, bonusKarma, "#ffde00", "🎁");
       }, 1800);
     }
+    return () => { if (bonusTimer) clearTimeout(bonusTimer); };
   }, []);
 
   // ── Pet needs decay (every 45s) ────────────────────────────────────────────

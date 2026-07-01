@@ -42,10 +42,12 @@ export default function LandingPage() {
   const rafRef = useRef<number>(0);
 
   useEffect(() => {
-    const karma = localStorage.getItem("karma_total_v1");
-    const created = localStorage.getItem("pet_created_v1");
-    const petData = localStorage.getItem("karma_pet_v1");
-    if (karma || created || petData) {
+    // Check any sign that the user has already onboarded
+    const created     = localStorage.getItem("pet_created_v1");
+    const petCreated  = localStorage.getItem("karma_pet_created_v1");
+    const savedKarma  = localStorage.getItem("karma_user_karma_v2");
+    const savedXP     = localStorage.getItem("karma_user_xp_v2");
+    if (created || petCreated || savedKarma || savedXP) {
       router.replace("/feed");
       return;
     }
