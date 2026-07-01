@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, Send, MapPin, Trophy } from "lucide-react";
+import { ChevronLeft, Send, MapPin, Trophy, Camera, Video, Image } from "lucide-react";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 
@@ -24,8 +24,10 @@ const DIFFICULTIES = [
   { id: "legendary", label: "Legendary", xp: 400, color: "#e8d5ff", text: "#4c1d95" },
 ];
 
+type MediaPreview = { url: string; type: "image" | "video" };
+
 export default function CreatePage() {
-  const { addXP } = useApp();
+  const { addXP, showToast } = useApp();
   const [type, setType] = useState<PostType>("bounty");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -33,8 +35,21 @@ export default function CreatePage() {
   const [difficulty, setDifficulty] = useState("medium");
   const [includeLocation, setIncludeLocation] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [media, setMedia] = useState<MediaPreview | null>(null);
+
+  const photoRef   = useRef<HTMLInputElement>(null);
+  const videoRef   = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
 
   const selectedDiff = DIFFICULTIES.find((d) => d.id === difficulty)!;
+
+  function handleMedia(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setMedia({ url, type: file.type.startsWith("video") ? "video" : "image" });
+    e.target.value = "";
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -45,6 +60,7 @@ export default function CreatePage() {
       setSubmitted(false);
       setTitle("");
       setDescription("");
+      setMedia(null);
     }, 2500);
   }
 
@@ -137,6 +153,11 @@ export default function CreatePage() {
         </div>
 
         {/* Form */}
+        {/* Hidden inputs */}
+        <input ref={photoRef}   type="file" accept="image/*"  capture="environment" style={{ display: "none" }} onChange={handleMedia} />
+        <input ref={videoRef}   type="file" accept="video/*"  capture="environment" style={{ display: "none" }} onChange={handleMedia} />
+        <input ref={galleryRef} type="file" accept="image/*,video/*"                style={{ display: "none" }} onChange={handleMedia} />
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Title */}
           <div className="neo-card p-4">
@@ -178,6 +199,35 @@ export default function CreatePage() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
+          </div>
+
+          {/* Media upload */}
+          <div className="neo-card p-4">
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", marginBottom: 10, color: "#555" }}>MEDIA</div>
+            {media ? (
+              <div style={{ position: "relative", display: "inline-block" }}>
+                {media.type === "image"
+                  ? <img src={media.url} alt="" style={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: 12, border: "2.5px solid #0a0a0a" }} />
+                  : <video src={media.url} controls style={{ width: "100%", maxHeight: 200, borderRadius: 12, border: "2.5px solid #0a0a0a" }} />
+                }
+                <button type="button" onClick={() => setMedia(null)}
+                  style={{ position: "absolute", top: 6, right: 6, background: "#ff4444", border: "none", borderRadius: "50%", width: 24, height: 24, color: "#fff", fontSize: 13, cursor: "pointer", fontWeight: 700 }}>✕</button>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                {[
+                  { icon: <Camera size={18} />, label: "Foto", action: () => photoRef.current?.click() },
+                  { icon: <Video size={18} />,  label: "Video", action: () => videoRef.current?.click() },
+                  { icon: <Image size={18} />,  label: "Galleri", action: () => galleryRef.current?.click() },
+                ].map(btn => (
+                  <button key={btn.label} type="button" onClick={btn.action}
+                    style={{ padding: "12px 8px", background: "#faf7f2", border: "2px solid #0a0a0a", borderRadius: 12, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+                    {btn.icon}
+                    <span style={{ fontSize: 10, fontWeight: 700 }}>{btn.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Category */}

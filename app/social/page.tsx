@@ -306,6 +306,18 @@ function CreatePostModal({ onClose, onPost, accent }: {
   const [caption, setCaption] = useState("");
   const [type, setType] = useState<CreateType>("STORY");
   const [posted, setPosted] = useState(false);
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<"image" | "video">("image");
+  const mediaInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  function handleMedia(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setMediaUrl(URL.createObjectURL(file));
+    setMediaType(file.type.startsWith("video") ? "video" : "image");
+    e.target.value = "";
+  }
 
   function handlePost() {
     if (!caption.trim()) return;
@@ -347,6 +359,10 @@ function CreatePostModal({ onClose, onPost, accent }: {
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: "1.3rem", cursor: "pointer", color: "#888" }}>✕</button>
         </div>
 
+        {/* Hidden file inputs */}
+        <input ref={mediaInputRef}  type="file" accept="image/*,video/*"                style={{ display: "none" }} onChange={handleMedia} />
+        <input ref={cameraInputRef} type="file" accept="image/*"  capture="environment" style={{ display: "none" }} onChange={handleMedia} />
+
         {posted ? (
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
@@ -381,6 +397,32 @@ function CreatePostModal({ onClose, onPost, accent }: {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Media preview or add buttons */}
+            <div style={{ marginBottom: 14 }}>
+              {mediaUrl ? (
+                <div style={{ position: "relative", marginBottom: 10 }}>
+                  {mediaType === "image"
+                    ? <img src={mediaUrl} alt="" style={{ width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 14, border: `2px solid ${accent}44` }} />
+                    : <video src={mediaUrl} controls style={{ width: "100%", maxHeight: 180, borderRadius: 14, border: `2px solid ${accent}44` }} />
+                  }
+                  <button type="button" onClick={() => setMediaUrl(null)}
+                    style={{ position: "absolute", top: 6, right: 6, background: "#ff4444", border: "none", borderRadius: "50%", width: 24, height: 24, color: "#fff", fontSize: 12, cursor: "pointer", fontWeight: 700 }}>✕</button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                  {[
+                    { label: "📷 Foto",   action: () => cameraInputRef.current?.click() },
+                    { label: "🖼️ Galleri", action: () => mediaInputRef.current?.click() },
+                    { label: "🎥 Video",  action: () => mediaInputRef.current?.click() },
+                  ].map(btn => (
+                    <button key={btn.label} type="button" onClick={btn.action} style={{ flex: 1, padding: "9px 4px", background: "#1a1a1a", border: `1.5px solid ${accent}33`, borderRadius: 10, fontSize: 11, fontWeight: 700, color: "#aaa", cursor: "pointer" }}>
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Caption */}
