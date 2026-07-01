@@ -64,16 +64,16 @@ const BHEIGHTS: Record<string, number> = {
   lab: 68, stadium: 90, bank: 62, tower: 110, castle: 130,
 };
 
-// Tile top face colors (grassy / path variation)
-const TILE_COLORS = ["#5ec95a", "#58c254", "#62d05d", "#54bc50"];
+// Tile top face colors (dark cyberpunk grid)
+const TILE_COLORS = ["rgba(60,20,180,0.35)", "rgba(50,15,160,0.30)", "rgba(70,25,200,0.38)", "rgba(45,10,150,0.28)"];
 const PATH_TILES = new Set(["1,1","2,1","1,2","2,2"]);
 
-// Building top face colors
+// Building top face colors — dark cyberpunk tinted
 const BTOP: Record<string, string> = {
-  house:   "#f5e6d0", school:  "#b3d9f5", gym:     "#f5c4a0",
-  cafe:    "#e8cff5", market:  "#f5c4d9", lab:     "#b3f5ef",
-  stadium: "#f5e8b3", bank:    "#d0f5d0", tower:   "#f5dab3",
-  castle:  "#e8b3f5",
+  house:   "#1a2e00", school:  "#001a3a", gym:     "#2a1200",
+  cafe:    "#1a0a2e", market:  "#2e001a", lab:     "#002a2e",
+  stadium: "#2e2800", bank:    "#002200", tower:   "#2a1800",
+  castle:  "#1e0028",
 };
 
 const VISITORS = [
@@ -98,65 +98,71 @@ function renderWorld(
   const W = canvas.width;
   const H = canvas.height;
 
-  // Sky gradient — bright and sunny
-  const sky = ctx.createLinearGradient(0, 0, 0, H * 0.55);
-  sky.addColorStop(0, "#5ab8f5");
-  sky.addColorStop(0.7, "#a8d8f0");
-  sky.addColorStop(1, "#d4edf9");
+  // Sky gradient — dark cyberpunk dusk/night
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0,   "#0a0020");
+  sky.addColorStop(0.4, "#1a0040");
+  sky.addColorStop(0.7, "#0d1a2d");
+  sky.addColorStop(1,   "#050a15");
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, H);
 
-  // Bottom ground strip
-  const ground = ctx.createLinearGradient(0, H * 0.55, 0, H);
-  ground.addColorStop(0, "#d4edf9");
-  ground.addColorStop(1, "#c5e0d5");
-  ctx.fillStyle = ground;
-  ctx.fillRect(0, H * 0.55, W, H * 0.45);
-
-  // Sun
-  const SX = W * 0.82, SY = 42;
-  ctx.save();
-  ctx.shadowColor = "#ffe066";
-  ctx.shadowBlur = 40;
-  ctx.beginPath();
-  ctx.arc(SX, SY, 26, 0, Math.PI * 2);
-  ctx.fillStyle = "#ffe57a";
-  ctx.fill();
-  ctx.restore();
-
-  // Sun rays
-  for (let i = 0; i < 8; i++) {
-    const angle = (i / 8) * Math.PI * 2 + frame * 0.008;
-    const r1 = 32, r2 = 46;
-    ctx.save();
-    ctx.globalAlpha = 0.25;
-    ctx.strokeStyle = "#ffe57a";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(SX + Math.cos(angle) * r1, SY + Math.sin(angle) * r1);
-    ctx.lineTo(SX + Math.cos(angle) * r2, SY + Math.sin(angle) * r2);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  // Clouds
-  const clouds = [
-    { x: W * 0.12 + Math.sin(frame * 0.004) * 8, y: 35, r: 18 },
-    { x: W * 0.35 + Math.sin(frame * 0.003 + 1) * 10, y: 22, r: 14 },
-    { x: W * 0.6  + Math.sin(frame * 0.005 + 2) * 6, y: 48, r: 12 },
+  // Static stars (seeded by position)
+  const starPositions = [
+    [0.08, 0.06], [0.18, 0.14], [0.32, 0.04], [0.48, 0.10],
+    [0.62, 0.07], [0.75, 0.15], [0.88, 0.03], [0.14, 0.22],
+    [0.55, 0.18], [0.92, 0.20], [0.40, 0.25], [0.70, 0.28],
+    [0.25, 0.30], [0.85, 0.12], [0.05, 0.32], [0.60, 0.35],
   ];
-  clouds.forEach(c => {
+  starPositions.forEach(([sx, sy], i) => {
+    const twinkle = Math.sin(frame * 0.06 + i * 1.3) * 0.4 + 0.6;
     ctx.save();
-    ctx.shadowColor = "rgba(255,255,255,0.5)";
-    ctx.shadowBlur = 10;
-    ctx.fillStyle = "rgba(255,255,255,0.88)";
-    for (const [dx, dy, dr] of [[0,0,1],[14,0,0.9],[-12,4,0.8],[6,-8,0.75]]) {
-      ctx.beginPath();
-      ctx.arc(c.x + dx, c.y + dy, c.r * dr, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    ctx.globalAlpha = twinkle * 0.9;
+    ctx.fillStyle = i % 3 === 0 ? "#c8ff00" : i % 3 === 1 ? "#00e5ff" : "#ffffff";
+    ctx.beginPath();
+    ctx.arc(sx * W, sy * H * 0.85, i % 4 === 0 ? 2 : 1.2, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   });
+
+  // Neon moon (full circle, glowing)
+  const MX = W * 0.82, MY = 38;
+  ctx.save();
+  ctx.shadowColor = "#c8ff00";
+  ctx.shadowBlur = 28;
+  ctx.beginPath();
+  ctx.arc(MX, MY, 20, 0, Math.PI * 2);
+  ctx.fillStyle = "#d4f060";
+  ctx.fill();
+  // Slightly darker inner circle for depth
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 0.35;
+  ctx.fillStyle = "#8aaa00";
+  ctx.beginPath();
+  ctx.arc(MX + 6, MY - 4, 12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  // Moon glow ring
+  ctx.save();
+  ctx.globalAlpha = 0.18 + Math.sin(frame * 0.04) * 0.06;
+  ctx.strokeStyle = "#c8ff00";
+  ctx.lineWidth = 2;
+  ctx.shadowColor = "#c8ff00";
+  ctx.shadowBlur = 12;
+  ctx.beginPath();
+  ctx.arc(MX, MY, 28, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  // Distant city glow on horizon
+  ctx.save();
+  const cityGlow = ctx.createLinearGradient(0, H * 0.42, 0, H * 0.55);
+  cityGlow.addColorStop(0, "rgba(100,0,200,0)");
+  cityGlow.addColorStop(0.5, "rgba(100,0,255,0.12)");
+  cityGlow.addColorStop(1, "rgba(50,0,120,0.06)");
+  ctx.fillStyle = cityGlow;
+  ctx.fillRect(0, H * 0.42, W, H * 0.13);
+  ctx.restore();
 
   // ── Isometric grid origin ────────────────────────────────────────────────
   const OX = W / 2;
@@ -197,9 +203,10 @@ function renderWorld(
 
       // Ground tile top
       const tileColor = isPath
-        ? "#c8a96e"
+        ? "rgba(180,255,0,0.12)"
         : TILE_COLORS[(col * 3 + row * 2) % TILE_COLORS.length];
-      drawDiamond(x, y, tileColor, "rgba(255,255,255,0.25)");
+      const tileStroke = isPath ? "rgba(200,255,0,0.35)" : "rgba(100,60,255,0.45)";
+      drawDiamond(x, y, tileColor, tileStroke);
 
       // Tile thickness (left side)
       ctx.beginPath();
@@ -208,8 +215,11 @@ function renderWorld(
       ctx.lineTo(x, y + TILE_H + TILE_DEPTH);
       ctx.lineTo(x - TILE_W / 2, y + TILE_H / 2 + TILE_DEPTH);
       ctx.closePath();
-      ctx.fillStyle = isPath ? "#a08050" : "#3a8a36";
+      ctx.fillStyle = isPath ? "rgba(120,180,0,0.18)" : "rgba(30,10,100,0.55)";
       ctx.fill();
+      ctx.strokeStyle = isPath ? "rgba(200,255,0,0.2)" : "rgba(80,40,200,0.3)";
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
 
       // Tile thickness (right side)
       ctx.beginPath();
@@ -218,27 +228,32 @@ function renderWorld(
       ctx.lineTo(x, y + TILE_H + TILE_DEPTH);
       ctx.lineTo(x + TILE_W / 2, y + TILE_H / 2 + TILE_DEPTH);
       ctx.closePath();
-      ctx.fillStyle = isPath ? "#8a6e3a" : "#2e7a2a";
+      ctx.fillStyle = isPath ? "rgba(80,120,0,0.15)" : "rgba(20,5,80,0.55)";
       ctx.fill();
+      ctx.strokeStyle = isPath ? "rgba(200,255,0,0.15)" : "rgba(60,20,180,0.25)";
+      ctx.stroke();
 
       // Selection highlight pulse
       if (isSel) {
         const pulse = Math.sin(frame * 0.12) * 0.25 + 0.55;
-        drawDiamond(x, y, `rgba(255,230,50,${pulse})`, "#FFD700");
+        drawDiamond(x, y, `rgba(200,255,0,${pulse * 0.35})`, `rgba(200,255,0,${pulse})`);
       }
 
-      // Empty cell indicator (faint +)
+      // Empty cell indicator (glowing +)
       const hasBuilding = placed.some(p => p.col === col && p.row === row);
       if (!hasBuilding && !isSel) {
+        const glowPulse = Math.sin(frame * 0.05 + col * 0.9 + row * 1.1) * 0.15 + 0.28;
         ctx.save();
-        ctx.globalAlpha = 0.18;
-        ctx.strokeStyle = "#fff";
+        ctx.globalAlpha = glowPulse;
+        ctx.strokeStyle = "#a060ff";
         ctx.lineWidth = 1.5;
+        ctx.shadowColor = "#8040ff";
+        ctx.shadowBlur = 6;
         ctx.beginPath();
-        ctx.moveTo(x, y + TILE_H / 2 - 8);
-        ctx.lineTo(x, y + TILE_H / 2 + 8);
-        ctx.moveTo(x - 8, y + TILE_H / 2);
-        ctx.lineTo(x + 8, y + TILE_H / 2);
+        ctx.moveTo(x, y + TILE_H / 2 - 9);
+        ctx.lineTo(x, y + TILE_H / 2 + 9);
+        ctx.moveTo(x - 9, y + TILE_H / 2);
+        ctx.lineTo(x + 9, y + TILE_H / 2);
         ctx.stroke();
         ctx.restore();
       }
@@ -261,32 +276,32 @@ function renderWorld(
       const bob = Math.sin(frame * 0.04 + col * 0.7 + row * 0.5) * 1.5;
       const by = y - bob;
 
-      // Left shadow face
+      // Left shadow face — dark with color glow tint
       ctx.beginPath();
       ctx.moveTo(x - TILE_W / 2, by + TILE_H / 2);
       ctx.lineTo(x, by + TILE_H);
       ctx.lineTo(x, by + TILE_H - bh);
       ctx.lineTo(x - TILE_W / 2, by + TILE_H / 2 - bh);
       ctx.closePath();
-      ctx.fillStyle = "rgba(30,60,20,0.42)";
+      ctx.fillStyle = "rgba(5,0,20,0.85)";
       ctx.fill();
-      ctx.strokeStyle = "rgba(0,0,0,0.08)";
-      ctx.lineWidth = 0.5;
+      ctx.strokeStyle = `${bdef.color}55`;
+      ctx.lineWidth = 1;
       ctx.stroke();
 
-      // Right face
+      // Right face — slightly lighter dark
       ctx.beginPath();
       ctx.moveTo(x + TILE_W / 2, by + TILE_H / 2);
       ctx.lineTo(x, by + TILE_H);
       ctx.lineTo(x, by + TILE_H - bh);
       ctx.lineTo(x + TILE_W / 2, by + TILE_H / 2 - bh);
       ctx.closePath();
-      ctx.fillStyle = "rgba(100,170,80,0.28)";
+      ctx.fillStyle = "rgba(15,5,40,0.75)";
       ctx.fill();
-      ctx.strokeStyle = "rgba(0,0,0,0.06)";
+      ctx.strokeStyle = `${bdef.color}33`;
       ctx.stroke();
 
-      // Top face
+      // Top face with building color tint
       ctx.beginPath();
       ctx.moveTo(x, by - bh);
       ctx.lineTo(x + TILE_W / 2, by + TILE_H / 2 - bh);
@@ -295,13 +310,18 @@ function renderWorld(
       ctx.closePath();
       ctx.fillStyle = topColor;
       ctx.fill();
-      ctx.strokeStyle = "rgba(255,255,255,0.5)";
-      ctx.lineWidth = 0.8;
+      // Glowing outline on top face
+      ctx.save();
+      ctx.strokeStyle = bdef.color;
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = bdef.color;
+      ctx.shadowBlur = 10;
       ctx.stroke();
+      ctx.restore();
 
       // Roof highlight
       const rGrad = ctx.createLinearGradient(x, by - bh, x, by + TILE_H / 2 - bh);
-      rGrad.addColorStop(0, "rgba(255,255,255,0.35)");
+      rGrad.addColorStop(0, "rgba(255,255,255,0.22)");
       rGrad.addColorStop(1, "rgba(255,255,255,0)");
       ctx.beginPath();
       ctx.moveTo(x, by - bh);
@@ -312,18 +332,24 @@ function renderWorld(
       ctx.fillStyle = rGrad;
       ctx.fill();
 
-      // Emoji on top
+      // Emoji on top with glow shadow
+      ctx.save();
+      ctx.shadowColor = bdef.color;
+      ctx.shadowBlur = 14;
       ctx.font = `${Math.min(TILE_W * 0.38, 28)}px serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "alphabetic";
       ctx.fillText(bdef.emoji, x, by - bh + 6);
+      ctx.restore();
 
-      // Passive income sparkle
+      // Passive income sparkle — colored to match building
       if (frame % 80 < 40) {
         const sparkX = x + Math.sin(frame * 0.1 + col) * 12;
         const sparkY = by - bh - 12 - (frame % 80) * 0.4;
         ctx.save();
         ctx.globalAlpha = 1 - (frame % 80) / 60;
+        ctx.shadowColor = bdef.color;
+        ctx.shadowBlur = 8;
         ctx.font = "11px serif";
         ctx.textAlign = "center";
         ctx.fillText("⚡", sparkX, sparkY);
@@ -349,9 +375,9 @@ function renderWorld(
   ctx.fill();
   ctx.restore();
 
-  // ── Decorative trees around perimeter ────────────────────────────────────
-  const treeSway = Math.sin(frame * 0.05) * 3;
-  const treeSpots = [
+  // ── Decorative neon pylons around perimeter ───────────────────────────────
+  const pylonColors = ["#c8ff00", "#00e5ff", "#a855f7", "#ff2d8d", "#ff6b35", "#4488ff"];
+  const pylonSpots = [
     { x: OX - TILE_W * 2.8, y: OY + TILE_H * 1.5 },
     { x: OX + TILE_W * 2.2, y: OY + TILE_H * 1.2 },
     { x: OX - TILE_W * 1.2, y: OY - TILE_H * 0.3 },
@@ -359,21 +385,25 @@ function renderWorld(
     { x: OX - TILE_W * 0.3, y: OY + TILE_H * 4.2 },
     { x: OX + TILE_W * 3.1, y: OY + TILE_H * 3.0 },
   ];
-  treeSpots.forEach(({ x: tx, y: ty }, i) => {
-    const sway = treeSway * (i % 2 === 0 ? 1 : -1);
-    // Trunk
-    ctx.fillStyle = "#8B6234";
-    ctx.fillRect(tx - 3, ty + 4, 6, 18);
-    // Canopy
+  pylonSpots.forEach(({ x: tx, y: ty }, i) => {
+    const col = pylonColors[i % pylonColors.length];
+    const blink = Math.sin(frame * 0.08 + i * 1.7) * 0.4 + 0.6;
+    // Pylon shaft
     ctx.save();
-    ctx.translate(tx + sway * 0.5, ty);
-    ctx.fillStyle = i % 3 === 0 ? "#3cb34a" : i % 3 === 1 ? "#2da84e" : "#4cc255";
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 8;
+    ctx.globalAlpha = 0.7;
     ctx.beginPath();
-    ctx.arc(0, 0, 16, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#54d45e";
+    ctx.moveTo(tx, ty + 20);
+    ctx.lineTo(tx, ty - 22);
+    ctx.stroke();
+    // Top light
+    ctx.globalAlpha = blink;
     ctx.beginPath();
-    ctx.arc(-4, -5, 10, 0, Math.PI * 2);
+    ctx.arc(tx, ty - 22, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = col;
     ctx.fill();
     ctx.restore();
   });
@@ -542,31 +572,32 @@ export default function VillePage() {
   const selBuildingDef = selBuilding ? BUILDINGS.find(b => b.id === selBuilding.buildingId) : null;
 
   return (
-    <div style={{ background: "#87CEEB", minHeight: "100dvh", color: "#1a1a1a", paddingBottom: 100 }}>
+    <div style={{ background: "linear-gradient(180deg, #0a0020 0%, #050a15 100%)", minHeight: "100dvh", color: "#e0e0e0", paddingBottom: 100 }}>
 
       {/* Header */}
       <div style={{
         position: "sticky", top: 0, zIndex: 30,
-        background: "rgba(90,184,245,0.92)", backdropFilter: "blur(12px)",
-        borderBottom: "2px solid rgba(255,255,255,0.3)",
+        background: "rgba(5,5,5,0.97)", backdropFilter: "blur(12px)",
+        borderBottom: "2px solid #c8ff0033",
         padding: "12px 16px 10px",
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        boxShadow: "0 2px 20px rgba(0,0,0,0.1)",
+        boxShadow: "0 2px 24px #c8ff0011",
       }}>
-        <Link href="/feed" style={{ color: "rgba(255,255,255,0.8)", fontSize: 22, textDecoration: "none" }}>←</Link>
+        <Link href="/feed" style={{ color: "#c8ff00", fontSize: 22, textDecoration: "none" }}>←</Link>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 16, fontWeight: 900, color: "#fff", letterSpacing: "0.02em", textShadow: "0 1px 4px rgba(0,0,0,0.2)" }}>
-            🌍 KARMA WORLD
+          <div style={{ fontSize: 16, fontWeight: 900, letterSpacing: "0.02em" }}>
+            <span style={{ background: "linear-gradient(135deg, #c8ff00, #00e5ff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>🌆 KARMA CITY</span>
           </div>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)" }}>Tryck på rutan för att bygga</div>
+          <div style={{ fontSize: 10, color: "#555", letterSpacing: "0.06em" }}>TRYCK PÅ RUTAN FÖR ATT BYGGA</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <Link
             href="/map"
             style={{
-              background: "rgba(255,255,255,0.25)", border: "1.5px solid rgba(255,255,255,0.4)",
+              background: "#0d0d0d", border: "2px solid #1a1a1a",
               borderRadius: 10, padding: "6px 10px", fontSize: 11, fontWeight: 700,
-              color: "#fff", textDecoration: "none", display: "inline-block",
+              color: "#c8ff00", textDecoration: "none", display: "inline-block",
+              boxShadow: "2px 2px 0px #c8ff00",
             }}
           >
             🗺️ Karta
@@ -574,9 +605,10 @@ export default function VillePage() {
           <button
             onClick={() => setVisitorsOpen(true)}
             style={{
-              background: "rgba(255,255,255,0.25)", border: "1.5px solid rgba(255,255,255,0.4)",
+              background: "#0d0d0d", border: "2px solid #1a1a1a",
               borderRadius: 10, padding: "6px 10px", fontSize: 11, fontWeight: 700,
-              color: "#fff", cursor: "pointer",
+              color: "#00e5ff", cursor: "pointer",
+              boxShadow: "2px 2px 0px #00e5ff",
             }}
           >
             👥 {VISITORS.length}
@@ -587,31 +619,31 @@ export default function VillePage() {
       {/* Stats bar */}
       <div style={{ display: "flex", gap: 8, padding: "12px 16px 0", overflowX: "auto", scrollbarWidth: "none" }}>
         {[
-          { label: "BYGGNADER",  value: `${placed.length}/${BUILDINGS.length}`, color: "#2d8b4e", icon: "🏗️", bg: "rgba(255,255,255,0.85)" },
-          { label: "PASSIV /H",  value: `${passiveKarma} ⚡`,                   color: "#c17800", icon: "⚡", bg: "rgba(255,255,255,0.85)" },
-          { label: "DIN NIVÅ",   value: `LV ${userLevel}`,                       color: "#2255cc", icon: "⭐", bg: "rgba(255,255,255,0.85)" },
+          { label: "BYGGNADER",  value: `${placed.length}/${BUILDINGS.length}`, color: "#c8ff00", icon: "🏗️" },
+          { label: "PASSIV /H",  value: `${passiveKarma} ⚡`,                   color: "#00e5ff", icon: "⚡" },
+          { label: "DIN NIVÅ",   value: `LV ${userLevel}`,                       color: "#a855f7", icon: "⭐" },
         ].map(s => (
           <div key={s.label} style={{
-            background: s.bg, borderRadius: 14, padding: "9px 14px",
+            background: "#0d0d0d", border: "2px solid #1a1a1a",
+            borderRadius: 14, padding: "9px 14px",
             textAlign: "center", flexShrink: 0, flex: 1,
-            boxShadow: "0 2px 12px rgba(0,0,0,0.1)",
+            boxShadow: `0 0 12px ${s.color}11`,
           }}>
-            <div style={{ fontSize: 9, color: "#888", marginBottom: 2 }}>{s.icon} {s.label}</div>
-            <div style={{ fontSize: 14, fontWeight: 900, color: s.color }}>{s.value}</div>
+            <div style={{ fontSize: 9, color: "#444", marginBottom: 2, fontWeight: 700, letterSpacing: "0.06em" }}>{s.icon} {s.label}</div>
+            <div style={{ fontSize: 14, fontWeight: 900, color: s.color, textShadow: `0 0 8px ${s.color}88` }}>{s.value}</div>
           </div>
         ))}
         <motion.button
           whileTap={{ scale: 0.94 }}
           onClick={collectPassive}
-          animate={collecting ? {} : { boxShadow: ["0 0 0 rgba(255,215,0,0.3)", "0 0 16px rgba(255,215,0,0.6)", "0 0 0 rgba(255,215,0,0.3)"] }}
+          animate={collecting ? {} : { boxShadow: ["0 0 0 #c8ff0033", "0 0 18px #c8ff0077", "0 0 0 #c8ff0033"] }}
           transition={{ duration: 2, repeat: Infinity }}
           style={{
-            background: collecting ? "rgba(255,255,255,0.6)" : "linear-gradient(135deg, #f5c518, #f0a500)",
-            border: "none", borderRadius: 14, padding: "9px 16px",
-            fontSize: 12, fontWeight: 900, color: collecting ? "#888" : "#fff",
+            background: collecting ? "#111" : "linear-gradient(135deg, #c8ff00, #a0e000)",
+            border: `3px solid ${collecting ? "#222" : "#0a0a0a"}`,
+            borderRadius: 14, padding: "9px 16px",
+            fontSize: 12, fontWeight: 900, color: collecting ? "#555" : "#000",
             cursor: collecting ? "default" : "pointer", flexShrink: 0,
-            boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
-            textShadow: "0 1px 3px rgba(0,0,0,0.2)",
           }}
         >
           {collecting ? "✅ Samlat!" : "💰 SAMLA"}
@@ -619,11 +651,27 @@ export default function VillePage() {
       </div>
 
       {/* The isometric world canvas */}
-      <div style={{ margin: "12px 12px 0", borderRadius: 20, overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.5)" }}>
+      <div style={{ margin: "12px 12px 0", borderRadius: 20, overflow: "hidden", position: "relative", boxShadow: "0 0 40px #c8ff0022, 0 8px 32px rgba(0,0,0,0.6), inset 0 0 0 1.5px #c8ff0033" }}>
+        {/* React-layer animated stars (above canvas via z-index) */}
+        {[...Array(20)].map((_, i) => (
+          <motion.div key={i}
+            animate={{ opacity: [0.3, 1, 0.3] }}
+            transition={{ duration: 2 + i * 0.3, repeat: Infinity, delay: i * 0.15 }}
+            style={{
+              position: "absolute",
+              width: 2, height: 2, borderRadius: "50%",
+              background: i % 3 === 0 ? "#c8ff00" : i % 3 === 1 ? "#00e5ff" : "#fff",
+              top: `${5 + (i * 17) % 50}%`,
+              left: `${(i * 23) % 90}%`,
+              pointerEvents: "none",
+              zIndex: 2,
+            }}
+          />
+        ))}
         <canvas
           ref={canvasRef}
           onClick={handleCanvasClick}
-          style={{ width: "100%", height: 340, display: "block", cursor: "pointer" }}
+          style={{ width: "100%", height: 340, display: "block", cursor: "pointer", position: "relative", zIndex: 1 }}
         />
       </div>
 
@@ -636,22 +684,23 @@ export default function VillePage() {
             exit={{ opacity: 0, y: 12 }}
             style={{
               margin: "10px 16px 0",
-              background: "rgba(255,255,255,0.92)", borderRadius: 18, padding: "14px 16px",
+              background: "#0d0d0d", border: `2px solid ${selBuildingDef.color}44`,
+              borderRadius: 18, padding: "14px 16px",
               display: "flex", alignItems: "center", gap: 12,
-              boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
+              boxShadow: `0 0 20px ${selBuildingDef.color}11`,
             }}
           >
-            <span style={{ fontSize: "2rem" }}>{selBuildingDef.emoji}</span>
+            <span style={{ fontSize: "2rem", filter: `drop-shadow(0 0 8px ${selBuildingDef.color})` }}>{selBuildingDef.emoji}</span>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 800, color: selBuildingDef.color }}>{selBuildingDef.name}</div>
-              <div style={{ fontSize: 11, color: "#666", marginTop: 2 }}>{selBuildingDef.desc}</div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#2d8b4e", marginTop: 4 }}>+{selBuildingDef.karmaPerHour} karma/h</div>
+              <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>{selBuildingDef.desc}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#c8ff00", marginTop: 4 }}>+{selBuildingDef.karmaPerHour} karma/h</div>
             </div>
             {selBuilding?.buildingId !== "house" && (
               <button
                 onClick={() => demolish(selectedCell.col, selectedCell.row)}
                 style={{
-                  background: "#ff444422", border: "1px solid #ff444444",
+                  background: "#1a0000", border: "1.5px solid #ff444455",
                   borderRadius: 10, padding: "8px 12px",
                   fontSize: 11, fontWeight: 700, color: "#ff4444", cursor: "pointer",
                 }}
@@ -666,21 +715,22 @@ export default function VillePage() {
             exit={{ opacity: 0, y: 12 }}
             style={{
               margin: "10px 16px 0",
-              background: "rgba(255,255,255,0.92)", borderRadius: 18, padding: "14px 16px",
+              background: "#0d0d0d", border: "2px solid #c8ff0033",
+              borderRadius: 18, padding: "14px 16px",
               textAlign: "center",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
+              boxShadow: "0 0 20px #c8ff0011",
             }}
           >
-            <div style={{ fontSize: 13, color: "#888" }}>Tomt. Tryck BYGG för att placera här.</div>
+            <div style={{ fontSize: 13, color: "#555" }}>Tom ruta · Placera en byggnad här</div>
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={() => setShopOpen(true)}
               style={{
                 marginTop: 10, padding: "10px 28px",
-                background: "linear-gradient(135deg, #5ec95a, #3da83a)",
-                border: "none", borderRadius: 12,
-                fontSize: 13, fontWeight: 900, color: "#fff",
-                cursor: "pointer", boxShadow: "0 4px 12px rgba(60,170,60,0.35)",
+                background: "linear-gradient(135deg, #c8ff00, #a0e000)",
+                border: "3px solid #0a0a0a", borderRadius: 12,
+                fontSize: 13, fontWeight: 900, color: "#000",
+                cursor: "pointer", boxShadow: "3px 3px 0px #0a0a0a",
               }}
             >🏗️ BYGG HÄR</motion.button>
           </motion.div>
@@ -689,8 +739,8 @@ export default function VillePage() {
 
       {/* Tip */}
       <div style={{ padding: "10px 16px", textAlign: "center" }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", textShadow: "0 1px 3px rgba(0,0,0,0.2)" }}>
-          Tryck på en ruta i världen · Ditt husdjur ({pet.name}) vandrar runt
+        <div style={{ fontSize: 11, color: "#444", fontWeight: 600, letterSpacing: "0.04em" }}>
+          Tryck på en ruta i staden · {pet.name} vandrar runt
         </div>
       </div>
 
@@ -715,16 +765,17 @@ export default function VillePage() {
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               onClick={e => e.stopPropagation()}
               style={{
-                background: "#fff", borderRadius: "28px 28px 0 0",
+                background: "#080808", borderRadius: "28px 28px 0 0",
+                borderTop: "2px solid #c8ff0044",
                 padding: "20px 16px 44px",
                 width: "100%", maxWidth: 480,
                 maxHeight: "76dvh", overflow: "auto",
-                boxShadow: "0 -8px 40px rgba(0,0,0,0.2)",
+                boxShadow: "0 -8px 40px rgba(0,0,0,0.7), 0 0 60px #c8ff0011",
               }}
             >
-              <div style={{ width: 36, height: 4, background: "#e0e0e0", borderRadius: 2, margin: "0 auto 18px" }} />
-              <div style={{ fontSize: 17, fontWeight: 900, color: "#1a1a1a", marginBottom: 4 }}>🏗️ Bygg en struktur</div>
-              <div style={{ fontSize: 11, color: "#888", marginBottom: 16 }}>Välj vad du vill placera i din värld</div>
+              <div style={{ width: 36, height: 4, background: "#c8ff0033", borderRadius: 2, margin: "0 auto 18px" }} />
+              <div style={{ fontSize: 17, fontWeight: 900, color: "#c8ff00", marginBottom: 4 }}>🏗️ Bygg en struktur</div>
+              <div style={{ fontSize: 11, color: "#555", marginBottom: 16, letterSpacing: "0.04em" }}>Välj vad du vill placera i din stad</div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {BUILDINGS.map(b => {
@@ -739,26 +790,26 @@ export default function VillePage() {
                       whileTap={disabled ? {} : { scale: 0.98 }}
                       onClick={() => !disabled && build(b)}
                       style={{
-                        background: owned ? "#f0fff0" : locked ? "#f8f8f8" : "#fff",
-                        border: `2px solid ${owned ? "#5ec95a" : locked ? "#e0e0e0" : b.color + "55"}`,
+                        background: owned ? `${b.color}0d` : locked ? "#0a0a0a" : "#0d0d0d",
+                        border: `2px solid ${owned ? b.color + "55" : locked ? "#1a1a1a" : b.color + "44"}`,
                         borderRadius: 16, padding: "14px",
                         display: "flex", alignItems: "center", gap: 12,
                         cursor: disabled ? "default" : "pointer",
-                        opacity: locked ? 0.45 : 1,
+                        opacity: locked ? 0.4 : 1,
                         textAlign: "left",
-                        boxShadow: owned ? "0 2px 8px rgba(94,201,90,0.2)" : "0 1px 4px rgba(0,0,0,0.05)",
+                        boxShadow: owned ? `0 0 12px ${b.color}22` : "none",
                       }}
                     >
-                      <div style={{ fontSize: "2rem", flexShrink: 0 }}>{b.emoji}</div>
+                      <div style={{ fontSize: "2rem", flexShrink: 0, filter: owned ? `drop-shadow(0 0 6px ${b.color})` : "none" }}>{b.emoji}</div>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontSize: 13, fontWeight: 800, color: owned ? "#3da83a" : "#1a1a1a" }}>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: owned ? b.color : "#e0e0e0" }}>
                             {b.name}
                           </span>
-                          {owned && <span style={{ fontSize: 9, color: "#3da83a", fontWeight: 700 }}>✓ BYGGD</span>}
-                          {locked && <span style={{ fontSize: 9, color: "#aaa", fontWeight: 700 }}>🔒 LV{b.unlockLevel}</span>}
+                          {owned && <span style={{ fontSize: 9, color: b.color, fontWeight: 700 }}>✓ BYGGD</span>}
+                          {locked && <span style={{ fontSize: 9, color: "#444", fontWeight: 700 }}>🔒 LV{b.unlockLevel}</span>}
                         </div>
-                        <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{b.desc}</div>
+                        <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>{b.desc}</div>
                         <div style={{ fontSize: 11, fontWeight: 700, color: b.color, marginTop: 4 }}>
                           +{b.karmaPerHour} karma/h
                           {b.xpBonus > 0 && <span style={{ color: "#4488ff", marginLeft: 8 }}>+{b.xpBonus}% XP</span>}
@@ -766,9 +817,9 @@ export default function VillePage() {
                       </div>
                       <div style={{ textAlign: "right", flexShrink: 0 }}>
                         {b.cost === 0 ? (
-                          <span style={{ fontSize: 11, color: "#3da83a", fontWeight: 800 }}>GRATIS</span>
+                          <span style={{ fontSize: 11, color: "#c8ff00", fontWeight: 800 }}>GRATIS</span>
                         ) : (
-                          <span style={{ fontSize: 14, fontWeight: 800, color: canAfford ? "#c17800" : "#ccc" }}>
+                          <span style={{ fontSize: 14, fontWeight: 800, color: canAfford ? "#c8ff00" : "#333" }}>
                             {b.cost} ⚡
                           </span>
                         )}
@@ -801,20 +852,20 @@ export default function VillePage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.88, opacity: 0 }}
               onClick={e => e.stopPropagation()}
-              style={{ background: "#fff", borderRadius: 24, padding: "24px 20px", width: "100%", maxWidth: 380, boxShadow: "0 12px 40px rgba(0,0,0,0.2)" }}
+              style={{ background: "#080808", border: "2px solid #1a1a1a", borderRadius: 24, padding: "24px 20px", width: "100%", maxWidth: 380, boxShadow: "0 12px 40px rgba(0,0,0,0.7), 0 0 40px #00e5ff11" }}
             >
-              <div style={{ fontSize: 17, fontWeight: 900, color: "#1a1a1a", marginBottom: 16 }}>👥 Besökare idag</div>
+              <div style={{ fontSize: 17, fontWeight: 900, color: "#00e5ff", marginBottom: 16 }}>👥 Besökare idag</div>
               {VISITORS.map((v, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: i < VISITORS.length - 1 ? "1px solid #f0f0f0" : "none" }}>
-                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#f0f0f0", border: "2px solid #e0e0e0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.3rem" }}>{v.emoji}</div>
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: i < VISITORS.length - 1 ? "1px solid #111" : "none" }}>
+                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#0d0d0d", border: "2px solid #1a1a1a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.3rem" }}>{v.emoji}</div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a" }}>{v.name}</div>
-                    <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>{v.msg}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#e0e0e0" }}>{v.name}</div>
+                    <div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>{v.msg}</div>
                   </div>
-                  <button style={{ background: "#f0f0f0", border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 11, color: "#666", cursor: "pointer" }}>👋</button>
+                  <button style={{ background: "#0d0d0d", border: "1.5px solid #1a1a1a", borderRadius: 8, padding: "6px 10px", fontSize: 11, color: "#888", cursor: "pointer" }}>👋</button>
                 </div>
               ))}
-              <button onClick={() => setVisitorsOpen(false)} style={{ width: "100%", marginTop: 16, padding: "14px", background: "linear-gradient(135deg, #5ec95a, #3da83a)", border: "none", borderRadius: 14, fontSize: 14, fontWeight: 900, color: "#fff", cursor: "pointer" }}>STÄNG</button>
+              <button onClick={() => setVisitorsOpen(false)} style={{ width: "100%", marginTop: 16, padding: "14px", background: "linear-gradient(135deg, #c8ff00, #a0e000)", border: "3px solid #0a0a0a", borderRadius: 14, fontSize: 14, fontWeight: 900, color: "#000", cursor: "pointer" }}>STÄNG</button>
             </motion.div>
           </motion.div>
         )}

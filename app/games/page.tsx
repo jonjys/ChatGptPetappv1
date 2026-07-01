@@ -19,8 +19,8 @@ const GAMES: Game[] = [
   { id: "runner",  href: "/games/runner",  emoji: "🏃", name: "KARMA RUNNER",  tagline: "Ghost runners · Geometry Dash · Warp portals · Aurora", reward: "Up to 500 ⚡",      accent: "#c8ff00",  bg: "#060f06",  hot: true,  players: 218 },
   { id: "slots",   href: "/games/slots",   emoji: "🎰", name: "KARMA SLOTS",   tagline: "5 reels · Jackpot 2000⚡ · Wild WARP",           reward: "Jackpot: 2000 ⚡",    accent: "#ffaa00",  bg: "#1a0d00",  players: 189 },
   { id: "cases",   href: "/games/cases",   emoji: "🏴‍☠️", name: "SHADOW VAULT", tagline: "Unbox rare artifacts · Roll the vault",          reward: "10–800 ⚡ per vault", accent: "#cc44ff",  bg: "#080010",  tag: "NEW",  players: 156 },
-  { id: "breaker", href: "/games/breaker", emoji: "🧬", name: "DNA BREAKER",   tagline: "Infinite levels · Plasma Shield · Laser",        reward: "Score → karma",       accent: "#cc55ff",  bg: "#050510",  tag: "NEW",  players: 134 },
-  { id: "battle",  href: "/games/battle",  emoji: "⚔️", name: "PET BATTLE",   tagline: "Judgment Ring · Boss fights · Combo chains",     reward: "Win: 100–300 ⚡",     accent: "#ff6b35",  bg: "#150a00",  players: 98  },
+  { id: "breaker", href: "/games/breaker", emoji: "⚗️", name: "KARMA FORGE",  tagline: "Rhythm crafting · Fusion bursts · Element chains", reward: "Karma forged",       accent: "#ff8800",  bg: "#080300",  tag: "NEW 🆕", hot: true, players: 234 },
+  { id: "battle",  href: "/games/battle",  emoji: "🌀", name: "KARMA PULSE",  tagline: "Circular TD · Nexus defense · 12-slot ring",    reward: "Win: 100–300 ⚡",     accent: "#a855f7",  bg: "#05020f",  tag: "NEW 🆕", players: 98  },
   { id: "memory",  href: "/games/memory",  emoji: "🧠", name: "MEMORY PALACE", tagline: "Circular ring · Combo chain · 60 stars",        reward: "Up to 150 ⚡",        accent: "#ff44cc",  bg: "#1a0015",  players: 87  },
   { id: "blitz",   href: "/games/blitz",   emoji: "💥", name: "BOUNTY BLITZ",  tagline: "Step counter · Workout timer · Gratitude journal", reward: "Up to 500 ⚡",       accent: "#00e5ff",  bg: "#001a1a",  tag: "NEW",  players: 203 },
 ];
@@ -28,11 +28,12 @@ const GAMES: Game[] = [
 const HOT_GAMES = GAMES.filter(g => g.hot);
 
 const LIVE_ACTIVITY = [
-  { emoji: "🦅", user: "dragon99",    action: "caught Blue Whale",        karma: 300,  ago: "12s" },
-  { emoji: "⚡", user: "xanax",       action: "won Pet Battle",            karma: 180,  ago: "34s" },
-  { emoji: "🔥", user: "moonkid",     action: "Karma Runner — 4200 pts",  karma: 210,  ago: "1m"  },
-  { emoji: "💎", user: "tradeknight", action: "Shadow Vault: LEGENDARY",  karma: 550,  ago: "2m"  },
-  { emoji: "🎰", user: "zara.q",      action: "Slots JACKPOT hit!",       karma: 2000, ago: "3m"  },
+  { emoji: "⚗️", user: "neonmiku",    action: "Karma Forge — FUSION ×5!",  karma: 450,  ago: "8s"  },
+  { emoji: "🦅", user: "dragon99",    action: "caught Blue Whale",          karma: 300,  ago: "22s" },
+  { emoji: "🌀", user: "xanax",       action: "Karma Pulse — Wave 18",      karma: 180,  ago: "45s" },
+  { emoji: "🔥", user: "moonkid",     action: "Karma Runner — LVL 9 · 4200 pts", karma: 210, ago: "1m" },
+  { emoji: "💎", user: "tradeknight", action: "Shadow Vault: LEGENDARY",    karma: 550,  ago: "2m"  },
+  { emoji: "🎰", user: "zara.q",      action: "Slots JACKPOT hit!",         karma: 2000, ago: "3m"  },
 ];
 
 const LEADERBOARD = [

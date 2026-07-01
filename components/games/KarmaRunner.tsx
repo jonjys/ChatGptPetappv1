@@ -12,7 +12,7 @@ const BASE_SPD = 4, MAX_SPD = 12;
 type ObstacleType = "wall" | "spike" | "pit" | "ceiling" | "gate";
 type PwupKind = "shield" | "boost" | "magnet" | "star" | "beat" | "warp" | "rocket" | "time_slow" | "karma_rain";
 
-type Obs = { id: number; x: number; w: number; h: number; kind: ObstacleType; yOff: number; lane: number };
+type Obs = { id: number; x: number; w: number; h: number; kind: ObstacleType; yOff: number; lane: number; passed: boolean };
 type Gem = { id: number; x: number; yOff: number; done: boolean; risky: boolean };
 type Pwup = { id: number; x: number; type: PwupKind; done: boolean };
 type Ptcl = { id: number; x: number; y: number; vx: number; vy: number; life: number; color: string; size: number };
@@ -57,6 +57,10 @@ type GS = {
   lane: number; laneY: number;
   worldFlash: number; worldFlashName: string;
   bossSpawnDist: number;
+  // Level system
+  level: number; levelUpFlash: number; levelUpFrame: number;
+  // Jump combo multiplier
+  jumpCombo: number; jumpComboTimer: number;
 };
 
 // ── World palette data ────────────────────────────────────────────────────────
@@ -70,6 +74,15 @@ const WORLDS = [
   { name: "KARMA HEAVEN",    bgTop: "#1a1400", bgBot: "#2a2000", ground: "#ffd700", grid: "rgba(255,215,0,0.07)",   cloudAlpha: 0.08, bossEmoji: "👑", ripEmoji: "✨" },
 ];
 const LANE_OFFSETS = [0, 80, 160]; // pixels above ground for each lane
+
+// Level-based accent colors (used for HUD and trail in dark worlds)
+const LEVEL_BG: Record<number, { top: string; bot: string; accent: string }> = {
+  1: { top: "#0a1a0a", bot: "#051005", accent: "#00ff88" },
+  2: { top: "#0a0a1a", bot: "#050510", accent: "#4488ff" },
+  3: { top: "#1a0a1a", bot: "#100510", accent: "#cc44ff" },
+  4: { top: "#1a0a0a", bot: "#100505", accent: "#ff4444" },
+  5: { top: "#1a1400", bot: "#100e00", accent: "#ffd700" },
+};
 
 // Obstacle colors by type
 const OBS_COLORS: Record<ObstacleType, string> = {
@@ -121,6 +134,8 @@ function mkGS(): GS {
     lane: 0, laneY: 0,
     worldFlash: 0, worldFlashName: "",
     bossSpawnDist: 500,
+    level: 1, levelUpFlash: 0, levelUpFrame: 0,
+    jumpCombo: 1, jumpComboTimer: 0,
   };
 }
 
@@ -143,7 +158,7 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
   const [phase, setPhase] = useState<"idle" | "on" | "over">("idle");
   const [fin, setFin] = useState({ score: 0, karma: 0, maxCombo: 0, timeSec: 0, dist: 0 });
   const [best, setBest] = useState(0);
-  const [ui, setUi] = useState({ combo: 0, karmaChain: 0, shield: false, speed: BASE_SPD, lane: 0, world: 0 });
+  const [ui, setUi] = useState({ combo: 0, karmaChain: 0, shield: false, speed: BASE_SPD, lane: 0, world: 0, level: 1, jumpCombo: 1 });
   const [copied, setCopied] = useState(false);
   const [shaking, setShaking] = useState(false);
   const swipeStartY = useRef<number | null>(null);
@@ -218,6 +233,25 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(GW, gy); ctx.stroke();
     }
 
+    // ── Parallax mountains ───────────────────────────────────────────────────
+    const levelAccentColor = LEVEL_BG[Math.min(g.level, 5)]?.accent ?? "#00ff88";
+    const mtnOff = (g.frame * g.speed * 0.6) % GW;
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = levelAccentColor;
+    for (let mi = 0; mi < 5; mi++) {
+      const mx = (mi * (GW / 4) - mtnOff + GW * 2) % (GW + GW / 4) - GW / 4;
+      const mh = 60 + mi * 20;
+      ctx.beginPath();
+      ctx.moveTo(mx - 60, GROUND);
+      ctx.lineTo(mx, GROUND - mh);
+      ctx.lineTo(mx + 60, GROUND);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
     // Stars (only for dark worlds)
     if (world.cloudAlpha <= 0.5) {
       [[20,8],[75,5],[130,18],[195,7],[250,22],[310,11],[340,20],[55,34],[165,4],[295,28],[50,15],[225,16],[155,30],[380,9]].forEach(([sx, sy], i) => {
@@ -285,11 +319,11 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       ctx.lineWidth = 2;
       ctx.setLineDash([10, 6]);
       ctx.globalAlpha = 0.4 + 0.15 * Math.sin(g.frame * 0.1);
-      ctx.strokeRect(2, 42, GW - 4, GROUND - 44);
+      ctx.strokeRect(2, 52, GW - 4, GROUND - 54);
       ctx.setLineDash([]);
       ctx.globalAlpha = 0.18 + 0.08 * Math.sin(g.frame * 0.08);
       ctx.fillStyle = "#00e5ff";
-      ctx.fillRect(2, 42, GW - 4, GROUND - 44);
+      ctx.fillRect(2, 52, GW - 4, GROUND - 54);
       ctx.globalAlpha = 1;
       ctx.restore();
     }
@@ -590,13 +624,14 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
 
     // ── HUD ──────────────────────────────────────────────────────────────────
     // For bright worlds, use a lighter panel and dark text; dark worlds keep existing style
-    const hudColor = g.world <= 1 ? "#1a1a1a" : "#ffffff";
     const hudShadow = g.world <= 1 ? "rgba(255,255,255,0.8)" : "rgba(0,0,0,0.5)";
     const hudPanel = g.world <= 1 ? "rgba(255,255,255,0.62)" : "rgba(0,0,0,0.55)";
+    const levelAccent = LEVEL_BG[Math.min(g.level, 5)]?.accent ?? "#00ff88";
 
     ctx.fillStyle = hudPanel;
-    ctx.fillRect(0, 0, GW, 46);
+    ctx.fillRect(0, 0, GW, 52);
 
+    // Left: SCORE + DISTANCE
     ctx.font = "bold 12px monospace"; ctx.textAlign = "left";
     ctx.shadowColor = hudShadow; ctx.shadowBlur = 4;
     ctx.fillStyle = g.world <= 1 ? "#c47a00" : "#ffdd00";
@@ -605,6 +640,26 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     ctx.fillText(`📏 ${Math.floor(g.distance)}m`, 8, 34);
     ctx.shadowBlur = 0;
 
+    // Center-left: LEVEL
+    ctx.fillStyle = levelAccent;
+    ctx.font = "bold 11px monospace";
+    ctx.shadowColor = levelAccent;
+    ctx.shadowBlur = 6;
+    ctx.textAlign = "center";
+    ctx.fillText(`LVL ${g.level}`, GW / 2 - 50, 18);
+    ctx.shadowBlur = 0;
+
+    // Center-right: JUMP COMBO
+    if (g.jumpCombo > 1) {
+      const comboColor = g.jumpCombo >= 5 ? "#ffd700" : g.jumpCombo >= 3 ? "#ff6600" : "#ff9900";
+      ctx.fillStyle = comboColor;
+      ctx.shadowColor = comboColor;
+      ctx.shadowBlur = 6;
+      ctx.fillText(`×${g.jumpCombo} COMBO`, GW / 2 + 50, 18);
+      ctx.shadowBlur = 0;
+    }
+
+    // Right: SPEED
     const speedMult = (g.speed / BASE_SPD).toFixed(1);
     ctx.fillStyle = g.speed > 9 ? "#ff4444" : g.speed > 7 ? "#ff9900" : (g.world <= 1 ? "#2a7a00" : "#c8ff00");
     ctx.textAlign = "right";
@@ -620,25 +675,25 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     if (g.karmaChain >= 5) {
       ctx.fillStyle = g.world <= 1 ? "#c47a00" : "#ffdd00";
       ctx.font = "bold 11px monospace"; ctx.textAlign = "center";
-      ctx.fillText(`CHAIN ×${g.karmaChain}!`, GW / 2, 42);
+      ctx.fillText(`CHAIN ×${g.karmaChain}!`, GW / 2, 48);
     }
     ctx.textAlign = "left";
 
-    // Active powerup icons
+    // Active powerup icons (row 2 of HUD, centered)
     let iconX = GW / 2 - 20;
-    if (g.hasShield)    { ctx.font = "13px serif"; ctx.fillText("🛡️", iconX, 20); iconX += 20; }
-    if (g.hasMagnet)    { ctx.font = "13px serif"; ctx.fillText("🧲", iconX, 20); iconX += 20; }
-    if (g.hasStar)      { ctx.font = "13px serif"; ctx.fillText("⭐", iconX, 20); iconX += 20; }
-    if (g.hasBeat)      { ctx.font = "13px serif"; ctx.fillText("🎵", iconX, 20); iconX += 20; }
-    if (g.hasRocket)    { ctx.font = "13px serif"; ctx.fillText("🚀", iconX, 20); iconX += 20; }
-    if (g.hasTimeSlow)  { ctx.font = "13px serif"; ctx.fillText("🐢", iconX, 20); iconX += 20; }
-    if (g.karmaRainActive) { ctx.font = "13px serif"; ctx.fillText("🌧️", iconX, 20); iconX += 20; }
+    if (g.hasShield)    { ctx.font = "13px serif"; ctx.fillText("🛡️", iconX, 34); iconX += 20; }
+    if (g.hasMagnet)    { ctx.font = "13px serif"; ctx.fillText("🧲", iconX, 34); iconX += 20; }
+    if (g.hasStar)      { ctx.font = "13px serif"; ctx.fillText("⭐", iconX, 34); iconX += 20; }
+    if (g.hasBeat)      { ctx.font = "13px serif"; ctx.fillText("🎵", iconX, 34); iconX += 20; }
+    if (g.hasRocket)    { ctx.font = "13px serif"; ctx.fillText("🚀", iconX, 34); iconX += 20; }
+    if (g.hasTimeSlow)  { ctx.font = "13px serif"; ctx.fillText("🐢", iconX, 34); iconX += 20; }
+    if (g.karmaRainActive) { ctx.font = "13px serif"; ctx.fillText("🌧️", iconX, 34); iconX += 20; }
 
     // Lane indicator
     ctx.font = "bold 10px monospace";
     ctx.fillStyle = g.world <= 1 ? "rgba(50,120,0,0.85)" : "rgba(200,255,0,0.7)";
     ctx.textAlign = "right";
-    ctx.fillText(`LN ${g.lane + 1}/3`, GW - 8, 44);
+    ctx.fillText(`LN ${g.lane + 1}/3`, GW - 8, 48);
     ctx.textAlign = "left";
 
     // World indicator (bottom-left)
@@ -647,8 +702,6 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     ctx.shadowColor = hudShadow; ctx.shadowBlur = 2;
     ctx.fillText(`W${g.world + 1}: ${world.name}`, 6, GH - 8);
     ctx.shadowBlur = 0;
-    // Satisfy TS (hudColor used via pattern for clarity)
-    void hudColor;
 
     // Karma zone banner
     if (g.inKarmaZone) {
@@ -657,7 +710,7 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       ctx.textAlign = "center";
       ctx.shadowColor = "#00e5ff";
       ctx.shadowBlur = 8;
-      ctx.fillText("✦ KARMA ZONE ×3 ✦", GW / 2, 58);
+      ctx.fillText("✦ KARMA ZONE ×3 ✦", GW / 2, 66);
       ctx.shadowBlur = 0;
       ctx.textAlign = "left";
     }
@@ -682,6 +735,27 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       ctx.globalAlpha = 1;
       ctx.textAlign = "left";
       ctx.restore();
+    }
+
+    // ── Level-up floating text ────────────────────────────────────────────────
+    if (g.levelUpFlash > 0) {
+      const t = g.levelUpFlash / 90;
+      const floatY = GH / 2 - 60 + (1 - t) * 30;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, t * 3);
+      ctx.font = "bold 28px monospace";
+      ctx.fillStyle = "#ffd700";
+      ctx.shadowColor = "#ffd700";
+      ctx.shadowBlur = 24;
+      ctx.textAlign = "center";
+      ctx.fillText(`LEVEL ${g.level}!`, GW / 2, floatY);
+      ctx.font = "bold 14px monospace";
+      ctx.fillStyle = "#ffffff";
+      ctx.shadowBlur = 8;
+      ctx.fillText("LEVEL UP!", GW / 2, floatY + 24);
+      ctx.shadowBlur = 0;
+      ctx.restore();
+      g.levelUpFlash--;
     }
 
     // ── Screen flash ─────────────────────────────────────────────────────────
@@ -848,19 +922,19 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
 
       if (roll < 0.28) {
         const h = 50 + Math.floor(Math.random() * 30);
-        obs = { id: g.frame, x: GW + 10, w: 22, h, kind: "wall", yOff: 0, lane: 0 };
+        obs = { id: g.frame, x: GW + 10, w: 22, h, kind: "wall", yOff: 0, lane: 0, passed: false };
       } else if (roll < 0.50) {
-        obs = { id: g.frame, x: GW + 10, w: 24, h: 28, kind: "spike", yOff: 0, lane: 0 };
+        obs = { id: g.frame, x: GW + 10, w: 24, h: 28, kind: "spike", yOff: 0, lane: 0, passed: false };
       } else if (roll < 0.66 && distFactor > 0.15) {
-        obs = { id: g.frame, x: GW + 10, w: 55, h: 0, kind: "pit", yOff: 0, lane: 0 };
+        obs = { id: g.frame, x: GW + 10, w: 55, h: 0, kind: "pit", yOff: 0, lane: 0, passed: false };
       } else if (roll < 0.80 && distFactor > 0.3) {
         const h = 120 + Math.floor(Math.random() * 40);
-        obs = { id: g.frame, x: GW + 10, w: 40, h, kind: "ceiling", yOff: 0, lane: 0 };
+        obs = { id: g.frame, x: GW + 10, w: 40, h, kind: "ceiling", yOff: 0, lane: 0, passed: false };
       } else if (distFactor > 0.5) {
         const gapH = 80 + Math.floor(Math.random() * 20);
-        obs = { id: g.frame, x: GW + 10, w: 20, h: GROUND - gapH - 60, kind: "gate", yOff: gapH, lane: 0 };
+        obs = { id: g.frame, x: GW + 10, w: 20, h: GROUND - gapH - 60, kind: "gate", yOff: gapH, lane: 0, passed: false };
       } else {
-        obs = { id: g.frame, x: GW + 10, w: 22, h: 50, kind: "wall", yOff: 0, lane: 0 };
+        obs = { id: g.frame, x: GW + 10, w: 22, h: 50, kind: "wall", yOff: 0, lane: 0, passed: false };
       }
       g.obs.push(obs);
       g.nxtObs = Math.max(35, 60 + Math.floor(Math.random() * 55) - Math.floor(effSpeed * 3));
@@ -868,6 +942,37 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
 
     // Move obstacles using effective speed
     g.obs = g.obs.map(o => ({ ...o, x: o.x - effSpeed })).filter(o => o.x > -120);
+
+    // ── Obstacle passed tracking (jump combo multiplier) ──────────────────────
+    g.obs.forEach(o => {
+      if (!o.passed && o.x + o.w < PET_X - 5) {
+        o.passed = true;
+        g.jumpCombo = Math.min(5, g.jumpCombo + 1);
+        g.jumpComboTimer = 180;
+      }
+    });
+
+    // Jump combo timer countdown
+    if (g.jumpComboTimer > 0) {
+      g.jumpComboTimer--;
+      if (g.jumpComboTimer === 0) g.jumpCombo = 1;
+    }
+
+    // ── Level system ──────────────────────────────────────────────────────────
+    const newLevel = Math.floor(g.distance / 800) + 1;
+    if (newLevel > g.level) {
+      g.level = newLevel;
+      g.levelUpFlash = 90;
+      g.levelUpFrame = g.frame;
+      g.flashColor = "255,215,0";
+      g.flashAlpha = 0.35;
+    }
+
+    // Level-colored trail particles (every 2 frames when airborne)
+    if (g.frame % 2 === 0 && g.petY > 2) {
+      const trailColor = LEVEL_BG[Math.min(g.level, 5)]?.accent ?? "#00ff88";
+      spawnPtcls(g, PET_X + 10 + Math.random() * 8, GROUND - g.laneY - g.petY + Math.random() * 8, trailColor, 2, 2);
+    }
 
     // ── Karma gems ────────────────────────────────────────────────────────────
     g.nxtGem--;
@@ -1015,12 +1120,13 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
         gem.done = true;
         const bonus = gem.risky ? 2 : 1;
         const zoneMult = g.inKarmaZone ? 3 : 1;
-        g.karma += bonus * zoneMult;
+        const comboMult = g.jumpCombo >= 3 ? 2 : 1;
+        g.karma += bonus * zoneMult * comboMult;
         g.karmaChain++;
         g.comboCount++;
         g.maxCombo = Math.max(g.maxCombo, g.comboCount);
         const chainMult = g.karmaChain >= 10 ? 2 : 1;
-        g.scoreBonus += 5 * bonus * chainMult * zoneMult;
+        g.scoreBonus += 5 * bonus * chainMult * zoneMult * comboMult;
         spawnPtcls(g, gem.x, gy, g.inKarmaZone ? "#00e5ff" : "#ffdd00", 4, 3);
         if (g.karmaChain === 10) {
           g.flashColor = "255,220,0"; g.flashAlpha = 0.3;
@@ -1097,7 +1203,7 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       .filter(p => p.life > 0);
 
     if (g.frame % 4 === 0) {
-      setUi({ combo: g.comboCount, karmaChain: g.karmaChain, shield: g.hasShield, speed: g.speed, lane: g.lane, world: g.world });
+      setUi({ combo: g.comboCount, karmaChain: g.karmaChain, shield: g.hasShield, speed: g.speed, lane: g.lane, world: g.world, level: g.level, jumpCombo: g.jumpCombo });
     }
 
     draw(); raf.current = requestAnimationFrame(loop);
@@ -1171,7 +1277,7 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     cancelAnimationFrame(raf.current);
     gs.current = mkGS(); setPhase("idle");
     setFin({ score: 0, karma: 0, maxCombo: 0, timeSec: 0, dist: 0 });
-    setUi({ combo: 0, karmaChain: 0, shield: false, speed: BASE_SPD, lane: 0, world: 0 });
+    setUi({ combo: 0, karmaChain: 0, shield: false, speed: BASE_SPD, lane: 0, world: 0, level: 1, jumpCombo: 1 });
     setCopied(false); setShaking(false);
     raf.current = requestAnimationFrame(draw);
   }
@@ -1341,6 +1447,8 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginTop: 6, flexWrap: "wrap" }}>
           <span style={{ color: "#ffdd00", fontSize: 11, fontWeight: 700 }}>⚡ KARMA</span>
           <span style={{ color: ui.speed > 9 ? "#ff4444" : ui.speed > 7 ? "#ff9900" : "#c8ff00", fontSize: 11, fontWeight: 700 }}>×{speedMult} SPD</span>
+          <span style={{ color: (LEVEL_BG[Math.min(ui.level, 5)]?.accent ?? "#00ff88"), fontSize: 11, fontWeight: 700 }}>LVL {ui.level}</span>
+          {ui.jumpCombo > 1 && <span style={{ color: ui.jumpCombo >= 5 ? "#ffd700" : ui.jumpCombo >= 3 ? "#ff6600" : "#ff9900", fontSize: 11, fontWeight: 700 }}>×{ui.jumpCombo} COMBO</span>}
           {ui.combo > 1 && <span style={{ color: "#ff6600", fontSize: 11, fontWeight: 700 }}>🔥 ×{ui.combo}</span>}
           {ui.karmaChain >= 5 && <span style={{ color: "#ffdd00", fontSize: 11, fontWeight: 700 }}>CHAIN ×{ui.karmaChain}</span>}
           {ui.shield && <span style={{ fontSize: 13 }}>🛡️</span>}

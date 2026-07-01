@@ -392,71 +392,54 @@ export default function FeedPage() {
 
       {/* BOUNTY BURST */}
       {filter === "ALL" && (
-        <div style={{ margin: "12px 0 0", overflowX: "auto", scrollbarWidth: "none" as const }}>
-          <div style={{ display: "flex", gap: 10, paddingLeft: 16, paddingRight: 16 }}>
-            {[
-              { emoji: "🌳", title: "Plant a Tree", karma: 200, xp: 80, difficulty: "EASY", color: "#00ff88" },
-              { emoji: "🏃", title: "Run 5km", karma: 500, xp: 200, difficulty: "HARD", color: "#ff6b35" },
-              { emoji: "📚", title: "Read 30min", karma: 150, xp: 60, difficulty: "EASY", color: "#a855f7" },
-            ].map((b, i) => (
-              <Link key={b.title} href="/quests" style={{ textDecoration: "none", flexShrink: 0 }}>
-                <motion.div
-                  whileTap={{ scale: 0.95 }}
-                  animate={i === 0 ? { boxShadow: [`0 0 12px ${b.color}22`, `0 0 28px ${b.color}55`, `0 0 12px ${b.color}22`] } : {}}
-                  transition={{ duration: 2, repeat: Infinity }}
-                  style={{
-                    width: 160, background: "#111",
-                    border: `2px solid ${b.color}44`,
-                    borderRadius: 16, padding: "12px",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                    <span style={{ fontSize: "1.5rem" }}>{b.emoji}</span>
-                    <span style={{
-                      fontSize: 8, fontWeight: 800, letterSpacing: "0.08em",
-                      color: b.difficulty === "EASY" ? "#00ff88" : "#ff6b35",
-                      background: b.difficulty === "EASY" ? "#00ff8822" : "#ff6b3522",
-                      border: `1px solid ${b.difficulty === "EASY" ? "#00ff8844" : "#ff6b3544"}`,
-                      borderRadius: 6, padding: "2px 6px",
-                    }}>{b.difficulty}</span>
-                  </div>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: "#fff", marginBottom: 6 }}>{b.title}</div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "#c8ff00" }}>+{b.karma}⚡</span>
-                    <span style={{ fontSize: 10, color: "#444" }}>·</span>
-                    <span style={{ fontSize: 10, color: "#555" }}>+{b.xp} XP</span>
-                  </div>
-                </motion.div>
-              </Link>
-            ))}
-          </div>
+        <div style={{ margin: "12px 16px 0", display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+          {[
+            { emoji: "🌳", title: "Plant a Tree", karma: 200, xp: 80, difficulty: "EASY", color: "#00ff88" },
+            { emoji: "🏃", title: "Run 5km", karma: 500, xp: 200, difficulty: "HARD", color: "#ff6b35" },
+            { emoji: "📚", title: "Read 30min", karma: 150, xp: 60, difficulty: "EASY", color: "#a855f7" },
+          ].map((b, i) => (
+            <Link key={b.title} href="/quests" style={{ textDecoration: "none" }}>
+              <motion.div
+                whileTap={{ scale: 0.95 }}
+                style={{
+                  background: "#111",
+                  border: `2px solid ${b.color}44`,
+                  borderRadius: 16, padding: "12px 10px",
+                }}
+              >
+                <div style={{ fontSize: "1.6rem", marginBottom: 5 }}>{b.emoji}</div>
+                <div style={{ fontSize: 9, fontWeight: 800, color: b.color, marginBottom: 3 }}>{b.difficulty}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", marginBottom: 6, lineHeight: 1.2 }}>{b.title}</div>
+                <div style={{ fontSize: 9, color: "#555" }}>+{b.karma} ⚡ · +{b.xp} XP</div>
+              </motion.div>
+            </Link>
+          ))}
         </div>
       )}
 
       {/* Quick action cards */}
       {filter === "ALL" && (
-        <div style={{ display: "flex", gap: 8, padding: "12px 16px 0", overflowX: "auto", scrollbarWidth: "none" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6, padding: "12px 16px 0" }}>
           {[
-            { href: "/karma-pot", emoji: "💰", label: "POTTEN",   sub: "249 kr idag",   color: "#c8ff00" },
-            { href: "/squads",    emoji: "⚡",  label: "SQUADS",   sub: "Wars live!",     color: "#c8ff00" },
-            { href: "/ville",     emoji: "🏙️", label: "MIN STAD", sub: "Bygg & tjäna",  color: "#ff6b35" },
-            { href: "/chat",      emoji: "💬", label: "CHATT",    sub: "137 online",     color: "#00e5ff" },
-            { href: "/premium",   emoji: "👑", label: "PREMIUM",  sub: "Från 19 kr",    color: "#ff8c00" },
+            { href: "/karma-pot", emoji: "💰", label: "POTTEN",   sub: "249 kr",    color: "#c8ff00" },
+            { href: "/squads",    emoji: "⚡",  label: "SQUADS",   sub: "Wars live",  color: "#c8ff00" },
+            { href: "/ville",     emoji: "🏙️", label: "STAD",     sub: "Bygg & tjäna", color: "#ff6b35" },
+            { href: "/chat",      emoji: "💬", label: "CHATT",    sub: "137 online",  color: "#00e5ff" },
+            { href: "/premium",   emoji: "👑", label: "PRO",      sub: "Från 19kr",  color: "#ff8c00" },
           ].map(item => (
-            <Link key={item.href} href={item.href} style={{ textDecoration: "none", flexShrink: 0 }}>
+            <Link key={item.href} href={item.href} style={{ textDecoration: "none" }}>
               <motion.div
                 whileTap={{ scale: 0.93 }}
-                whileHover={{ boxShadow: `0 0 16px ${item.color}33` }}
                 style={{
                   background: "linear-gradient(135deg, #111, #0d0d0d)",
                   border: `1.5px solid ${item.color}44`,
-                  borderRadius: 14, padding: "10px 14px",
-                  textAlign: "center", minWidth: 76,
+                  borderRadius: 12, padding: "8px 4px",
+                  textAlign: "center",
                 }}
               >
-                <div style={{ fontSize: "1.4rem", marginBottom: 3 }}>{item.emoji}</div>
-                <div style={{ fontSize: 10, fontWeight: 800, color: item.color }}>{item.label}</div>
-                <div style={{ fontSize: 9, color: "#444", marginTop: 1 }}>{item.sub}</div>
+                <div style={{ fontSize: "1.2rem", marginBottom: 2 }}>{item.emoji}</div>
+                <div style={{ fontSize: 9, fontWeight: 800, color: item.color, letterSpacing: "0.02em" }}>{item.label}</div>
+                <div style={{ fontSize: 8, color: "#444", marginTop: 1 }}>{item.sub}</div>
               </motion.div>
             </Link>
           ))}

@@ -9,7 +9,7 @@ import XPBar from "@/components/ui/XPBar";
 import { useApp } from "@/context/AppContext";
 import { xpProgress, xpToNextLevel, calculateLevel } from "@/lib/xp-system";
 import { LEADERBOARD, FOLLOWERS, FOLLOWING } from "@/lib/mock-data";
-import { getPetClassColor } from "@/lib/pet-evolution";
+import { getPetClassColor, getPetEmoji } from "@/lib/pet-evolution";
 import { WORLDS } from "@/lib/worlds";
 import { ACHIEVEMENTS } from "@/lib/achievements";
 
@@ -41,7 +41,7 @@ function Toggle({ on, onToggle, color }: { on: boolean; onToggle: () => void; co
 }
 
 export default function ProfilePage() {
-  const { user, worldId, setWorldId, streak, achievements, showToast, lang, setLang } = useApp();
+  const { user, worldId, setWorldId, streak, achievements, showToast, lang, setLang, pet, petMoodComputed } = useApp();
   const progress   = xpProgress(user.xp);
   const xpToNext   = xpToNextLevel(user.xp);
   const level      = calculateLevel(user.xp);
@@ -145,6 +145,79 @@ export default function ProfilePage() {
             ))}
           </div>
         </motion.div>
+
+        {/* Pet companion card */}
+        <Link href="/pet" style={{ textDecoration: "none" }}>
+          <motion.div
+            whileTap={{ scale: 0.97 }}
+            style={{
+              background: `linear-gradient(135deg, #0d0d0d 0%, ${classColor}0a 100%)`,
+              border: `2px solid ${classColor}33`,
+              borderRadius: 20,
+              padding: "14px 16px",
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              boxShadow: `0 0 20px ${classColor}08`,
+              cursor: "pointer",
+            }}
+          >
+            {/* Pet avatar */}
+            <motion.div
+              animate={{ y: [0, -4, 0] }}
+              transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+              style={{
+                width: 56, height: 56,
+                background: `radial-gradient(circle, ${classColor}22 0%, transparent 70%)`,
+                border: `2px solid ${classColor}55`,
+                borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "1.9rem",
+                flexShrink: 0,
+              }}
+            >
+              {getPetEmoji(pet.evolution, pet.class)}
+            </motion.div>
+
+            {/* Pet info */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                <span style={{ fontSize: 13, fontWeight: 900, color: "#fff" }}>{pet.name}</span>
+                <span style={{ fontSize: 10, color: classColor, fontWeight: 700, background: `${classColor}18`, padding: "2px 7px", borderRadius: 8 }}>
+                  LVL {pet.level}
+                </span>
+                <span style={{ fontSize: 12 }}>{
+                  petMoodComputed === "happy" ? "😊" :
+                  petMoodComputed === "excited" ? "🤩" :
+                  petMoodComputed === "hungry" ? "😋" :
+                  petMoodComputed === "sleeping" ? "😴" :
+                  petMoodComputed === "sad" ? "😢" : "😐"
+                }</span>
+              </div>
+              {/* Needs mini bars */}
+              <div style={{ display: "flex", gap: 6 }}>
+                {[
+                  { label: "🍖", val: pet.needs.hunger, color: "#ff6b35" },
+                  { label: "🎾", val: pet.needs.happiness, color: "#c8ff00" },
+                  { label: "⚡", val: pet.needs.energy, color: "#00e5ff" },
+                ].map(n => (
+                  <div key={n.label} style={{ flex: 1 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                      <span style={{ fontSize: 8 }}>{n.label}</span>
+                      <span style={{ fontSize: 8, color: "#555" }}>{Math.round(n.val)}%</span>
+                    </div>
+                    <div style={{ height: 4, background: "#1a1a1a", borderRadius: 2, overflow: "hidden" }}>
+                      <div style={{ width: `${n.val}%`, height: "100%", background: n.color, borderRadius: 2, transition: "width 0.3s" }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Arrow */}
+            <span style={{ color: classColor, fontSize: 18, opacity: 0.6 }}>›</span>
+          </motion.div>
+        </Link>
 
         {/* Inner tabs */}
         <div style={{ display: "flex", gap: 6, background: "#0d0d0d", border: "2px solid #1a1a1a", borderRadius: 16, padding: 4 }}>

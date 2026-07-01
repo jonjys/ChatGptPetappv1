@@ -145,7 +145,9 @@ export default function EventPage() {
     })).sort((a, b) => b.karma - a.karma)
   );
   const [pastEvents, setPastEvents] = useState<{ name: string; emoji: string; earned: number }[]>([]);
+  const [collectCooldown, setCollectCooldown] = useState(0);
   const mysteryDropRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const collectTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Tick countdown + refresh event state
   useEffect(() => {
@@ -204,7 +206,7 @@ export default function EventPage() {
   }, [joined, event, addKarma, addXP, user, showToast]);
 
   const handleCollect = useCallback(() => {
-    if (!joined) return;
+    if (!joined || collectCooldown > 0) return;
     const bonus = Math.floor(Math.random() * 80 + 30) * event.multiplier;
     addKarma(bonus, event.name);
     addXP(Math.floor(bonus / 3));
@@ -213,7 +215,21 @@ export default function EventPage() {
       prev.map(p => p.isMe ? { ...p, karma: p.karma + bonus } : p).sort((a, b) => b.karma - a.karma)
     );
     showToast(`+${bonus} ⚡ during ${event.emoji} ${event.name}!`, bonus, event.color, event.emoji);
-  }, [joined, event, addKarma, addXP, showToast]);
+    // 30-second cooldown
+    setCollectCooldown(30);
+    if (collectTimerRef.current) clearInterval(collectTimerRef.current);
+    collectTimerRef.current = setInterval(() => {
+      setCollectCooldown(v => {
+        if (v <= 1) { if (collectTimerRef.current) clearInterval(collectTimerRef.current); return 0; }
+        return v - 1;
+      });
+    }, 1000);
+  }, [joined, collectCooldown, event, addKarma, addXP, showToast]);
+
+  // Cleanup collectTimerRef on unmount
+  useEffect(() => {
+    return () => { if (collectTimerRef.current) clearInterval(collectTimerRef.current); };
+  }, []);
 
   const urgentSeconds = secondsLeft < 120;
   const myRank = leaderboard.findIndex(p => p.isMe) + 1;
@@ -353,18 +369,20 @@ export default function EventPage() {
                   <span style={{ fontSize: 14, fontWeight: 900, color: "#fff" }}>+{myEarned} ⚡</span>
                 </div>
                 <motion.button
-                  whileTap={{ scale: 0.95 }}
+                  whileTap={collectCooldown === 0 ? { scale: 0.95 } : {}}
                   onClick={handleCollect}
                   style={{
                     width: "100%", padding: "15px",
-                    background: "linear-gradient(135deg, #111, #1a1a1a)",
-                    border: `2.5px solid ${event.color}`,
+                    background: collectCooldown > 0 ? "#111" : "linear-gradient(135deg, #111, #1a1a1a)",
+                    border: `2.5px solid ${collectCooldown > 0 ? "#333" : event.color}`,
                     borderRadius: 16, fontSize: 15, fontWeight: 800,
-                    color: event.color, cursor: "pointer", fontFamily: "inherit",
-                    boxShadow: `3px 3px 0px #000, 0 0 20px ${event.color}33`,
+                    color: collectCooldown > 0 ? "#444" : event.color,
+                    cursor: collectCooldown > 0 ? "default" : "pointer",
+                    fontFamily: "inherit",
+                    boxShadow: collectCooldown > 0 ? "none" : `3px 3px 0px #000, 0 0 20px ${event.color}33`,
                   }}
                 >
-                  ⚡ COLLECT {event.multiplier > 1 ? `${event.multiplier}× ` : ""}KARMA BONUS
+                  {collectCooldown > 0 ? `⏳ NEXT COLLECT IN ${collectCooldown}s` : `⚡ COLLECT ${event.multiplier > 1 ? `${event.multiplier}× ` : ""}KARMA BONUS`}
                 </motion.button>
               </div>
             )}

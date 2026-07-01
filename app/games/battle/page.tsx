@@ -26,8 +26,8 @@ export default function BattlePage() {
           </div>
         </Link>
         <div style={{ flex: 1 }}>
-          <div style={{ color: "#a855f7", fontSize: 16, fontWeight: 700 }}>🔮 KARMA DEFENSE ULTRA</div>
-          <div style={{ color: "#555", fontSize: 11 }}>{pet.name} · {pet.class} · Place towers, use heroes</div>
+          <div style={{ color: "#a855f7", fontSize: 16, fontWeight: 700 }}>🌀 KARMA PULSE</div>
+          <div style={{ color: "#555", fontSize: 11 }}>{pet.name} · {pet.class} · Circular nexus defense</div>
         </div>
         {(gameScores.battle ?? 0) > 0 && (
           <div className="flex items-center gap-1" style={{ color: "#fbbf24", fontSize: 12, fontWeight: 700 }}>

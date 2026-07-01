@@ -180,33 +180,21 @@ export default function LandingPage() {
           </p>
         </motion.div>
 
-        {/* CTA button */}
-        <motion.button
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.55 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={handleEnter}
-          style={{
-            padding: "18px 52px", fontSize: 17, fontWeight: 900,
-            background: "linear-gradient(135deg, #c8ff00, #a8e000)",
-            border: "none", borderRadius: 16, color: "#000",
-            cursor: "pointer", letterSpacing: "0.05em",
-            boxShadow: "0 0 40px rgba(200,255,0,0.4), 0 4px 0 #6a9400",
-            marginBottom: 14,
-          }}
-        >
-          START YOUR JOURNEY →
-        </motion.button>
-
-        <motion.p
+        {/* Scroll indicator */}
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.7 }}
-          style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", marginBottom: 48 }}
+          transition={{ delay: 0.55 }}
+          style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, marginBottom: 48 }}
         >
-          FREE · NO ADS · NO SUBSCRIPTIONS
-        </motion.p>
+          <motion.div
+            animate={{ y: [0, 10, 0] }}
+            transition={{ repeat: Infinity, duration: 1.4, ease: "easeInOut" }}
+            style={{ fontSize: 24, color: "rgba(200,255,0,0.7)", cursor: "pointer" }}
+            onClick={() => window.scrollTo({ top: 400, behavior: "smooth" })}
+          >↓</motion.div>
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", letterSpacing: "0.12em" }}>SCROLL TO EXPLORE</span>
+        </motion.div>
 
         {/* Live stat ticker */}
         <motion.div
@@ -295,13 +283,15 @@ export default function LandingPage() {
           whileTap={{ scale: 0.95 }}
           onClick={handleEnter}
           style={{
-            padding: "16px 48px", fontSize: 15, fontWeight: 900,
-            background: "transparent",
-            border: "2px solid rgba(200,255,0,0.5)", borderRadius: 14, color: "#c8ff00",
+            padding: "18px 52px", fontSize: 17, fontWeight: 900,
+            background: "linear-gradient(135deg, #c8ff00, #a8e000)",
+            border: "none", borderRadius: 16, color: "#000",
             cursor: "pointer", letterSpacing: "0.05em",
+            boxShadow: "0 0 40px rgba(200,255,0,0.4), 0 4px 0 #6a9400",
+            marginBottom: 14,
           }}
         >
-          GET STARTED FREE →
+          START YOUR JOURNEY →
         </motion.button>
 
       </div>

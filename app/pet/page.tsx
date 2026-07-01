@@ -899,20 +899,6 @@ export default function PetPage() {
                   </motion.div>
                 </AnimatePresence>
 
-                {/* World + weather + time — top-right column */}
-                <div style={{ position: "absolute", top: 10, right: 10, zIndex: 12, display: "flex", flexDirection: "column", gap: 5 }}>
-                  {[
-                    { bg: `${world.accent}22`, border: world.accent, content: <><span style={{ fontSize: "0.85rem" }}>{world.emoji}</span><span style={{ fontSize: 10, fontWeight: 700, color: world.accent, letterSpacing: "0.06em" }}>{world.name}</span></> },
-                    { bg: "rgba(0,0,0,0.45)", border: "transparent", content: <><span style={{ fontSize: "0.85rem" }}>{weather.icon}</span><span style={{ fontSize: 10, fontWeight: 600, color: "#ccc" }}>{weather.label}</span></> },
-                    { bg: "rgba(0,0,0,0.45)", border: "transparent", content: <><span style={{ fontSize: "0.8rem" }}>{timeMood}</span><span style={{ fontSize: 10, fontWeight: 600, color: "#ccc" }}>{timeLabel}</span></> },
-                  ].map((b, i) => (
-                    <div key={i} style={{
-                      background: b.bg, border: `1.5px solid ${b.border}`,
-                      borderRadius: 8, padding: "3px 8px",
-                      display: "flex", alignItems: "center", gap: 4,
-                    }}>{b.content}</div>
-                  ))}
-                </div>
 
                 {/* Needs meters — overlaid at very bottom of room */}
                 <div style={{
@@ -933,7 +919,7 @@ export default function PetPage() {
                           <span style={{ fontSize: 9, fontWeight: 700, color: crit ? "#ff2d2d" : n.color, letterSpacing: "0.05em" }}>
                             {n.icon} {crit && "⚠"}
                           </span>
-                          <span style={{ fontSize: 9, color: "#666", fontWeight: 600 }}>{n.val}%</span>
+                          <span style={{ fontSize: 9, color: "#666", fontWeight: 600 }}>{Math.round(n.val)}%</span>
                         </div>
                         <div style={{ height: 5, background: "#0008", borderRadius: 999, overflow: "hidden", boxShadow: crit ? `0 0 6px #ff2d2d` : "none" }}>
                           <motion.div
@@ -952,11 +938,14 @@ export default function PetPage() {
                   })}
                 </div>
 
-                {/* Care action overlay — bottom-right floating buttons */}
-                <div style={{
-                  position: "absolute", bottom: 100, right: 10, zIndex: 20,
-                  display: "flex", flexDirection: "column", gap: 6,
-                }}>
+              </div>
+
+              {/* Action buttons + info strip */}
+              <div style={{
+                background: "#080808", borderTop: `2px solid ${world.accent}33`,
+                padding: "8px 12px",
+              }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 8 }}>
                   {[
                     { label: "Feed",  emoji: "🍖", color: "#ff6b35", onClick: () => handleFeed("basic") },
                     { label: "Play",  emoji: "🎾", color: "#4caf50", onClick: handlePlay },
@@ -964,36 +953,26 @@ export default function PetPage() {
                   ].map(a => (
                     <button key={a.label} onClick={a.onClick}
                       style={{
-                        height: 36, width: 80,
-                        background: "rgba(0,0,0,0.72)",
-                        border: `1.5px solid ${a.color}`,
-                        borderRadius: 10,
+                        padding: "9px 0",
+                        background: `${a.color}18`,
+                        border: `2px solid ${a.color}55`,
+                        borderRadius: 12,
                         display: "flex", alignItems: "center", justifyContent: "center",
-                        gap: 5,
-                        fontSize: 11, fontWeight: 700, color: a.color,
+                        gap: 5, fontSize: 12, fontWeight: 800, color: a.color,
                         cursor: "pointer",
-                        backdropFilter: "blur(4px)",
-                        boxShadow: `0 0 10px ${a.color}33`,
                       }}>
                       <span style={{ fontSize: "1rem" }}>{a.emoji}</span>
                       {a.label}
                     </button>
                   ))}
                 </div>
-              </div>
-
-              {/* Status strip */}
-              <div style={{
-                background: "#080808", borderTop: `2px solid ${world.accent}33`,
-                padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between",
-              }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#333", letterSpacing: "0.06em" }}>
-                  💗 TAP PET TO LOVE
-                </div>
-                <div style={{ display: "flex", gap: 16 }}>
-                  <span style={{ fontSize: 13, fontWeight: 900, color: "#ff6b35" }}>🔥 {streak}d</span>
-                  <span style={{ fontSize: 13, fontWeight: 900, color: "#ffde00" }}>⭐ Lv.{pet.level}</span>
-                  <span style={{ fontSize: 13, fontWeight: 900, color: "#c8ff00" }}>⚡ {user.karma.toLocaleString()}</span>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#444" }}>💗 TAP PET TO LOVE</span>
+                  <div style={{ display: "flex", gap: 12 }}>
+                    <span style={{ fontSize: 12, fontWeight: 900, color: "#ff6b35" }}>🔥 {streak}d</span>
+                    <span style={{ fontSize: 12, fontWeight: 900, color: "#ffde00" }}>⭐ Lv.{pet.level}</span>
+                    <span style={{ fontSize: 12, fontWeight: 900, color: "#c8ff00" }}>⚡ {user.karma.toLocaleString()}</span>
+                  </div>
                 </div>
               </div>
             </div>
