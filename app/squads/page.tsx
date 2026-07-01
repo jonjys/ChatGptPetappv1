@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
@@ -207,6 +207,99 @@ function SquadCard({ squad, onJoin, joined }: { squad: Squad; onJoin: (id: strin
   );
 }
 
+// ─── Squad Chat ───────────────────────────────────────────────────────────────
+type ChatMsg = { id: string; user: string; emoji: string; text: string; time: string; isMe?: boolean };
+const INITIAL_CHAT: ChatMsg[] = [
+  { id: "c1", user: "tradeknight", emoji: "⚔️", text: "GG everyone, we're killing it this week! 💪", time: "2m" },
+  { id: "c2", user: "lunavibes",   emoji: "🌙", text: "Just contributed 200 karma to the war effort 🔥", time: "5m" },
+  { id: "c3", user: "karmasonic",  emoji: "🦊", text: "VOID RUNNERS can't touch us rn fr", time: "8m" },
+  { id: "c4", user: "pixelrush",   emoji: "🎮", text: "anyone wanna squad run Karma Runner later?", time: "12m" },
+  { id: "c5", user: "lunavibes",   emoji: "🌙", text: "I'm down! Need to farm some XP anyway 🌟", time: "14m" },
+  { id: "c6", user: "tradeknight", emoji: "⚔️", text: "War ends in 6h — we need 800 more karma. LET'S GO ⚡", time: "18m" },
+];
+
+function SquadChat({ squad, user: me, onClose }: { squad: Squad; user: { username: string; avatarEmoji: string }; onClose: () => void }) {
+  const [msgs, setMsgs] = useState<ChatMsg[]>(INITIAL_CHAT);
+  const [text, setText] = useState("");
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function send() {
+    if (!text.trim()) return;
+    const msg: ChatMsg = {
+      id: `m_${Date.now()}`,
+      user: me.username, emoji: me.avatarEmoji,
+      text: text.trim(), time: "now", isMe: true,
+    };
+    setMsgs(prev => [...prev, msg]);
+    setText("");
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
+  }
+
+  useEffect(() => {
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "instant" }), 100);
+  }, []);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(8px)", display: "flex", flexDirection: "column", maxWidth: 560, margin: "0 auto", left: "50%", transform: "translateX(-50%)", width: "100%" }}
+    >
+      {/* Chat header */}
+      <div style={{ padding: "14px 16px 12px", background: "#0a0a0a", borderBottom: `2px solid ${squad.accent}44`, display: "flex", alignItems: "center", gap: 12, flexShrink: 0, paddingTop: "calc(14px + env(safe-area-inset-top))" }}>
+        <button onClick={onClose} style={{ background: "#1a1a1a", border: "2px solid #333", borderRadius: 10, width: 36, height: 36, cursor: "pointer", color: "#888", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>←</button>
+        <div style={{ width: 38, height: 38, borderRadius: 10, background: squad.accent + "22", border: `2px solid ${squad.accent}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem" }}>{squad.emoji}</div>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 900, color: "#fff" }}>{squad.name}</div>
+          <div style={{ fontSize: 11, color: "#555" }}>{squad.members.length} members · {squad.members.filter(m => m.online).length} online</div>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: 10 }}>
+        {msgs.map(msg => (
+          <div key={msg.id} style={{ display: "flex", gap: 10, justifyContent: msg.isMe ? "flex-end" : "flex-start", alignItems: "flex-end" }}>
+            {!msg.isMe && (
+              <div style={{ width: 32, height: 32, flexShrink: 0, background: "#1a1a1a", border: `2px solid ${squad.accent}44`, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem" }}>{msg.emoji}</div>
+            )}
+            <div style={{ maxWidth: "72%", display: "flex", flexDirection: "column", alignItems: msg.isMe ? "flex-end" : "flex-start", gap: 3 }}>
+              {!msg.isMe && <span style={{ fontSize: 10, fontWeight: 700, color: squad.accent }}>@{msg.user}</span>}
+              <div style={{ background: msg.isMe ? squad.accent : "#1a1a1a", border: `2px solid ${msg.isMe ? "transparent" : "#2a2a2a"}`, borderRadius: msg.isMe ? "18px 18px 4px 18px" : "18px 18px 18px 4px", padding: "10px 14px", color: msg.isMe ? "#000" : "#fff", fontSize: 14, fontWeight: msg.isMe ? 700 : 500, lineHeight: 1.4 }}>{msg.text}</div>
+              <span style={{ fontSize: 9, color: "#444" }}>{msg.time}</span>
+            </div>
+            {msg.isMe && (
+              <div style={{ width: 32, height: 32, flexShrink: 0, background: squad.accent + "22", border: `2px solid ${squad.accent}66`, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem" }}>{me.avatarEmoji}</div>
+            )}
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input */}
+      <div style={{ padding: "12px 16px", background: "#0a0a0a", borderTop: "2px solid #1a1a1a", display: "flex", gap: 10, alignItems: "center", paddingBottom: "calc(12px + env(safe-area-inset-bottom))", flexShrink: 0 }}>
+        <div style={{ flex: 1, background: "#1a1a1a", border: `2px solid ${squad.accent}33`, borderRadius: 20, display: "flex", alignItems: "center", padding: "0 14px" }}>
+          <input
+            ref={inputRef}
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && send()}
+            placeholder="Message the squad..."
+            style={{ flex: 1, background: "none", border: "none", outline: "none", fontSize: 14, color: "#fff", padding: "12px 0", fontFamily: "inherit" }}
+          />
+          <button onClick={() => { const emojis = ["⚡","🔥","💪","🎯","👑"]; setText(prev => prev + emojis[Math.floor(Math.random() * emojis.length)]); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#444", padding: "0 4px" }}>😊</button>
+        </div>
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          onClick={send}
+          style={{ width: 44, height: 44, flexShrink: 0, borderRadius: 14, background: text.trim() ? squad.accent : "#1a1a1a", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, transition: "background 0.15s" }}
+        >
+          {text.trim() ? "↑" : "🎤"}
+        </motion.button>
+      </div>
+    </motion.div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 type TabType = "MY SQUAD" | "DISCOVER" | "WARS";
 
@@ -215,6 +308,7 @@ export default function SquadsPage() {
   const level = calculateLevel(user.xp);
   const [tab, setTab] = useState<TabType>("MY SQUAD");
   const [showCreate, setShowCreate] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const [mySquad, setMySquad] = useState<Squad | null>(null);
   const [joinedSquads, setJoinedSquads] = useState<Set<string>>(new Set());
   const [warContrib, setWarContrib] = useState(0);
@@ -289,12 +383,13 @@ export default function SquadsPage() {
           <div style={{ display: "flex", gap: 8 }}>
             <motion.button
               whileTap={{ scale: 0.9 }}
-              onClick={() => showToast("Squad chat coming soon! 💬", undefined, "#4488ff", "💬")}
+              onClick={() => setShowChat(true)}
               style={{
                 width: 40, height: 40, borderRadius: 12,
-                background: "#111", border: "2px solid #222",
+                background: `${squad.accent}22`, border: `2px solid ${squad.accent}55`,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 cursor: "pointer", fontSize: "1.1rem",
+                boxShadow: `0 0 12px ${squad.accent}33`,
               }}
             >💬</motion.button>
           </div>
@@ -624,6 +719,13 @@ export default function SquadsPage() {
       <AnimatePresence>
         {showCreate && (
           <CreateSquadModal onClose={() => setShowCreate(false)} onCreated={handleCreate} />
+        )}
+      </AnimatePresence>
+
+      {/* Squad chat */}
+      <AnimatePresence>
+        {showChat && (
+          <SquadChat squad={squad} user={user} onClose={() => setShowChat(false)} />
         )}
       </AnimatePresence>
     </div>
