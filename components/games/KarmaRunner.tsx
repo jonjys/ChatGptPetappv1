@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { FRIENDS } from "@/lib/mock-data";
+import { getPetEmoji, getPetClassColor } from "@/lib/pet-evolution";
+import { useApp } from "@/context/AppContext";
 
 // ── Geometry Dash-style Karma Runner — Neo-brutalist, Social Ghosts, 5 obstacle types, Boss, Worlds ──
 
@@ -61,6 +63,35 @@ type GS = {
   level: number; levelUpFlash: number; levelUpFrame: number;
   // Jump combo multiplier
   jumpCombo: number; jumpComboTimer: number;
+  // Pet-class special ability
+  ability: { active: boolean; cooldown: number; timer: number };
+  // Level-based boss encounters
+  lvlBossActive: boolean; lvlBossX: number; lvlBossBaseY: number;
+  lvlBossEmoji: string; lvlBossLevel: number;
+  lvlBossWarning: number; lvlBossDefeatedFlash: number; lvlBossNextLevel: number;
+};
+
+// ── Biome floor accent (level-based) ─────────────────────────────────────────
+function getBiomeAccent(level: number): string {
+  if (level <= 2) return "#00ff88";  // Neon green
+  if (level <= 4) return "#ff4400";  // Lava / fire
+  if (level <= 6) return "#00e5ff";  // Ice / crystal
+  if (level <= 8) return "#8800ff";  // Shadow / void
+  if (level <= 10) return "#ffdd00"; // Lightning / storm
+  return "#ffd700";                  // Golden karma
+}
+
+function getLevelBossEmoji(bossLevel: number): string {
+  if (bossLevel <= 5) return "👹";
+  if (bossLevel <= 10) return "💀";
+  if (bossLevel <= 15) return "🔥";
+  return "⚡";
+}
+
+const ABILITY_INFO: Record<string, { label: string; flashRgb: string; duration: number }> = {
+  "Grinder Beast":     { label: "💪 RAGE MODE",   flashRgb: "255,107,53", duration: 180 },
+  "Influencer Spirit": { label: "✨ STAR SHIELD", flashRgb: "255,45,141", duration: 300 },
+  "Merchant King":     { label: "💰 COIN MAGNET", flashRgb: "200,255,0",  duration: 240 },
 };
 
 // ── World palette data ────────────────────────────────────────────────────────
@@ -136,6 +167,10 @@ function mkGS(): GS {
     bossSpawnDist: 500,
     level: 1, levelUpFlash: 0, levelUpFrame: 0,
     jumpCombo: 1, jumpComboTimer: 0,
+    ability: { active: false, cooldown: 0, timer: 0 },
+    lvlBossActive: false, lvlBossX: GW + 30, lvlBossBaseY: 200,
+    lvlBossEmoji: "", lvlBossLevel: 0,
+    lvlBossWarning: 0, lvlBossDefeatedFlash: 0, lvlBossNextLevel: 5,
   };
 }
 
@@ -152,6 +187,17 @@ function spawnPtcls(g: GS, x: number, y: number, color: string, count = 5, size 
 }
 
 export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: string; onEnd?: (score: number, gems: number) => void }) {
+  const { pet } = useApp();
+  // Compute pet-derived values; store in refs so draw/loop always see current values
+  const activePetEmoji = pet.skinId?.startsWith("emoji:") ? pet.skinId.slice(6) : getPetEmoji(pet.evolution, pet.class);
+  const classColor = getPetClassColor(pet.class);
+  const petEmojiRef = useRef(activePetEmoji);
+  const classColorRef = useRef(classColor);
+  const petClassRef = useRef(pet.class);
+  petEmojiRef.current = activePetEmoji;
+  classColorRef.current = classColor;
+  petClassRef.current = pet.class;
+
   const cvs = useRef<HTMLCanvasElement>(null);
   const gs = useRef<GS>(mkGS());
   const raf = useRef<number>(0);
@@ -159,6 +205,7 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
   const [fin, setFin] = useState({ score: 0, karma: 0, maxCombo: 0, timeSec: 0, dist: 0 });
   const [best, setBest] = useState(0);
   const [ui, setUi] = useState({ combo: 0, karmaChain: 0, shield: false, speed: BASE_SPD, lane: 0, world: 0, level: 1, jumpCombo: 1 });
+  const [abilityUi, setAbilityUi] = useState({ active: false, cooldown: 0 });
   const [copied, setCopied] = useState(false);
   const [shaking, setShaking] = useState(false);
   const swipeStartY = useRef<number | null>(null);
@@ -173,6 +220,9 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     const g = gs.current;
     const wIdx = Math.min(g.world, WORLDS.length - 1);
     const world = WORLDS[wIdx];
+    const curPetEmoji = petEmojiRef.current;
+    const curClassColor = classColorRef.current;
+    const biomeAccent = getBiomeAccent(g.level);
 
     ctx.save();
     if (g.screenShake > 0) {
@@ -346,15 +396,55 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     ctx.globalAlpha = 1;
     ctx.restore();
 
-    // Neon ground line (beat-enhanced)
+    // Neon ground line (beat-enhanced, biome accent color)
     const groundLineWidth = g.beatPulse > 0 ? 3 + 2 * (g.beatPulse / 15) : 3;
-    const groundLineColor = g.beatPulse > 0 ? "#ffffff" : world.ground;
+    const groundLineColor = g.beatPulse > 0 ? "#ffffff" : biomeAccent;
     ctx.strokeStyle = groundLineColor;
     ctx.lineWidth = groundLineWidth;
-    ctx.shadowColor = world.ground;
+    ctx.shadowColor = biomeAccent;
     ctx.shadowBlur = g.beatPulse > 0 ? 16 : 8;
     ctx.beginPath(); ctx.moveTo(0, GROUND); ctx.lineTo(GW, GROUND); ctx.stroke();
     ctx.shadowBlur = 0;
+
+    // Biome floor accent effects
+    {
+      const tilePhase = (g.frame * g.speed) % 60;
+      if (g.level >= 3 && g.level <= 4) {
+        // Lava: red/orange shimmer ripple on ground edge
+        for (let lx = 0; lx < GW; lx += 12) {
+          const ripple = Math.sin((lx + g.frame * 3) * 0.18) * 3;
+          ctx.fillStyle = `rgba(255,${60 + Math.floor(ripple * 10)},0,0.18)`;
+          ctx.fillRect(lx, GROUND + 1, 10, 4 + ripple);
+        }
+      } else if (g.level >= 5 && g.level <= 6) {
+        // Ice: blue shimmer dots along ground
+        for (let lx = (-tilePhase * 2) % 30; lx < GW; lx += 30) {
+          const glint = 0.3 + 0.4 * Math.abs(Math.sin(lx * 0.1 + g.frame * 0.05));
+          ctx.fillStyle = `rgba(0,229,255,${glint})`;
+          ctx.fillRect(lx, GROUND - 1, 6, 2);
+        }
+      } else if (g.level >= 7 && g.level <= 8) {
+        // Void: dark purple crack lines
+        ctx.strokeStyle = "rgba(136,0,255,0.25)";
+        ctx.lineWidth = 1;
+        for (let ci = 0; ci < 5; ci++) {
+          const cx = (ci * 78 + g.frame * 2) % GW;
+          ctx.beginPath(); ctx.moveTo(cx, GROUND); ctx.lineTo(cx + 10, GROUND + 8); ctx.stroke();
+        }
+      } else if (g.level >= 9 && g.level <= 10) {
+        // Lightning: yellow sparks
+        if (g.frame % 8 === 0) {
+          spawnPtcls(g, Math.random() * GW, GROUND - 2, "#ffdd00", 1, 2);
+        }
+      } else if (g.level >= 11) {
+        // Golden: gold shimmer
+        for (let lx = (-tilePhase * 1.5) % 20; lx < GW; lx += 20) {
+          const shine = 0.2 + 0.5 * Math.abs(Math.sin(lx * 0.2 + g.frame * 0.08));
+          ctx.fillStyle = `rgba(255,215,0,${shine})`;
+          ctx.fillRect(lx, GROUND - 1, 4, 2);
+        }
+      }
+    }
 
     // Lane guide lines
     if (g.lane > 0) {
@@ -482,6 +572,60 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       });
     }
 
+    // ── Level Boss ────────────────────────────────────────────────────────────
+    if (g.lvlBossActive) {
+      const bossCurrentY = g.lvlBossBaseY + Math.sin(g.frame * 0.08) * 60;
+      ctx.save();
+      ctx.font = "52px serif";
+      ctx.shadowColor = "#ff4400";
+      ctx.shadowBlur = 28;
+      ctx.fillText(g.lvlBossEmoji, g.lvlBossX, bossCurrentY + 52);
+      ctx.shadowBlur = 0;
+      ctx.font = "bold 9px monospace";
+      ctx.fillStyle = "#ff4444";
+      ctx.textAlign = "center";
+      ctx.shadowColor = "#ff4444"; ctx.shadowBlur = 6;
+      ctx.fillText(`LVL BOSS Lv.${g.lvlBossLevel}`, g.lvlBossX + 26, bossCurrentY - 6);
+      ctx.shadowBlur = 0; ctx.textAlign = "left";
+      ctx.restore();
+    }
+
+    // ── Boss Warning Banner ────────────────────────────────────────────────────
+    if (g.lvlBossWarning > 0) {
+      const warnAlpha = 0.65 + 0.25 * Math.sin(g.frame * 0.35);
+      ctx.save();
+      ctx.globalAlpha = warnAlpha;
+      ctx.fillStyle = "rgba(180,0,0,0.82)";
+      ctx.fillRect(0, GH / 2 - 30, GW, 60);
+      ctx.font = "bold 24px monospace";
+      ctx.fillStyle = "#ffdd00";
+      ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 14;
+      ctx.textAlign = "center";
+      ctx.fillText("⚠️ WARNING! ⚠️", GW / 2, GH / 2 + 2);
+      ctx.font = "bold 11px monospace";
+      ctx.fillStyle = "#ffffff";
+      ctx.shadowBlur = 0;
+      ctx.fillText("LEVEL BOSS INCOMING!", GW / 2, GH / 2 + 20);
+      ctx.textAlign = "left"; ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
+    // ── Boss Defeated Flash ────────────────────────────────────────────────────
+    if (g.lvlBossDefeatedFlash > 0) {
+      const t = g.lvlBossDefeatedFlash / 120;
+      const floatY = GH / 2 - 70 + (1 - t) * 35;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, t * 2.5);
+      ctx.font = "bold 20px monospace";
+      ctx.fillStyle = "#ffd700";
+      ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 22;
+      ctx.textAlign = "center";
+      ctx.fillText("BOSS DEFEATED! +50⚡", GW / 2, floatY);
+      ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+      ctx.textAlign = "left";
+      ctx.restore();
+    }
+
     // ── Rocket ───────────────────────────────────────────────────────────────
     if (g.hasRocket) {
       ctx.font = "24px serif";
@@ -556,7 +700,7 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       const opacity = [0.18, 0.12, 0.08, 0.05, 0.03][i] ?? 0;
       ctx.globalAlpha = opacity;
       ctx.font = `${PET_H}px serif`;
-      ctx.fillText(petEmoji, pt.x - 4 - i * 3, pt.y);
+      ctx.fillText(curPetEmoji, pt.x - 4 - i * 3, pt.y);
     });
     ctx.globalAlpha = 1;
 
@@ -590,8 +734,8 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       ctx.translate(-PET_X - 22, -(petScreenY - PET_H / 2));
     }
 
-    // Neon glow ring
-    const glowColor = g.hasStar ? `hsl(${(g.frame * 5) % 360},100%,60%)` : g.hasShield ? "#00e5ff" : "#00ff88";
+    // Neon glow ring — uses pet class color when no powerup active
+    const glowColor = g.hasStar ? `hsl(${(g.frame * 5) % 360},100%,60%)` : g.hasShield ? "#00e5ff" : curClassColor;
     ctx.strokeStyle = glowColor;
     ctx.lineWidth = g.hasStar || g.hasShield ? 3 : 2;
     ctx.globalAlpha = 0.5 + 0.2 * Math.sin(g.frame * 0.2);
@@ -607,6 +751,46 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       ctx.shadowBlur = 0; ctx.globalAlpha = 1;
     }
 
+    // ── Class ability visual effects ─────────────────────────────────────────
+    if (g.ability.active) {
+      const pc = petClassRef.current;
+      const petCX = PET_X + 22;
+      const petCY = petScreenY - PET_H / 2;
+      if (pc === "Grinder Beast") {
+        // Rage: concentric orange/red rings
+        const rageA = 0.65 + 0.35 * Math.sin(g.frame * 0.35);
+        ctx.strokeStyle = `rgba(255,80,0,${rageA})`; ctx.lineWidth = 4;
+        ctx.shadowColor = "#ff6600"; ctx.shadowBlur = 22;
+        ctx.beginPath(); ctx.arc(petCX, petCY, 34, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = `rgba(255,30,0,${rageA * 0.6})`; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(petCX, petCY, 44, 0, Math.PI * 2); ctx.stroke();
+        // Orange color tint overlay
+        ctx.globalAlpha = 0.25;
+        ctx.fillStyle = "#ff6600";
+        ctx.beginPath(); ctx.arc(petCX, petCY, 26, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+      } else if (pc === "Influencer Spirit") {
+        // Star shield: pulsing bubble
+        const shieldPulse = 0.45 + 0.55 * Math.sin(g.frame * 0.18);
+        const shieldR = 30 + shieldPulse * 8;
+        ctx.strokeStyle = `rgba(255,45,141,${shieldPulse})`; ctx.lineWidth = 3;
+        ctx.shadowColor = "#ff2d8d"; ctx.shadowBlur = 18;
+        ctx.beginPath(); ctx.arc(petCX, petCY, shieldR, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = shieldPulse * 0.18;
+        ctx.fillStyle = "#ff2d8d";
+        ctx.beginPath(); ctx.arc(petCX, petCY, shieldR, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+      } else if (pc === "Merchant King") {
+        // Coin magnet: cyan magnetic field rings
+        const magA = 0.35 + 0.2 * Math.sin(g.frame * 0.12);
+        ctx.strokeStyle = `rgba(0,229,255,${magA})`; ctx.lineWidth = 1.5;
+        ctx.shadowColor = "#00e5ff"; ctx.shadowBlur = 10;
+        ctx.beginPath(); ctx.arc(petCX, petCY, 66, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(petCX, petCY, 82, 0, Math.PI * 2); ctx.stroke();
+        ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+      }
+    }
+
     // Speed blur: squish horizontally when fast
     if (g.speed > 8 && !g.over) {
       ctx.save();
@@ -614,11 +798,11 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       ctx.scale(0.85, 1);
       ctx.translate(-(PET_X + 22), -(petScreenY - PET_H / 2));
       ctx.font = `${PET_H}px serif`;
-      ctx.fillText(petEmoji, PET_X, petScreenY);
+      ctx.fillText(curPetEmoji, PET_X, petScreenY);
       ctx.restore();
     } else {
       ctx.font = `${PET_H}px serif`;
-      ctx.fillText(petEmoji, PET_X, petScreenY);
+      ctx.fillText(curPetEmoji, PET_X, petScreenY);
     }
     ctx.restore();
 
@@ -767,7 +951,8 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
 
     ctx.textAlign = "left";
     ctx.restore();
-  }, [petEmoji]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loop = useCallback(() => {
     const g = gs.current;
@@ -809,6 +994,18 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     if (g.beatTimer   > 0)   { g.beatTimer--;     if (g.beatTimer   === 0)   g.hasBeat     = false; }
     if (g.timeSlowTimer > 0) { g.timeSlowTimer--; if (g.timeSlowTimer === 0) g.hasTimeSlow = false; }
     if (g.screenShake > 0)   g.screenShake = Math.max(0, g.screenShake - 0.6);
+
+    // ── Class ability timers ──────────────────────────────────────────────────
+    if (g.ability.cooldown > 0) g.ability.cooldown--;
+    if (g.ability.active) {
+      g.ability.timer--;
+      if (g.ability.timer <= 0) {
+        g.ability.active = false;
+        g.ability.timer = 0;
+        // For Influencer Spirit: shield expires with ability
+        // hasShield was set separately and may already be consumed
+      }
+    }
 
     // ── Lane interpolation ────────────────────────────────────────────────────
     const targetLaneY = LANE_OFFSETS[Math.min(g.lane, 2)] ?? 0;
@@ -1053,6 +1250,15 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
 
     for (const o of g.obs) {
       if (g.hasStar) continue;
+      // Grinder Beast rage: smash through obstacles
+      if (g.ability.active && petClassRef.current === "Grinder Beast") {
+        // Shatter if overlapping
+        if (pR > o.x + 3 && pL < o.x + o.w - 3) {
+          spawnPtcls(g, o.x + o.w / 2, GROUND - Math.max(o.h, 20), "#ff6600", 6, 4);
+          g.obs = g.obs.filter(x => x !== o);
+        }
+        continue;
+      }
 
       if (o.kind === "pit") {
         // Pit: player falls in if on ground level (lane 0) and over gap
@@ -1109,24 +1315,80 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       }
     }
 
+    // ── Level boss collision ──────────────────────────────────────────────────
+    if (g.lvlBossActive) {
+      const lvlBossCurrentY = g.lvlBossBaseY + Math.sin(g.frame * 0.08) * 60;
+      const bossCX = g.lvlBossX + 26;
+      const bossCY = lvlBossCurrentY + 26;
+      const dx = (PET_X + 22) - bossCX;
+      const dy = petCenterY - bossCY;
+      if (Math.sqrt(dx * dx + dy * dy) < 30) {
+        if (g.ability.active && petClassRef.current === "Grinder Beast") {
+          spawnPtcls(g, bossCX, bossCY, "#ff6600", 10, 5);
+        } else if (g.hasShield || g.hasStar || (g.ability.active && petClassRef.current === "Influencer Spirit")) {
+          g.hasShield = false; g.shieldTimer = 0;
+          spawnPtcls(g, bossCX, bossCY, "#00e5ff", 8, 4);
+          g.screenShake = 5;
+        } else {
+          triggerDeath(); return;
+        }
+      }
+      // Boss passed the screen — player survived
+      g.lvlBossX -= Math.max(2.5, effSpeed * 0.75);
+      if (g.lvlBossX < -80) {
+        g.lvlBossActive = false;
+        g.karma += 50;
+        g.scoreBonus += 300;
+        g.lvlBossDefeatedFlash = 120;
+        g.lvlBossNextLevel += 5;
+        g.flashColor = "255,215,0"; g.flashAlpha = 0.45;
+        spawnPtcls(g, GW / 2, GH / 2, "#ffd700", 18, 5);
+      }
+    }
+    if (g.lvlBossDefeatedFlash > 0) g.lvlBossDefeatedFlash--;
+
+    // ── Level boss warning / spawn trigger ───────────────────────────────────
+    if (!g.lvlBossActive && g.lvlBossWarning === 0 && g.lvlBossDefeatedFlash === 0
+        && g.level >= g.lvlBossNextLevel && g.level >= 5) {
+      g.lvlBossWarning = 120; // 2-second warning
+    }
+    if (g.lvlBossWarning > 0) {
+      g.lvlBossWarning--;
+      if (g.lvlBossWarning === 0) {
+        // Spawn boss
+        g.lvlBossActive = true;
+        g.lvlBossX = GW + 30;
+        g.lvlBossBaseY = 190;
+        g.lvlBossEmoji = getLevelBossEmoji(g.lvlBossNextLevel);
+        g.lvlBossLevel = g.lvlBossNextLevel;
+        g.flashColor = "255,60,0"; g.flashAlpha = 0.4;
+        g.screenShake = 6;
+      }
+    }
+
     // ── Karma gem collection ──────────────────────────────────────────────────
     g.gms.forEach(gem => {
       if (gem.done) return;
       const gy = GROUND + gem.yOff - 10;
-      const inRange = g.hasMagnet
-        ? (Math.abs(gem.x - (PET_X + 22)) < 55 && Math.abs(gy - petCenterY) < 55)
+      // Merchant King ability extends magnet range further
+      const magnetActive = g.hasMagnet || (g.ability.active && petClassRef.current === "Merchant King");
+      const magnetRange = (g.ability.active && petClassRef.current === "Merchant King") ? 80 : 55;
+      const inRange = magnetActive
+        ? (Math.abs(gem.x - (PET_X + 22)) < magnetRange && Math.abs(gy - petCenterY) < magnetRange)
         : (gem.x < pR && gem.x + 16 > pL && gy < pB && gy + 16 > pT);
       if (inRange) {
         gem.done = true;
         const bonus = gem.risky ? 2 : 1;
         const zoneMult = g.inKarmaZone ? 3 : 1;
         const comboMult = g.jumpCombo >= 3 ? 2 : 1;
-        g.karma += bonus * zoneMult * comboMult;
+        // Merchant King ability: 3× gems
+        const abilityMult = (g.ability.active && petClassRef.current === "Merchant King") ? 3 : 1;
+        g.karma += bonus * zoneMult * comboMult * abilityMult;
         g.karmaChain++;
         g.comboCount++;
         g.maxCombo = Math.max(g.maxCombo, g.comboCount);
         const chainMult = g.karmaChain >= 10 ? 2 : 1;
-        g.scoreBonus += 5 * bonus * chainMult * zoneMult * comboMult;
+        g.scoreBonus += 5 * bonus * chainMult * zoneMult * comboMult * abilityMult;
         spawnPtcls(g, gem.x, gy, g.inKarmaZone ? "#00e5ff" : "#ffdd00", 4, 3);
         if (g.karmaChain === 10) {
           g.flashColor = "255,220,0"; g.flashAlpha = 0.3;
@@ -1204,10 +1466,33 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
 
     if (g.frame % 4 === 0) {
       setUi({ combo: g.comboCount, karmaChain: g.karmaChain, shield: g.hasShield, speed: g.speed, lane: g.lane, world: g.world, level: g.level, jumpCombo: g.jumpCombo });
+      setAbilityUi({ active: g.ability.active, cooldown: g.ability.cooldown });
     }
 
     draw(); raf.current = requestAnimationFrame(loop);
   }, [draw, onEnd]);
+
+  const activateAbility = useCallback(() => {
+    const g = gs.current;
+    if (!g.on || g.over || g.ability.cooldown > 0 || g.ability.active) return;
+    const pc = petClassRef.current;
+    const info = ABILITY_INFO[pc];
+    if (!info) return;
+    const COOLDOWN = 900; // 15 seconds at 60fps
+    g.ability.active = true;
+    g.ability.cooldown = COOLDOWN;
+    g.ability.timer = info.duration;
+    if (pc === "Influencer Spirit") {
+      // Star Shield also grants shield powerup for 5s
+      g.hasShield = true; g.shieldTimer = info.duration;
+    } else if (pc === "Merchant King") {
+      // Coin Magnet amplifies existing magnet
+      g.hasMagnet = true; g.magnetTimer = Math.max(g.magnetTimer, info.duration);
+    }
+    g.flashColor = info.flashRgb; g.flashAlpha = 0.35;
+    spawnPtcls(g, PET_X + 22, GROUND - g.petY - PET_H / 2, classColorRef.current, 10, 4);
+    setAbilityUi({ active: true, cooldown: COOLDOWN });
+  }, []);
 
   function jump() {
     const g = gs.current;
@@ -1278,6 +1563,7 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
     gs.current = mkGS(); setPhase("idle");
     setFin({ score: 0, karma: 0, maxCombo: 0, timeSec: 0, dist: 0 });
     setUi({ combo: 0, karmaChain: 0, shield: false, speed: BASE_SPD, lane: 0, world: 0, level: 1, jumpCombo: 1 });
+    setAbilityUi({ active: false, cooldown: 0 });
     setCopied(false); setShaking(false);
     raf.current = requestAnimationFrame(draw);
   }
@@ -1303,6 +1589,9 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
   const deathGhost = gs.current.ghosts.find(gh => gh.name === gs.current.deathGhostName);
   const wIdx = Math.min(gs.current.world, WORLDS.length - 1);
   const currentWorld = WORLDS[wIdx]!;
+
+  // Ability UI derived values
+  const abilityLabel = ABILITY_INFO[pet.class]?.label ?? "⚡ ABILITY";
 
   return (
     <div
@@ -1334,7 +1623,7 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
               : "rgba(5,5,16,0.88)",
           }}
         >
-          <div style={{ fontSize: "3.2rem" }}>{petEmoji}</div>
+          <div style={{ fontSize: "3.2rem" }}>{activePetEmoji}</div>
           <div style={{
             color: gs.current.world <= 1 ? "#1a4a00" : "#c8ff00",
             fontSize: 22, fontWeight: 900, letterSpacing: 3,
@@ -1444,17 +1733,50 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
 
       {/* IN-GAME HUD BELOW CANVAS */}
       {phase === "on" && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginTop: 6, flexWrap: "wrap" }}>
-          <span style={{ color: "#ffdd00", fontSize: 11, fontWeight: 700 }}>⚡ KARMA</span>
-          <span style={{ color: ui.speed > 9 ? "#ff4444" : ui.speed > 7 ? "#ff9900" : "#c8ff00", fontSize: 11, fontWeight: 700 }}>×{speedMult} SPD</span>
-          <span style={{ color: (LEVEL_BG[Math.min(ui.level, 5)]?.accent ?? "#00ff88"), fontSize: 11, fontWeight: 700 }}>LVL {ui.level}</span>
-          {ui.jumpCombo > 1 && <span style={{ color: ui.jumpCombo >= 5 ? "#ffd700" : ui.jumpCombo >= 3 ? "#ff6600" : "#ff9900", fontSize: 11, fontWeight: 700 }}>×{ui.jumpCombo} COMBO</span>}
-          {ui.combo > 1 && <span style={{ color: "#ff6600", fontSize: 11, fontWeight: 700 }}>🔥 ×{ui.combo}</span>}
-          {ui.karmaChain >= 5 && <span style={{ color: "#ffdd00", fontSize: 11, fontWeight: 700 }}>CHAIN ×{ui.karmaChain}</span>}
-          {ui.shield && <span style={{ fontSize: 13 }}>🛡️</span>}
-          <span style={{ color: "#666", fontSize: 10 }}>LN {ui.lane + 1}/3</span>
-          <span style={{ color: "#444", fontSize: 9 }}>TAP JUMP • SWIPE LANE</span>
-        </div>
+        <>
+          {/* Class ability button */}
+          <div style={{ display: "flex", justifyContent: "center", gap: 12, padding: "8px 0" }}>
+            <button
+              onClick={activateAbility}
+              disabled={abilityUi.cooldown > 0}
+              style={{
+                background: abilityUi.active ? classColor : abilityUi.cooldown > 0 ? "#1a1a1a" : "#0d0d0d",
+                border: `2px solid ${classColor}`,
+                borderRadius: 14, padding: "10px 24px",
+                color: abilityUi.cooldown > 0 ? "#555" : classColor,
+                fontWeight: 700, fontSize: 13, cursor: abilityUi.cooldown > 0 ? "not-allowed" : "pointer",
+                boxShadow: abilityUi.active ? `0 0 20px ${classColor}` : "none",
+                transition: "all 0.2s",
+              }}
+            >
+              {abilityUi.active ? "✨ ACTIVE!" : abilityUi.cooldown > 0 ? `⏳ ${Math.ceil(abilityUi.cooldown / 60)}s` : abilityLabel}
+            </button>
+          </div>
+          {/* Cooldown bar */}
+          {abilityUi.cooldown > 0 && !abilityUi.active && (
+            <div style={{ display: "flex", justifyContent: "center", paddingBottom: 4 }}>
+              <div style={{ width: 160, height: 4, background: "#1a1a1a", borderRadius: 4, overflow: "hidden" }}>
+                <div style={{
+                  height: "100%", borderRadius: 4,
+                  width: `${Math.round((1 - abilityUi.cooldown / 900) * 100)}%`,
+                  background: classColor, transition: "width 0.1s linear",
+                }} />
+              </div>
+            </div>
+          )}
+          {/* Status row */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginTop: 2, flexWrap: "wrap" }}>
+            <span style={{ color: "#ffdd00", fontSize: 11, fontWeight: 700 }}>⚡ KARMA</span>
+            <span style={{ color: ui.speed > 9 ? "#ff4444" : ui.speed > 7 ? "#ff9900" : "#c8ff00", fontSize: 11, fontWeight: 700 }}>×{speedMult} SPD</span>
+            <span style={{ color: (LEVEL_BG[Math.min(ui.level, 5)]?.accent ?? "#00ff88"), fontSize: 11, fontWeight: 700 }}>LVL {ui.level}</span>
+            {ui.jumpCombo > 1 && <span style={{ color: ui.jumpCombo >= 5 ? "#ffd700" : ui.jumpCombo >= 3 ? "#ff6600" : "#ff9900", fontSize: 11, fontWeight: 700 }}>×{ui.jumpCombo} COMBO</span>}
+            {ui.combo > 1 && <span style={{ color: "#ff6600", fontSize: 11, fontWeight: 700 }}>🔥 ×{ui.combo}</span>}
+            {ui.karmaChain >= 5 && <span style={{ color: "#ffdd00", fontSize: 11, fontWeight: 700 }}>CHAIN ×{ui.karmaChain}</span>}
+            {ui.shield && <span style={{ fontSize: 13 }}>🛡️</span>}
+            <span style={{ color: "#666", fontSize: 10 }}>LN {ui.lane + 1}/3</span>
+            <span style={{ color: "#444", fontSize: 9 }}>TAP JUMP • SWIPE LANE</span>
+          </div>
+        </>
       )}
 
       <style>{`@keyframes pulse { from { transform: scale(1); } to { transform: scale(1.18); } }`}</style>
