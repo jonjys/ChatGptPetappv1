@@ -613,7 +613,7 @@ export default function FeedPage() {
       </div>
 
       {/* Feed */}
-      <div className="px-4 pt-4 pb-24" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="px-4 pt-4" style={{ display: "flex", flexDirection: "column", gap: 12, paddingBottom: 120 }}>
         {/* My Activity Cards */}
         {myActivities.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

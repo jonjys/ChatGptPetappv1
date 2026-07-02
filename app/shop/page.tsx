@@ -201,8 +201,8 @@ export default function ShopPage() {
           </div>
         )}
 
-        {/* ── Items grid ──────────────────────────────────────────────────── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        {/* ── Items list (compact horizontal rows) ───────────────────────── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {items.map((item, i) => {
             if (category === "ALL" && item.id === "s3") return null;
             const rarity = RARITY_STYLE[item.rarity] ?? RARITY_STYLE.common;
@@ -212,63 +212,73 @@ export default function ShopPage() {
             return (
               <motion.div
                 key={item.id}
-                initial={{ opacity: 0, scale: 0.9, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                whileTap={{ scale: 0.97 }}
+                initial={{ opacity: 0, x: -12 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.04 }}
+                whileTap={{ scale: 0.98 }}
                 style={{
-                  background: rarity.bg,
-                  border: `2px solid ${isBought ? "#333" : rarity.border + "88"}`,
-                  borderRadius: 18, padding: "14px 12px",
-                  display: "flex", flexDirection: "column",
-                  boxShadow: isBought ? "none" : `0 0 16px ${rarity.glow}`,
-                  position: "relative", overflow: "hidden",
-                  opacity: isBought ? 0.7 : 1,
+                  background: "#0d0d0d",
+                  border: `1.5px solid ${isBought ? "#222" : rarity.border + "66"}`,
+                  borderRadius: 14,
+                  height: 72,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "0 12px",
+                  opacity: isBought ? 0.65 : 1,
+                  boxShadow: (!isBought && canAfford) ? `0 0 12px ${rarity.glow}` : "none",
                   transition: "all 0.2s",
                 }}
               >
-                {/* Rarity glow in corner */}
+                {/* Left: emoji circle */}
                 <div style={{
-                  position: "absolute", top: 0, right: 0, width: 60, height: 60,
-                  background: `radial-gradient(circle at 80% 20%, ${rarity.border}22, transparent 70%)`,
-                  pointerEvents: "none",
-                }} />
-
-                {/* Rarity badge + optional tag */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                  <span style={{
-                    fontSize: 8, fontWeight: 800, letterSpacing: "0.08em",
-                    color: rarity.color, background: rarity.border + "22",
-                    border: `1px solid ${rarity.border}44`,
-                    borderRadius: 4, padding: "2px 6px",
-                  }}>{rarity.label}</span>
-                  {item.tag && (
-                    <span style={{ fontSize: 8, fontWeight: 700, background: "#ff2d8d", color: "#fff", padding: "2px 5px", borderRadius: 4 }}>
-                      {item.tag}
-                    </span>
-                  )}
+                  width: 48,
+                  height: 48,
+                  borderRadius: "50%",
+                  background: rarity.border + "22",
+                  border: `2px solid ${isBought ? "#333" : rarity.border + "88"}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "1.5rem",
+                  flexShrink: 0,
+                }}>
+                  {item.emoji}
                 </div>
 
-                {/* Emoji */}
-                <motion.div
-                  animate={!isBought ? { scale: [1, 1.05, 1] } : {}}
-                  transition={{ repeat: Infinity, duration: 2.5, delay: i * 0.3 }}
-                  style={{ fontSize: "2.4rem", textAlign: "center", marginBottom: 8, lineHeight: 1 }}
-                >
-                  {item.emoji}
-                </motion.div>
+                {/* Center: name + desc + rarity */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {item.name}
+                    </span>
+                    {item.tag && (
+                      <span style={{ fontSize: 8, fontWeight: 700, background: "#ff2d8d", color: "#fff", padding: "1px 5px", borderRadius: 4, flexShrink: 0 }}>
+                        {item.tag}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#555", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 3 }}>
+                    {item.description}
+                  </div>
+                  <span style={{
+                    fontSize: 9, fontWeight: 800, letterSpacing: "0.06em",
+                    color: rarity.color,
+                    background: rarity.border + "22",
+                    border: `1px solid ${rarity.border}44`,
+                    borderRadius: 4, padding: "1px 5px",
+                  }}>{rarity.label}</span>
+                </div>
 
-                {/* Name & desc */}
-                <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 3, color: "#fff" }}>{item.name}</div>
-                <p style={{ fontSize: 11, color: "#666", lineHeight: 1.4, flex: 1, marginBottom: 10 }}>
-                  {item.description}
-                </p>
-
-                {/* Price & buy */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    <Zap size={13} color={canAfford && !isBought ? rarity.color : "#444"} fill={canAfford && !isBought ? rarity.color : "#444"} />
-                    <span style={{ fontSize: 15, fontWeight: 800, color: canAfford && !isBought ? rarity.color : "#444" }}>
+                {/* Right: price + buy button */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5, flexShrink: 0 }}>
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 3,
+                    background: "#111", borderRadius: 8, padding: "3px 8px",
+                    border: `1px solid ${canAfford && !isBought ? rarity.border + "55" : "#222"}`,
+                  }}>
+                    <Zap size={11} color={canAfford && !isBought ? rarity.color : "#444"} fill={canAfford && !isBought ? rarity.color : "#444"} />
+                    <span style={{ fontSize: 12, fontWeight: 800, color: canAfford && !isBought ? rarity.color : "#444" }}>
                       {item.price}
                     </span>
                   </div>
@@ -277,17 +287,23 @@ export default function ShopPage() {
                     onClick={() => handleBuy(item.id, item.price, item.name)}
                     disabled={isBought}
                     style={{
-                      padding: "6px 12px",
+                      width: 60,
+                      height: 32,
                       background: isBought ? "#111" : canAfford ? rarity.border : "#1a1a1a",
                       border: `2px solid ${isBought ? "#333" : canAfford ? rarity.border : "#333"}`,
-                      borderRadius: 9, fontSize: 11, fontWeight: 800,
+                      borderRadius: 9,
+                      fontSize: 11,
+                      fontWeight: 800,
                       color: isBought ? "#444" : canAfford ? "#000" : "#444",
                       cursor: isBought ? "default" : canAfford ? "pointer" : "not-allowed",
-                      display: "flex", alignItems: "center", gap: 4,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 3,
                       boxShadow: (!isBought && canAfford) ? `0 0 10px ${rarity.border}44` : "none",
                     }}
                   >
-                    {isBought ? <><Check size={11} /> OWNED</> : canAfford ? "BUY" : "NEED ⚡"}
+                    {isBought ? <><Check size={10} /> OK</> : canAfford ? "BUY" : "⚡?"}
                   </motion.button>
                 </div>
               </motion.div>

@@ -28,13 +28,10 @@ const MOTIVATIONAL = [
 ];
 
 function getContextMessage(pathname: string): string {
-  // Check direct matches
   if (CONTEXT_MESSAGES[pathname]) return CONTEXT_MESSAGES[pathname];
-  // Check prefix matches (e.g. /games/fishing)
   for (const key of Object.keys(CONTEXT_MESSAGES)) {
     if (pathname.startsWith(key + "/")) return CONTEXT_MESSAGES[key];
   }
-  // Default: random motivational
   return MOTIVATIONAL[Math.floor(Math.random() * MOTIVATIONAL.length)];
 }
 
@@ -83,6 +80,11 @@ export default function PetCompanion() {
     });
     setOpen(false);
   }, []);
+
+  // ── Hide on game pages (after all hooks) ─────────────────────────────────
+  const hideOnRoutes = ['/games/runner', '/games/breaker', '/games/battle', '/games/fishing', '/games/memory', '/games/blitz', '/games/slots', '/games/cases'];
+  const shouldHide = hideOnRoutes.some(r => pathname.startsWith(r));
+  if (shouldHide) return null;
 
   function handleTap() {
     setWobble(true);
@@ -154,222 +156,250 @@ export default function PetCompanion() {
   }
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        bottom: 80,
-        right: "max(10px, calc(50vw - 280px + 10px))",
-        zIndex: 48,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "flex-end",
-        gap: 0,
-      }}
-    >
-      {/* ── Popup panel ── */}
+    <>
+      {/* ── Centered modal overlay ── */}
       <AnimatePresence>
         {open && (
-          <motion.div
-            key="companion-popup"
-            initial={{ opacity: 0, scale: 0.82, y: 12 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.82, y: 12 }}
-            transition={{ type: "spring", stiffness: 340, damping: 26 }}
-            style={{
-              background: "#0e0e0e",
-              border: "2.5px solid #c8ff00",
-              borderRadius: 18,
-              padding: "14px 14px 10px",
-              minWidth: 170,
-              marginBottom: 10,
-              boxShadow: "0 0 20px #c8ff0033, 4px 4px 0px #000",
-            }}
-          >
-            {/* Mood header */}
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              marginBottom: 10,
-            }}>
-              <span style={{ fontSize: "1.6rem" }}>{petEmoji}</span>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{pet.name}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ fontSize: 14 }}>{mood.emoji}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: mood.color }}>{mood.label}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Needs mini-bars */}
-            <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-              {[
-                { label: "🍖", val: pet.needs.hunger, color: "#ff6b35" },
-                { label: "❤️", val: pet.needs.happiness, color: "#ff2d8d" },
-                { label: "⚡", val: pet.needs.energy, color: "#c8ff00" },
-              ].map(n => (
-                <div key={n.label} style={{ flex: 1, textAlign: "center" }}>
-                  <div style={{ fontSize: 10 }}>{n.label}</div>
-                  <div style={{ height: 4, background: "#1e1e1e", borderRadius: 99, overflow: "hidden", marginTop: 2 }}>
-                    <div style={{
-                      height: "100%",
-                      width: `${n.val}%`,
-                      background: n.color,
-                      borderRadius: 99,
-                      transition: "width 0.4s",
-                    }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Action buttons */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {[
-                {
-                  label: `🍖 Feed`,
-                  action: doFeed,
-                  color: "#ff6b35",
-                  disabled: user.karma < 50,
-                  sub: "50⚡",
-                },
-                {
-                  label: "💤 Rest",
-                  action: doRest,
-                  color: "#00e5ff",
-                  disabled: false,
-                  sub: "+energy",
-                },
-                {
-                  label: "❤️ Pet",
-                  action: doPet,
-                  color: "#ff2d8d",
-                  disabled: false,
-                  sub: "+happy",
-                },
-              ].map(btn => (
-                <button
-                  key={btn.label}
-                  onClick={btn.action}
-                  disabled={btn.disabled}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "8px 12px",
-                    background: btn.disabled ? "#111" : `${btn.color}18`,
-                    border: `2px solid ${btn.disabled ? "#222" : btn.color}`,
-                    borderRadius: 12,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: btn.disabled ? "#333" : btn.color,
-                    cursor: btn.disabled ? "default" : "pointer",
-                    width: "100%",
-                  }}
-                >
-                  <span>{btn.label}</span>
-                  <span style={{ fontSize: 10, opacity: 0.7 }}>{btn.sub}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* Minimize button */}
-            <button
-              onClick={toggleMinimized}
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="companion-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setOpen(false)}
               style={{
-                display: "block",
-                width: "100%",
-                marginTop: 8,
-                padding: "5px",
-                background: "transparent",
-                border: "none",
-                fontSize: 10,
-                color: "#444",
-                cursor: "pointer",
-                textAlign: "center",
+                position: "fixed",
+                inset: 0,
+                zIndex: 1000,
+                background: "rgba(0,0,0,0.7)",
+              }}
+            />
+
+            {/* Centered card */}
+            <motion.div
+              key="companion-modal"
+              initial={{ opacity: 0, scale: 0.82, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.82, y: 20 }}
+              transition={{ type: "spring", stiffness: 340, damping: 26 }}
+              style={{
+                position: "fixed",
+                bottom: 90,
+                left: "50%",
+                transform: "translateX(-50%)",
+                maxWidth: 320,
+                width: "calc(100% - 32px)",
+                zIndex: 1001,
+                background: "#0d0d0d",
+                border: "2px solid #c8ff00",
+                borderRadius: 24,
+                padding: 20,
+                boxShadow: "0 0 40px #c8ff0033, 0 20px 60px rgba(0,0,0,0.8)",
               }}
             >
-              — minimize
-            </button>
-          </motion.div>
+              {/* Close button */}
+              <button
+                onClick={() => setOpen(false)}
+                style={{
+                  position: "absolute",
+                  top: 14,
+                  right: 14,
+                  width: 28,
+                  height: 28,
+                  background: "#1a1a1a",
+                  border: "1px solid #333",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 16,
+                  color: "#888",
+                  cursor: "pointer",
+                  lineHeight: 1,
+                  padding: 0,
+                }}
+              >
+                ×
+              </button>
+
+              {/* Mood header */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                <span style={{ fontSize: "2rem" }}>{petEmoji}</span>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{pet.name}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ fontSize: 15 }}>{mood.emoji}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: mood.color }}>{mood.label}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Needs mini-bars */}
+              <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                {[
+                  { label: "🍖", val: pet.needs.hunger, color: "#ff6b35" },
+                  { label: "❤️", val: pet.needs.happiness, color: "#ff2d8d" },
+                  { label: "⚡", val: pet.needs.energy, color: "#c8ff00" },
+                ].map(n => (
+                  <div key={n.label} style={{ flex: 1, textAlign: "center" }}>
+                    <div style={{ fontSize: 11 }}>{n.label}</div>
+                    <div style={{ height: 5, background: "#1e1e1e", borderRadius: 99, overflow: "hidden", marginTop: 3 }}>
+                      <div style={{
+                        height: "100%",
+                        width: `${n.val}%`,
+                        background: n.color,
+                        borderRadius: 99,
+                        transition: "width 0.4s",
+                      }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Action buttons */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {[
+                  { label: "🍖 Feed", action: doFeed, color: "#ff6b35", disabled: user.karma < 50, sub: "50⚡" },
+                  { label: "💤 Rest", action: doRest, color: "#00e5ff", disabled: false, sub: "+energy" },
+                  { label: "❤️ Pet",  action: doPet,  color: "#ff2d8d", disabled: false, sub: "+happy" },
+                ].map(btn => (
+                  <button
+                    key={btn.label}
+                    onClick={btn.action}
+                    disabled={btn.disabled}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "10px 14px",
+                      background: btn.disabled ? "#111" : `${btn.color}18`,
+                      border: `2px solid ${btn.disabled ? "#222" : btn.color}`,
+                      borderRadius: 14,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: btn.disabled ? "#333" : btn.color,
+                      cursor: btn.disabled ? "default" : "pointer",
+                      width: "100%",
+                    }}
+                  >
+                    <span>{btn.label}</span>
+                    <span style={{ fontSize: 11, opacity: 0.7 }}>{btn.sub}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Minimize button */}
+              <button
+                onClick={toggleMinimized}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  marginTop: 10,
+                  padding: "6px",
+                  background: "transparent",
+                  border: "none",
+                  fontSize: 11,
+                  color: "#444",
+                  cursor: "pointer",
+                  textAlign: "center",
+                }}
+              >
+                — minimize
+              </button>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
-      {/* ── Speech bubble ── */}
-      <AnimatePresence>
-        {(speechText || feedbackMsg) && !open && (
-          <motion.div
-            key="speech"
-            initial={{ opacity: 0, y: 6, scale: 0.88 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6, scale: 0.88 }}
-            transition={{ type: "spring", stiffness: 280, damping: 22 }}
-            style={{
-              background: isCritical && !feedbackMsg ? "#1a0000" : "#0e0e0e",
-              border: `2px solid ${feedbackMsg ? "#c8ff00" : isCritical ? "#ff3333" : "#c8ff00"}`,
-              borderRadius: 12,
-              padding: "7px 12px",
-              marginBottom: 8,
-              whiteSpace: "nowrap",
-              fontSize: 12,
-              fontWeight: 700,
-              color: feedbackMsg ? "#c8ff00" : isCritical ? "#ff6666" : "#e0e0e0",
-              boxShadow: `0 0 10px ${isCritical && !feedbackMsg ? "#ff333333" : "#c8ff0022"}`,
-              pointerEvents: "none",
-            }}
-          >
-            {feedbackMsg ?? speechText}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ── Pet button ── */}
-      <motion.button
-        onClick={handleTap}
-        animate={wobble
-          ? { rotate: [-8, 8, -6, 6, 0], scale: [1, 1.1, 0.95, 1.05, 1] }
-          : bounceAnim
-        }
-        transition={wobble
-          ? { duration: 0.45, ease: "easeInOut" }
-          : { duration: bounceDuration, repeat: Infinity, ease: "easeInOut" }
-        }
-        whileTap={{ scale: 0.86 }}
-        aria-label="Open pet companion"
+      {/* ── FAB + speech bubble (corner) ── */}
+      <div
         style={{
-          width: 52,
-          height: 52,
-          background: "#0e0e0e",
-          border: `3px solid ${isCritical ? "#ff3333" : "#c8ff00"}`,
-          borderRadius: "50%",
+          position: "fixed",
+          bottom: 80,
+          right: "max(10px, calc(50vw - 280px + 10px))",
+          zIndex: 48,
           display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "1.65rem",
-          cursor: "pointer",
-          boxShadow: `0 0 14px ${isCritical ? "#ff333366" : "#c8ff0044"}, 3px 3px 0px #000`,
-          position: "relative",
-          flexShrink: 0,
+          flexDirection: "column",
+          alignItems: "flex-end",
+          gap: 0,
         }}
       >
-        {petEmoji}
+        {/* ── Speech bubble ── */}
+        <AnimatePresence>
+          {(speechText || feedbackMsg) && !open && (
+            <motion.div
+              key="speech"
+              initial={{ opacity: 0, y: 6, scale: 0.88 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 6, scale: 0.88 }}
+              transition={{ type: "spring", stiffness: 280, damping: 22 }}
+              style={{
+                background: isCritical && !feedbackMsg ? "#1a0000" : "#0e0e0e",
+                border: `2px solid ${feedbackMsg ? "#c8ff00" : isCritical ? "#ff3333" : "#c8ff00"}`,
+                borderRadius: 12,
+                padding: "7px 12px",
+                marginBottom: 8,
+                whiteSpace: "nowrap",
+                fontSize: 12,
+                fontWeight: 700,
+                color: feedbackMsg ? "#c8ff00" : isCritical ? "#ff6666" : "#e0e0e0",
+                boxShadow: `0 0 10px ${isCritical && !feedbackMsg ? "#ff333333" : "#c8ff0022"}`,
+                pointerEvents: "none",
+              }}
+            >
+              {feedbackMsg ?? speechText}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* Critical pulse ring */}
-        {isCritical && (
-          <motion.div
-            animate={{ scale: [1, 1.45, 1], opacity: [0.7, 0, 0.7] }}
-            transition={{ duration: 1.4, repeat: Infinity }}
-            style={{
-              position: "absolute",
-              inset: -5,
-              borderRadius: "50%",
-              border: "2px solid #ff3333",
-              pointerEvents: "none",
-            }}
-          />
-        )}
-      </motion.button>
-    </div>
+        {/* ── Pet FAB button ── */}
+        <motion.button
+          onClick={handleTap}
+          animate={wobble
+            ? { rotate: [-8, 8, -6, 6, 0], scale: [1, 1.1, 0.95, 1.05, 1] }
+            : bounceAnim
+          }
+          transition={wobble
+            ? { duration: 0.45, ease: "easeInOut" }
+            : { duration: bounceDuration, repeat: Infinity, ease: "easeInOut" }
+          }
+          whileTap={{ scale: 0.86 }}
+          aria-label="Open pet companion"
+          style={{
+            width: 44,
+            height: 44,
+            background: "#0d0d0d",
+            border: "none",
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "1.5rem",
+            cursor: "pointer",
+            boxShadow: `0 0 14px ${isCritical ? "#ff333366" : "#c8ff0044"}, 3px 3px 0px #000`,
+            position: "relative",
+            flexShrink: 0,
+          }}
+        >
+          {petEmoji}
+
+          {/* Critical pulse ring */}
+          {isCritical && (
+            <motion.div
+              animate={{ scale: [1, 1.45, 1], opacity: [0.7, 0, 0.7] }}
+              transition={{ duration: 1.4, repeat: Infinity }}
+              style={{
+                position: "absolute",
+                inset: -5,
+                borderRadius: "50%",
+                border: "2px solid #ff3333",
+                pointerEvents: "none",
+              }}
+            />
+          )}
+        </motion.button>
+      </div>
+    </>
   );
 }

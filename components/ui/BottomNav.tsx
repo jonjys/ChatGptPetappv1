@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Flame, PawPrint, Gamepad2, Tv2, Users, User } from "lucide-react";
+import { Flame, PawPrint, Gamepad2, Globe, Users, User } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { t } from "@/lib/i18n";
 import { useEffect, useState } from "react";
@@ -44,7 +44,7 @@ export default function BottomNav() {
     { href: "/feed",     icon: Flame,    label: t(lang, "feed") },
     { href: "/pet",      icon: PawPrint, label: t(lang, "pet") },
     { href: "/games",    icon: Gamepad2, label: t(lang, "games"), special: true },
-    { href: "/karma-tv", icon: Tv2,      label: "TV", tv: true },
+    { href: "/map",      icon: Globe,    label: "WORLD", world: true },
     { href: "/social",   icon: Users,    label: t(lang, "social") },
     { href: "/profile",  icon: User,     label: t(lang, "me") },
   ];
@@ -109,21 +109,25 @@ export default function BottomNav() {
             );
           }
 
-          // ── TV ─────────────────────────────────────────────────────────────
-          if ((tab as typeof tab & { tv?: boolean }).tv) {
+          // ── WORLD ──────────────────────────────────────────────────────────
+          if ((tab as typeof tab & { world?: boolean }).world) {
+            const worldColor = "#00e5ff";
             return (
               <Link key={tab.href} href={tab.href} className="flex flex-col items-center gap-0.5">
-                <span className="flex items-center justify-center w-10 h-10 rounded-xl active:scale-90"
+                <motion.span
+                  animate={active ? { boxShadow: [`0 0 8px ${worldColor}44`, `0 0 18px ${worldColor}88`, `0 0 8px ${worldColor}44`] } : {}}
+                  transition={{ repeat: Infinity, duration: 2 }}
+                  className="flex items-center justify-center w-10 h-10 rounded-xl active:scale-90"
                   style={{
-                    background: active ? "#ff2d8d1a" : "transparent",
-                    border: `2px solid ${active ? "#ff2d8d" : "transparent"}`,
-                    boxShadow: active ? "0 0 12px #ff2d8d44" : "none",
+                    background: active ? `${worldColor}1a` : "transparent",
+                    border: `2px solid ${active ? worldColor : "transparent"}`,
                     transition: "all 0.15s",
-                  }}>
-                  <Icon size={20} color={active ? "#ff2d8d" : "#0a0a0a"} strokeWidth={active ? 2.5 : 2} />
-                </span>
-                <span style={{ fontSize: "9px", fontWeight: active ? 700 : 500, color: active ? "#ff2d8d" : "#0a0a0a" }}>
-                  TV
+                  }}
+                >
+                  <Icon size={20} color={active ? worldColor : "#0a0a0a"} strokeWidth={active ? 2.5 : 2} />
+                </motion.span>
+                <span style={{ fontSize: "9px", fontWeight: active ? 700 : 500, color: active ? worldColor : "#0a0a0a" }}>
+                  WORLD
                 </span>
               </Link>
             );
