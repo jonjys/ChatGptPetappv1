@@ -19,7 +19,7 @@ const GAMES: Game[] = [
   { id: "runner",  href: "/games/runner",  emoji: "🏃", name: "KARMA RUNNER",  tagline: "Ghost runners · Geometry Dash · Warp portals · Aurora", reward: "Up to 500 ⚡",      accent: "#c8ff00",  bg: "#060f06",  hot: true,  players: 218 },
   { id: "slots",   href: "/games/slots",   emoji: "🎰", name: "KARMA SLOTS",   tagline: "5 reels · Jackpot 2000⚡ · Wild WARP",           reward: "Jackpot: 2000 ⚡",    accent: "#ffaa00",  bg: "#1a0d00",  players: 189 },
   { id: "cases",   href: "/games/cases",   emoji: "🏴‍☠️", name: "SHADOW VAULT", tagline: "Unbox rare artifacts · Roll the vault",          reward: "10–800 ⚡ per vault", accent: "#cc44ff",  bg: "#080010",  tag: "NEW",  players: 156 },
-  { id: "breaker", href: "/games/breaker", emoji: "⚗️", name: "KARMA FORGE",  tagline: "Rhythm crafting · Fusion bursts · Element chains", reward: "Karma forged",       accent: "#ff8800",  bg: "#080300",  tag: "NEW 🆕", hot: true, players: 234 },
+  { id: "breaker", href: "/games/breaker", emoji: "🔫", name: "KARMA GUNNER", tagline: "Auto-shooter · Element wars · Upgrade shop · Bosses", reward: "Up to 400 ⚡",      accent: "#ff4422",  bg: "#1a0000",  tag: "NEW 🔥", hot: true, players: 234 },
   { id: "battle",  href: "/games/battle",  emoji: "🌀", name: "KARMA PULSE",  tagline: "Circular TD · Nexus defense · 12-slot ring",    reward: "Win: 100–300 ⚡",     accent: "#a855f7",  bg: "#05020f",  tag: "NEW 🆕", players: 98  },
   { id: "memory",  href: "/games/memory",  emoji: "🧠", name: "MEMORY PALACE", tagline: "Circular ring · Combo chain · 60 stars",        reward: "Up to 150 ⚡",        accent: "#ff44cc",  bg: "#1a0015",  players: 87  },
   { id: "blitz",   href: "/games/blitz",   emoji: "💥", name: "BOUNTY BLITZ",  tagline: "Step counter · Workout timer · Gratitude journal", reward: "Up to 500 ⚡",       accent: "#00e5ff",  bg: "#001a1a",  tag: "NEW",  players: 203 },
@@ -167,7 +167,7 @@ export default function GamesPage() {
         </div>
       </div>
 
-      <div className="px-4 pt-4 pb-24 space-y-3" style={{ position: "relative", zIndex: 1 }}>
+      <div className="px-4 pt-4 space-y-3" style={{ position: "relative", zIndex: 1, paddingBottom: 140 }}>
 
         {/* Tournament banner */}
         <Link href="/games/battle" style={{ textDecoration: "none", display: "block", margin: "0 0 0px" }}>
@@ -481,91 +481,80 @@ export default function GamesPage() {
               </Link>
             )}
 
-            {/* 2-column grid for the rest */}
+            {/* Single-column list for the rest */}
             {gridGames.length > 0 && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
                 {gridGames.map((g, i) => (
                   <motion.div
                     key={g.id}
-                    initial={{ opacity: 0, scale: 0.93 }}
-                    animate={{ opacity: 1, scale: 1 }}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.04 }}
                   >
                     <Link href={g.href} style={{ textDecoration: "none", display: "block" }}>
                       <motion.div
-                        whileTap={{ scale: 0.95 }}
-                        animate={g.hot ? { boxShadow: [`0 0 0px ${g.accent}00`, `0 0 18px ${g.accent}55`, `0 0 0px ${g.accent}00`] } : {}}
-                        transition={g.hot ? { repeat: Infinity, duration: 2.5 } : {}}
+                        whileTap={{ scale: 0.98 }}
                         style={{
-                          height: 148,
-                          background: `linear-gradient(160deg, ${g.bg} 0%, #0a0a0a 70%, ${g.accent}08 100%)`,
-                          border: `2px solid ${g.hot ? g.accent : g.accent+"66"}`,
-                          borderRadius: 18,
+                          height: 88,
+                          background: `linear-gradient(135deg, ${g.bg} 0%, #0d0d0d 60%, ${g.accent}08 100%)`,
+                          border: `1.5px solid ${g.hot ? g.accent : g.accent + "55"}`,
+                          borderRadius: 16,
+                          display: "flex",
+                          alignItems: "center",
+                          padding: "0 14px",
+                          gap: 14,
                           position: "relative",
                           overflow: "hidden",
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          padding: "10px 8px 28px",
-                          gap: 3,
+                          boxShadow: g.hot ? `0 0 14px ${g.accent}33` : "none",
                         }}
                       >
-                        {/* Background glow */}
+                        {/* Left: emoji circle */}
                         <div style={{
-                          position: "absolute", inset: 0,
-                          background: `radial-gradient(ellipse at 50% 20%, ${g.accent}10 0%, transparent 65%)`,
-                          pointerEvents: "none",
-                        }} />
-
-                        {/* Tag badge top-right */}
-                        {g.tag && (
-                          <div style={{
-                            position: "absolute", top: 7, right: 7,
-                            fontSize: 7, fontWeight: 900,
-                            background: g.accent, color: "#000",
-                            padding: "2px 6px", borderRadius: 4,
-                            letterSpacing: "0.04em", zIndex: 2,
-                          }}>
-                            {g.tag}
-                          </div>
-                        )}
-
-                        {/* Bottom bar: players + arrow */}
-                        <div style={{
-                          position: "absolute", bottom: 0, left: 0, right: 0,
-                          display: "flex", alignItems: "center", justifyContent: "space-between",
-                          background: `${g.accent}12`, borderTop: `1px solid ${g.accent}30`,
-                          padding: "5px 10px",
-                        }}>
-                          <span style={{ fontSize: 9, color: g.accent+"99", fontWeight: 700 }}>👤 {g.players} live</span>
-                          <span style={{ fontSize: 12, color: g.accent, fontWeight: 900 }}>PLAY →</span>
-                        </div>
-
-                        {/* Emoji */}
-                        <div style={{
-                          fontSize: "3.2rem", lineHeight: 1,
-                          filter: `drop-shadow(0 0 14px ${g.accent}77)`,
+                          width: 56, height: 56, borderRadius: 14,
+                          background: g.accent + "1a",
+                          border: `2px solid ${g.accent}44`,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: "2rem", flexShrink: 0,
+                          filter: `drop-shadow(0 0 8px ${g.accent}66)`,
                         }}>
                           {g.emoji}
                         </div>
 
-                        {/* Name */}
-                        <div style={{
-                          fontSize: 12, fontWeight: 900, color: "#fff",
-                          letterSpacing: "-0.01em", textAlign: "center",
-                          lineHeight: 1.1,
-                        }}>
-                          {g.name}
+                        {/* Center: name + tagline */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                            <span style={{ fontSize: 14, fontWeight: 800, color: "#fff", letterSpacing: "-0.01em" }}>{g.name}</span>
+                            {g.tag && (
+                              <span style={{ fontSize: 8, fontWeight: 900, background: g.accent, color: "#000", padding: "1px 5px", borderRadius: 4, flexShrink: 0 }}>
+                                {g.tag}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 11, color: "#555", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 4 }}>
+                            {g.tagline}
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ fontSize: 10, color: g.accent, fontWeight: 700, background: g.accent + "18", padding: "2px 7px", borderRadius: 6, border: `1px solid ${g.accent}33` }}>
+                              ⚡ {g.reward}
+                            </span>
+                            {g.players && (
+                              <span style={{ fontSize: 10, color: "#444", fontWeight: 600 }}>
+                                👤 {g.players}
+                              </span>
+                            )}
+                          </div>
                         </div>
 
-                        {/* Reward chip */}
+                        {/* Right: PLAY button */}
                         <div style={{
-                          fontSize: 9, fontWeight: 800, color: g.accent,
-                          background: `${g.accent}18`, border: `1px solid ${g.accent}44`,
-                          borderRadius: 6, padding: "2px 7px", textAlign: "center",
+                          background: g.accent,
+                          color: "#000",
+                          fontSize: 11, fontWeight: 900,
+                          padding: "8px 14px", borderRadius: 10,
+                          flexShrink: 0,
+                          letterSpacing: "0.02em",
                         }}>
-                          {g.reward}
+                          PLAY →
                         </div>
                       </motion.div>
                     </Link>
