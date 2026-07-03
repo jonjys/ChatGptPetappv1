@@ -52,29 +52,15 @@ function calcPassiveKarma(placed: PlacedBuilding[]): number {
   }, 0);
 }
 
-// ─── Isometric constants ──────────────────────────────────────────────────────
+// ─── Grid constants ────────────────────────────────────────────────────────────
 
-const TILE_W = 76;
+const TILE_W = 76; // kept for legacy compat
 const TILE_H = 38;
-const TILE_DEPTH = 10; // ground thickness
-
-// Building heights (in pixels above ground)
-const BHEIGHTS: Record<string, number> = {
-  house: 52, school: 70, gym: 48, cafe: 48, market: 60,
-  lab: 68, stadium: 90, bank: 62, tower: 110, castle: 130,
-};
-
-// Tile top face colors (dark cyberpunk grid)
+const TILE_DEPTH = 10;
+const BHEIGHTS: Record<string, number> = { house: 52, school: 70, gym: 48, cafe: 48, market: 60, lab: 68, stadium: 90, bank: 62, tower: 110, castle: 130 };
 const TILE_COLORS = ["rgba(60,20,180,0.35)", "rgba(50,15,160,0.30)", "rgba(70,25,200,0.38)", "rgba(45,10,150,0.28)"];
 const PATH_TILES = new Set(["1,1","2,1","1,2","2,2"]);
-
-// Building top face colors — dark cyberpunk tinted
-const BTOP: Record<string, string> = {
-  house:   "#1a2e00", school:  "#001a3a", gym:     "#2a1200",
-  cafe:    "#1a0a2e", market:  "#2e001a", lab:     "#002a2e",
-  stadium: "#2e2800", bank:    "#002200", tower:   "#2a1800",
-  castle:  "#1e0028",
-};
+const BTOP: Record<string, string> = { house:"#1a2e00", school:"#001a3a", gym:"#2a1200", cafe:"#1a0a2e", market:"#2e001a", lab:"#002a2e", stadium:"#2e2800", bank:"#002200", tower:"#2a1800", castle:"#1e0028" };
 
 const VISITORS = [
   { name: "AlexK",  emoji: "😎", msg: "Love your café! ☕" },
@@ -95,316 +81,199 @@ function renderWorld(
   const ctxMaybe = canvas.getContext("2d");
   if (!ctxMaybe) return;
   const ctx: CanvasRenderingContext2D = ctxMaybe;
-  const W = canvas.width;
-  const H = canvas.height;
+  // Use CSS dimensions so coordinates match regardless of devicePixelRatio
+  const W = canvas.offsetWidth || canvas.width;
+  const H = canvas.offsetHeight || canvas.height;
 
-  // Sky gradient — dark cyberpunk dusk/night
-  const sky = ctx.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0,   "#0a0020");
-  sky.addColorStop(0.4, "#1a0040");
-  sky.addColorStop(0.7, "#0d1a2d");
-  sky.addColorStop(1,   "#050a15");
-  ctx.fillStyle = sky;
+  // ── Background ─────────────────────────────────────────────────────────────
+  ctx.fillStyle = "#030310";
   ctx.fillRect(0, 0, W, H);
 
-  // Static stars (seeded by position)
-  const starPositions = [
-    [0.08, 0.06], [0.18, 0.14], [0.32, 0.04], [0.48, 0.10],
-    [0.62, 0.07], [0.75, 0.15], [0.88, 0.03], [0.14, 0.22],
-    [0.55, 0.18], [0.92, 0.20], [0.40, 0.25], [0.70, 0.28],
-    [0.25, 0.30], [0.85, 0.12], [0.05, 0.32], [0.60, 0.35],
-  ];
-  starPositions.forEach(([sx, sy], i) => {
-    const twinkle = Math.sin(frame * 0.06 + i * 1.3) * 0.4 + 0.6;
-    ctx.save();
-    ctx.globalAlpha = twinkle * 0.9;
-    ctx.fillStyle = i % 3 === 0 ? "#c8ff00" : i % 3 === 1 ? "#00e5ff" : "#ffffff";
-    ctx.beginPath();
-    ctx.arc(sx * W, sy * H * 0.85, i % 4 === 0 ? 2 : 1.2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  });
+  // Subtle radial glow in center
+  const rg = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, W * 0.7);
+  rg.addColorStop(0, "rgba(80,20,200,0.12)");
+  rg.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = rg;
+  ctx.fillRect(0, 0, W, H);
 
-  // Neon moon (full circle, glowing)
-  const MX = W * 0.82, MY = 38;
-  ctx.save();
-  ctx.shadowColor = "#c8ff00";
-  ctx.shadowBlur = 28;
-  ctx.beginPath();
-  ctx.arc(MX, MY, 20, 0, Math.PI * 2);
-  ctx.fillStyle = "#d4f060";
-  ctx.fill();
-  // Slightly darker inner circle for depth
-  ctx.shadowBlur = 0;
-  ctx.globalAlpha = 0.35;
-  ctx.fillStyle = "#8aaa00";
-  ctx.beginPath();
-  ctx.arc(MX + 6, MY - 4, 12, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-  // Moon glow ring
-  ctx.save();
-  ctx.globalAlpha = 0.18 + Math.sin(frame * 0.04) * 0.06;
-  ctx.strokeStyle = "#c8ff00";
-  ctx.lineWidth = 2;
-  ctx.shadowColor = "#c8ff00";
-  ctx.shadowBlur = 12;
-  ctx.beginPath();
-  ctx.arc(MX, MY, 28, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.restore();
+  // ── Top-down tile grid ──────────────────────────────────────────────────────
+  const PAD = 12;
+  const GAP = 6;
+  const cols = GRID_COLS;
+  const rows = GRID_ROWS;
+  const tileW = (W - PAD * 2 - GAP * (cols - 1)) / cols;
+  const tileH = Math.min(tileW * 0.85, (H - PAD * 2 - GAP * (rows - 1)) / rows);
+  const gridH = rows * tileH + (rows - 1) * GAP;
+  const startY = (H - gridH) / 2;
 
-  // Distant city glow on horizon
-  ctx.save();
-  const cityGlow = ctx.createLinearGradient(0, H * 0.42, 0, H * 0.55);
-  cityGlow.addColorStop(0, "rgba(100,0,200,0)");
-  cityGlow.addColorStop(0.5, "rgba(100,0,255,0.12)");
-  cityGlow.addColorStop(1, "rgba(50,0,120,0.06)");
-  ctx.fillStyle = cityGlow;
-  ctx.fillRect(0, H * 0.42, W, H * 0.13);
-  ctx.restore();
-
-  // ── Isometric grid origin ────────────────────────────────────────────────
-  const OX = W / 2;
-  const OY = H * 0.30;
-
-  function toScreen(col: number, row: number) {
+  function tileRect(col: number, row: number) {
     return {
-      x: OX + (col - row) * TILE_W / 2,
-      y: OY + (col + row) * TILE_H / 2,
+      x: PAD + col * (tileW + GAP),
+      y: startY + row * (tileH + GAP),
+      w: tileW,
+      h: tileH,
     };
   }
 
-  function drawDiamond(cx: number, cy: number, fill: string, strokeCol?: string, alpha = 1) {
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + TILE_W / 2, cy + TILE_H / 2);
-    ctx.lineTo(cx, cy + TILE_H);
-    ctx.lineTo(cx - TILE_W / 2, cy + TILE_H / 2);
-    ctx.closePath();
-    ctx.fillStyle = fill;
-    ctx.fill();
-    if (strokeCol) {
-      ctx.strokeStyle = strokeCol;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  // Draw tiles — back to front
-  for (let row = 0; row < GRID_ROWS; row++) {
-    for (let col = 0; col < GRID_COLS; col++) {
-      const { x, y } = toScreen(col, row);
-      const isPath = PATH_TILES.has(`${col},${row}`);
-      const isSel = selected?.col === col && selected?.row === row;
-
-      // Ground tile top
-      const tileColor = isPath
-        ? "rgba(180,255,0,0.12)"
-        : TILE_COLORS[(col * 3 + row * 2) % TILE_COLORS.length];
-      const tileStroke = isPath ? "rgba(200,255,0,0.35)" : "rgba(100,60,255,0.45)";
-      drawDiamond(x, y, tileColor, tileStroke);
-
-      // Tile thickness (left side)
-      ctx.beginPath();
-      ctx.moveTo(x - TILE_W / 2, y + TILE_H / 2);
-      ctx.lineTo(x, y + TILE_H);
-      ctx.lineTo(x, y + TILE_H + TILE_DEPTH);
-      ctx.lineTo(x - TILE_W / 2, y + TILE_H / 2 + TILE_DEPTH);
-      ctx.closePath();
-      ctx.fillStyle = isPath ? "rgba(120,180,0,0.18)" : "rgba(30,10,100,0.55)";
-      ctx.fill();
-      ctx.strokeStyle = isPath ? "rgba(200,255,0,0.2)" : "rgba(80,40,200,0.3)";
-      ctx.lineWidth = 0.5;
-      ctx.stroke();
-
-      // Tile thickness (right side)
-      ctx.beginPath();
-      ctx.moveTo(x + TILE_W / 2, y + TILE_H / 2);
-      ctx.lineTo(x, y + TILE_H);
-      ctx.lineTo(x, y + TILE_H + TILE_DEPTH);
-      ctx.lineTo(x + TILE_W / 2, y + TILE_H / 2 + TILE_DEPTH);
-      ctx.closePath();
-      ctx.fillStyle = isPath ? "rgba(80,120,0,0.15)" : "rgba(20,5,80,0.55)";
-      ctx.fill();
-      ctx.strokeStyle = isPath ? "rgba(200,255,0,0.15)" : "rgba(60,20,180,0.25)";
-      ctx.stroke();
-
-      // Selection highlight pulse
-      if (isSel) {
-        const pulse = Math.sin(frame * 0.12) * 0.25 + 0.55;
-        drawDiamond(x, y, `rgba(200,255,0,${pulse * 0.35})`, `rgba(200,255,0,${pulse})`);
-      }
-
-      // Empty cell indicator (glowing +)
-      const hasBuilding = placed.some(p => p.col === col && p.row === row);
-      if (!hasBuilding && !isSel) {
-        const glowPulse = Math.sin(frame * 0.05 + col * 0.9 + row * 1.1) * 0.15 + 0.28;
+  // Roads between occupied tiles
+  const occupiedCells = placed.map(p => ({ col: p.col, row: p.row, id: p.buildingId }));
+  for (let i = 0; i < occupiedCells.length; i++) {
+    for (let j = i + 1; j < occupiedCells.length; j++) {
+      const a = occupiedCells[i];
+      const b = occupiedCells[j];
+      if (Math.abs(a.col - b.col) + Math.abs(a.row - b.row) <= 2) {
+        const ra = tileRect(a.col, a.row);
+        const rb = tileRect(b.col, b.row);
+        const bdefA = BUILDINGS.find(bd => bd.id === a.id);
+        const bdefB = BUILDINGS.find(bd => bd.id === b.id);
+        const color = bdefA?.color ?? bdefB?.color ?? "#4444ff";
         ctx.save();
-        ctx.globalAlpha = glowPulse;
-        ctx.strokeStyle = "#a060ff";
-        ctx.lineWidth = 1.5;
-        ctx.shadowColor = "#8040ff";
+        ctx.strokeStyle = color + "44";
+        ctx.lineWidth = 3;
+        ctx.shadowColor = color;
         ctx.shadowBlur = 6;
         ctx.beginPath();
-        ctx.moveTo(x, y + TILE_H / 2 - 9);
-        ctx.lineTo(x, y + TILE_H / 2 + 9);
-        ctx.moveTo(x - 9, y + TILE_H / 2);
-        ctx.lineTo(x + 9, y + TILE_H / 2);
+        ctx.moveTo(ra.x + ra.w / 2, ra.y + ra.h / 2);
+        ctx.lineTo(rb.x + rb.w / 2, rb.y + rb.h / 2);
         ctx.stroke();
         ctx.restore();
       }
     }
   }
 
-  // ── Draw buildings — back to front ───────────────────────────────────────
-  for (let row = 0; row < GRID_ROWS; row++) {
-    for (let col = 0; col < GRID_COLS; col++) {
+  // Draw each tile
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const { x, y, w, h } = tileRect(col, row);
       const pb = placed.find(p => p.col === col && p.row === row);
-      if (!pb) continue;
-      const bdef = BUILDINGS.find(b => b.id === pb.buildingId);
-      if (!bdef) continue;
+      const bdef = pb ? BUILDINGS.find(b => b.id === pb.buildingId) : null;
+      const isSel = selected?.col === col && selected?.row === row;
+      const pulse = Math.sin(frame * 0.06 + col * 0.8 + row * 1.1) * 0.5 + 0.5;
+      const r = 10; // corner radius
 
-      const { x, y } = toScreen(col, row);
-      const bh = BHEIGHTS[pb.buildingId] ?? 50;
-      const topColor = BTOP[pb.buildingId] ?? "#f0e0d0";
-
-      // Slight bob animation for buildings
-      const bob = Math.sin(frame * 0.04 + col * 0.7 + row * 0.5) * 1.5;
-      const by = y - bob;
-
-      // Left shadow face — dark with color glow tint
-      ctx.beginPath();
-      ctx.moveTo(x - TILE_W / 2, by + TILE_H / 2);
-      ctx.lineTo(x, by + TILE_H);
-      ctx.lineTo(x, by + TILE_H - bh);
-      ctx.lineTo(x - TILE_W / 2, by + TILE_H / 2 - bh);
-      ctx.closePath();
-      ctx.fillStyle = "rgba(5,0,20,0.85)";
-      ctx.fill();
-      ctx.strokeStyle = `${bdef.color}55`;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      // Right face — slightly lighter dark
-      ctx.beginPath();
-      ctx.moveTo(x + TILE_W / 2, by + TILE_H / 2);
-      ctx.lineTo(x, by + TILE_H);
-      ctx.lineTo(x, by + TILE_H - bh);
-      ctx.lineTo(x + TILE_W / 2, by + TILE_H / 2 - bh);
-      ctx.closePath();
-      ctx.fillStyle = "rgba(15,5,40,0.75)";
-      ctx.fill();
-      ctx.strokeStyle = `${bdef.color}33`;
-      ctx.stroke();
-
-      // Top face with building color tint
-      ctx.beginPath();
-      ctx.moveTo(x, by - bh);
-      ctx.lineTo(x + TILE_W / 2, by + TILE_H / 2 - bh);
-      ctx.lineTo(x, by + TILE_H - bh);
-      ctx.lineTo(x - TILE_W / 2, by + TILE_H / 2 - bh);
-      ctx.closePath();
-      ctx.fillStyle = topColor;
-      ctx.fill();
-      // Glowing outline on top face
+      // Tile background
       ctx.save();
-      ctx.strokeStyle = bdef.color;
-      ctx.lineWidth = 1.5;
-      ctx.shadowColor = bdef.color;
-      ctx.shadowBlur = 10;
-      ctx.stroke();
-      ctx.restore();
-
-      // Roof highlight
-      const rGrad = ctx.createLinearGradient(x, by - bh, x, by + TILE_H / 2 - bh);
-      rGrad.addColorStop(0, "rgba(255,255,255,0.22)");
-      rGrad.addColorStop(1, "rgba(255,255,255,0)");
       ctx.beginPath();
-      ctx.moveTo(x, by - bh);
-      ctx.lineTo(x + TILE_W / 2, by + TILE_H / 2 - bh);
-      ctx.lineTo(x, by + TILE_H - bh);
-      ctx.lineTo(x - TILE_W / 2, by + TILE_H / 2 - bh);
-      ctx.closePath();
-      ctx.fillStyle = rGrad;
+      ctx.roundRect(x, y, w, h, r);
+      if (bdef) {
+        ctx.fillStyle = bdef.color + "1a";
+      } else {
+        ctx.fillStyle = "#0d0d22";
+      }
       ctx.fill();
 
-      // Emoji on top with glow shadow
-      ctx.save();
-      ctx.shadowColor = bdef.color;
-      ctx.shadowBlur = 14;
-      ctx.font = `${Math.min(TILE_W * 0.38, 28)}px serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "alphabetic";
-      ctx.fillText(bdef.emoji, x, by - bh + 6);
-      ctx.restore();
-
-      // Passive income sparkle — colored to match building
-      if (frame % 80 < 40) {
-        const sparkX = x + Math.sin(frame * 0.1 + col) * 12;
-        const sparkY = by - bh - 12 - (frame % 80) * 0.4;
-        ctx.save();
-        ctx.globalAlpha = 1 - (frame % 80) / 60;
+      // Border
+      if (bdef) {
+        ctx.strokeStyle = bdef.color;
+        ctx.lineWidth = 2;
         ctx.shadowColor = bdef.color;
-        ctx.shadowBlur = 8;
-        ctx.font = "11px serif";
+        ctx.shadowBlur = isSel ? 20 : 10 * pulse;
+      } else if (isSel) {
+        ctx.strokeStyle = "#c8ff00";
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = "#c8ff00";
+        ctx.shadowBlur = 16 * pulse;
+      } else {
+        ctx.strokeStyle = "#2a2a60";
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.6 + 0.4 * pulse;
+        ctx.shadowBlur = 0;
+        // dashed border for empty
+        ctx.setLineDash([4, 4]);
+        ctx.lineDashOffset = (frame * 0.3) % 8;
+      }
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, r);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+
+      if (bdef) {
+        // Emoji large centered
+        const bob = Math.sin(frame * 0.05 + col * 0.7 + row * 0.9) * 2;
+        ctx.font = `${Math.min(tileW * 0.45, 36)}px serif`;
         ctx.textAlign = "center";
-        ctx.fillText("⚡", sparkX, sparkY);
+        ctx.textBaseline = "middle";
+        ctx.shadowColor = bdef.color;
+        ctx.shadowBlur = 14;
+        ctx.fillText(bdef.emoji, x + w / 2, y + h / 2 - 10 - bob);
+        ctx.shadowBlur = 0;
+        // Name below emoji
+        ctx.font = `bold ${Math.min(tileW * 0.12, 10)}px sans-serif`;
+        ctx.fillStyle = bdef.color;
+        ctx.shadowColor = bdef.color;
+        ctx.shadowBlur = 4;
+        ctx.fillText(bdef.name.toUpperCase(), x + w / 2, y + h - 10);
+        ctx.shadowBlur = 0;
+        // Passive income sparkle
+        if (Math.floor(frame / 50) % 2 === (col + row) % 2) {
+          const sparkFrac = (frame % 50) / 50;
+          ctx.globalAlpha = 1 - sparkFrac;
+          ctx.font = "12px serif";
+          ctx.textAlign = "center";
+          ctx.shadowColor = bdef.color;
+          ctx.shadowBlur = 6;
+          ctx.fillText("⚡", x + w / 2 + Math.sin(frame * 0.12) * 8, y + h / 2 - 20 - sparkFrac * 20);
+          ctx.shadowBlur = 0;
+          ctx.globalAlpha = 1;
+        }
+      } else {
+        // Empty: faint + icon
+        ctx.save();
+        ctx.globalAlpha = 0.2 + 0.15 * pulse;
+        ctx.strokeStyle = "#5555aa";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x + w / 2, y + h / 2 - 8);
+        ctx.lineTo(x + w / 2, y + h / 2 + 8);
+        ctx.moveTo(x + w / 2 - 8, y + h / 2);
+        ctx.lineTo(x + w / 2 + 8, y + h / 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Selection ring
+      if (isSel && !bdef) {
+        ctx.save();
+        ctx.globalAlpha = 0.5 + 0.4 * pulse;
+        ctx.strokeStyle = "#c8ff00";
+        ctx.lineWidth = 2;
+        ctx.shadowColor = "#c8ff00";
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.roundRect(x + 4, y + 4, w - 8, h - 8, 6);
+        ctx.stroke();
         ctx.restore();
       }
     }
   }
 
-  // ── Pet sprite ────────────────────────────────────────────────────────────
-  const { x: px, y: py } = toScreen(petPos.col, petPos.row);
-  const petBob = Math.sin(frame * 0.08) * 3;
-  ctx.font = "26px serif";
+  // ── Pet sprite ─────────────────────────────────────────────────────────────
+  const pr = tileRect(petPos.col, petPos.row);
+  const petBob = Math.sin(frame * 0.09) * 3;
+  ctx.font = "22px serif";
   ctx.textAlign = "center";
-  ctx.textBaseline = "alphabetic";
-  ctx.fillText(petEmoji, px, py + TILE_H / 2 - 2 - petBob);
+  ctx.textBaseline = "middle";
+  ctx.shadowColor = "#c8ff00";
+  ctx.shadowBlur = 10;
+  ctx.fillText(petEmoji, pr.x + pr.w / 2 + 8, pr.y + pr.h / 2 - petBob);
+  ctx.shadowBlur = 0;
 
-  // Shadow under pet
-  ctx.save();
-  ctx.globalAlpha = 0.2;
-  ctx.beginPath();
-  ctx.ellipse(px, py + TILE_H - 2, 12, 5, 0, 0, Math.PI * 2);
-  ctx.fillStyle = "#000";
-  ctx.fill();
-  ctx.restore();
-
-  // ── Decorative neon pylons around perimeter ───────────────────────────────
-  const pylonColors = ["#c8ff00", "#00e5ff", "#a855f7", "#ff2d8d", "#ff6b35", "#4488ff"];
-  const pylonSpots = [
-    { x: OX - TILE_W * 2.8, y: OY + TILE_H * 1.5 },
-    { x: OX + TILE_W * 2.2, y: OY + TILE_H * 1.2 },
-    { x: OX - TILE_W * 1.2, y: OY - TILE_H * 0.3 },
-    { x: OX + TILE_W * 0.8, y: OY - TILE_H * 0.5 },
-    { x: OX - TILE_W * 0.3, y: OY + TILE_H * 4.2 },
-    { x: OX + TILE_W * 3.1, y: OY + TILE_H * 3.0 },
-  ];
-  pylonSpots.forEach(({ x: tx, y: ty }, i) => {
-    const col = pylonColors[i % pylonColors.length];
-    const blink = Math.sin(frame * 0.08 + i * 1.7) * 0.4 + 0.6;
-    // Pylon shaft
+  // ── Corner neon accents ─────────────────────────────────────────────────────
+  [
+    { x: 0, y: 0 }, { x: W, y: 0 }, { x: 0, y: H }, { x: W, y: H }
+  ].forEach(({ x, y }, i) => {
+    const color = ["#c8ff00","#00e5ff","#a855f7","#ff2d8d"][i];
     ctx.save();
-    ctx.strokeStyle = col;
+    ctx.strokeStyle = color;
     ctx.lineWidth = 2;
-    ctx.shadowColor = col;
+    ctx.shadowColor = color;
     ctx.shadowBlur = 8;
-    ctx.globalAlpha = 0.7;
+    ctx.globalAlpha = 0.5 + Math.sin(frame * 0.04 + i) * 0.3;
+    const s = 16, dx = x === 0 ? 1 : -1, dy = y === 0 ? 1 : -1;
     ctx.beginPath();
-    ctx.moveTo(tx, ty + 20);
-    ctx.lineTo(tx, ty - 22);
+    ctx.moveTo(x + dx * s, y); ctx.lineTo(x, y); ctx.lineTo(x, y + dy * s);
     ctx.stroke();
-    // Top light
-    ctx.globalAlpha = blink;
-    ctx.beginPath();
-    ctx.arc(tx, ty - 22, 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = col;
-    ctx.fill();
     ctx.restore();
   });
 }
@@ -458,10 +327,8 @@ export default function VillePage() {
     if (!canvas) return;
 
     const resize = () => {
-      canvas.width = canvas.offsetWidth * window.devicePixelRatio;
-      canvas.height = canvas.offsetHeight * window.devicePixelRatio;
-      const ctx = canvas.getContext("2d");
-      if (ctx) ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      canvas.width = canvas.offsetWidth || 360;
+      canvas.height = canvas.offsetHeight || 320;
     };
     resize();
     window.addEventListener("resize", resize);
@@ -490,7 +357,7 @@ export default function VillePage() {
   useEffect(() => { placedRef.current = placed; }, [placed]);
   useEffect(() => { selectedRef.current = selectedCell; }, [selectedCell]);
 
-  // Convert canvas click to isometric tile
+  // Convert canvas click to top-down tile
   const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -500,14 +367,15 @@ export default function VillePage() {
 
     const W = rect.width;
     const H = rect.height;
-    const OX = W / 2;
-    const OY = H * 0.30;
+    const PAD = 12, GAP = 6;
+    const cols = GRID_COLS, rows = GRID_ROWS;
+    const tileW = (W - PAD * 2 - GAP * (cols - 1)) / cols;
+    const tileH = Math.min(tileW * 0.85, (H - PAD * 2 - GAP * (rows - 1)) / rows);
+    const gridH = rows * tileH + (rows - 1) * GAP;
+    const startY = (H - gridH) / 2;
 
-    // Inverse isometric projection
-    const dx = (mx - OX) / (TILE_W / 2);
-    const dy = (my - OY) / (TILE_H / 2);
-    const col = Math.floor((dx + dy) / 2);
-    const row = Math.floor((dy - dx) / 2);
+    const col = Math.floor((mx - PAD) / (tileW + GAP));
+    const row = Math.floor((my - startY) / (tileH + GAP));
 
     if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) {
       setSelectedCell(null);
