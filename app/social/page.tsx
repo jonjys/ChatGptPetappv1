@@ -55,7 +55,7 @@ const GAME_LABELS: Record<string, string> = {
   slots:   "🎰 Karma Slots",
   memory:  "🧠 Memory Palace",
   battle:  "🌀 Karma Pulse",
-  blitz:   "💥 Bounty Blitz",
+  blitz:   "🚨 Bounty Heist",
 };
 
 const POST_EMOJIS = ["🔥","⚡","🎯","💎","🌟","🏆","🎮","🦁","🦋","🌙","✨","⚔️","🎣","💪","🧬"];

@@ -22,7 +22,7 @@ const GAMES: Game[] = [
   { id: "breaker", href: "/games/breaker", emoji: "🔫", name: "KARMA GUNNER", tagline: "Auto-shooter · Element wars · Upgrade shop · Bosses", reward: "Up to 400 ⚡",      accent: "#ff4422",  bg: "#1a0000",  tag: "NEW 🔥", hot: true, players: 234 },
   { id: "battle",  href: "/games/battle",  emoji: "🌀", name: "KARMA PULSE",  tagline: "Circular TD · Nexus defense · 12-slot ring",    reward: "Win: 100–300 ⚡",     accent: "#a855f7",  bg: "#05020f",  tag: "NEW 🆕", players: 98  },
   { id: "memory",  href: "/games/memory",  emoji: "🧠", name: "MEMORY PALACE", tagline: "Circular ring · Combo chain · 60 stars",        reward: "Up to 150 ⚡",        accent: "#ff44cc",  bg: "#1a0015",  players: 87  },
-  { id: "blitz",   href: "/games/blitz",   emoji: "💥", name: "BOUNTY BLITZ",  tagline: "Step counter · Workout timer · Gratitude journal", reward: "Up to 500 ⚡",       accent: "#00e5ff",  bg: "#001a1a",  tag: "NEW",  players: 203 },
+  { id: "blitz",   href: "/games/blitz",   emoji: "🚨", name: "BOUNTY HEIST",  tagline: "Swipe · risk the chain · bank before you bust", reward: "Up to 800 ⚡",       accent: "#00e5ff",  bg: "#001a1a",  tag: "NEW",  players: 203 },
 ];
 
 const HOT_GAMES = GAMES.filter(g => g.hot);
