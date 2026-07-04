@@ -6,7 +6,7 @@ import MemoryPalace from "@/components/games/MemoryPalace";
 import { useApp } from "@/context/AppContext";
 
 export default function MemoryPage() {
-  const { addKarma, addXP, updateScore, gameScores } = useApp();
+  const { addKarma, addXP, updateScore, gameScores, addActivity } = useApp();
 
   function handleEnd(matched: number, timeLeft: number, level: number) {
     const karma = matched * 12 + level * 30 + timeLeft * 2;
@@ -14,6 +14,7 @@ export default function MemoryPage() {
     addKarma(karma);
     addXP(xp);
     updateScore("memory", matched * 100 + level * 200 + timeLeft);
+    if (karma > 0) addActivity({ emoji: "🧠", title: `Memory Palace — Ring ${level}`, detail: `${matched} matches · +${karma}⚡`, karma, source: "game" });
   }
 
   return (

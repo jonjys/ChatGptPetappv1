@@ -6,13 +6,14 @@ import BountyBlitz from "@/components/games/BountyBlitz";
 import { useApp } from "@/context/AppContext";
 
 export default function BlitzPage() {
-  const { addKarma, addXP, updateScore, gameScores } = useApp();
+  const { addKarma, addXP, updateScore, gameScores, addActivity } = useApp();
 
   function handleEnd({ accepted, combo, xp }: { accepted: number; skipped: number; xp: number; combo: number }) {
     const karma = Math.floor(accepted * 15 + (combo >= 3 ? 50 : 0));
     addKarma(karma);
     addXP(xp);
     updateScore("blitz", accepted);
+    if (accepted > 0) addActivity({ emoji: "💥", title: `Bounty Blitz — ${accepted} accepted`, detail: `${combo}× combo · +${karma}⚡`, karma, source: "game" });
   }
 
   return (

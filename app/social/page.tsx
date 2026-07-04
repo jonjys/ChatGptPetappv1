@@ -51,10 +51,10 @@ const GAME_LABELS: Record<string, string> = {
   runner:  "🏃 Karma Runner",
   fishing: "🎣 Deep Catch",
   cases:   "📦 Case Opening",
-  breaker: "🧬 DNA Breaker",
+  breaker: "🔫 Karma Gunner",
   slots:   "🎰 Karma Slots",
   memory:  "🧠 Memory Palace",
-  battle:  "⚔️ Pet Battle",
+  battle:  "🌀 Karma Pulse",
   blitz:   "💥 Bounty Blitz",
 };
 
@@ -1091,7 +1091,7 @@ export default function SocialPage() {
 
           {/* Feed cards */}
           <div style={{
-            padding: "14px 16px 100px",
+            padding: "14px 16px 130px",
             display: "flex",
             flexDirection: "column",
             gap: 14,
@@ -1139,7 +1139,7 @@ export default function SocialPage() {
 
       {/* ── FRIENDS tab ── */}
       {tab === "FRIENDS" && (
-        <div className="px-4 pt-4 pb-24 space-y-4">
+        <div className="px-4 pt-4 space-y-4" style={{ paddingBottom: 130 }}>
 
           {/* Squad banner */}
           <Link href="/squads" style={{ textDecoration: "none", display: "block" }}>
@@ -1346,7 +1346,7 @@ export default function SocialPage() {
 
       {/* ── TOP tab ── */}
       {tab === "TOP" && (
-        <div className="px-4 pt-4 pb-28">
+        <div className="px-4 pt-4" style={{ paddingBottom: 130 }}>
 
           {/* TRENDING header */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
@@ -1526,7 +1526,7 @@ export default function SocialPage() {
 
       {/* ── WARS tab ── */}
       {tab === "WARS" && (
-        <div className="px-4 pt-4 pb-28">
+        <div className="px-4 pt-4" style={{ paddingBottom: 130 }}>
           {/* Epic header */}
           <div style={{ textAlign: "center", marginBottom: 24 }}>
             <motion.div

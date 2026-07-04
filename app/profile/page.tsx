@@ -102,7 +102,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className="px-4 pt-4 pb-24 space-y-3" style={{ position: "relative", zIndex: 1 }}>
+      <div className="px-4 pt-4 space-y-3" style={{ position: "relative", zIndex: 1, paddingBottom: 130 }}>
 
         {/* Profile card — always visible */}
         <motion.div

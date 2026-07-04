@@ -6,7 +6,7 @@ import KarmaSlots from "@/components/games/KarmaSlots";
 import { useApp } from "@/context/AppContext";
 
 export default function SlotsPage() {
-  const { user, spendKarma, addKarma, addXP, updateScore, gameScores } = useApp();
+  const { user, spendKarma, addKarma, addXP, updateScore, gameScores, addActivity } = useApp();
 
   function handleSpin(cost: number): boolean { return spendKarma(cost); }
 
@@ -14,6 +14,7 @@ export default function SlotsPage() {
     addKarma(amount);
     addXP(Math.floor(amount / 5));
     updateScore("slots", (gameScores.slots ?? 0) + amount);
+    if (amount >= 100) addActivity({ emoji: "🎰", title: `Karma Slots — BIG WIN!`, detail: `+${amount}⚡ jackpot energy`, karma: amount, source: "game" });
   }
 
   return (

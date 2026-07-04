@@ -124,7 +124,7 @@ export default function ShopPage() {
         )}
       </AnimatePresence>
 
-      <div className="px-4 pt-4 pb-24 space-y-4" style={{ position: "relative", zIndex: 1 }}>
+      <div className="px-4 pt-4 space-y-4" style={{ position: "relative", zIndex: 1, paddingBottom: 130 }}>
 
         {/* ── Featured item ──────────────────────────────────────────────── */}
         {category === "ALL" && (
