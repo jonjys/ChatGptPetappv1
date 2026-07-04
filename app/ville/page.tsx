@@ -518,6 +518,27 @@ export default function VillePage() {
         </motion.button>
       </div>
 
+      {/* Live map link — your city lives on the world map */}
+      <Link href="/map" style={{ textDecoration: "none", display: "block", margin: "10px 16px 0" }}>
+        <motion.div
+          whileTap={{ scale: 0.97 }}
+          animate={{ boxShadow: ["0 0 10px #00e5ff22", "0 0 22px #00e5ff44", "0 0 10px #00e5ff22"] }}
+          transition={{ duration: 2.4, repeat: Infinity }}
+          style={{
+            background: "linear-gradient(135deg, #001318, #00080d)",
+            border: "1.5px solid #00e5ff44", borderRadius: 14,
+            padding: "10px 14px", display: "flex", alignItems: "center", gap: 10,
+          }}
+        >
+          <span style={{ fontSize: "1.4rem" }}>🌍</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, fontWeight: 900, color: "#00e5ff", letterSpacing: "0.05em" }}>DIN STAD SYNS PÅ LIVE-KARTAN</div>
+            <div style={{ fontSize: 10, color: "#557" }}>Varje byggnad ger +9% kontroll över KARMA CITY · ta över alla 5 områden</div>
+          </div>
+          <span style={{ fontSize: 12, color: "#00e5ff" }}>→</span>
+        </motion.div>
+      </Link>
+
       {/* The isometric world canvas */}
       <div style={{ margin: "12px 12px 0", borderRadius: 20, overflow: "hidden", position: "relative", boxShadow: "0 0 40px #c8ff0022, 0 8px 32px rgba(0,0,0,0.6), inset 0 0 0 1.5px #c8ff0033" }}>
         {/* React-layer animated stars (above canvas via z-index) */}

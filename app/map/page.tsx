@@ -29,7 +29,7 @@ const ZONES: Zone[] = [
     color: "#a855f7",
     icon: "🏙️",
     href: "/ville",
-    desc: "Your home base. Build, grow, earn.",
+    desc: "Din hemmabas — din Ville bor HÄR på kartan. Bygg och tjäna passiv karma.",
     buildings: ["🏛️", "🏪", "🏗️", "🏦"],
   },
   {
@@ -101,6 +101,43 @@ const LIVE_FEED = [
   { emoji: "🏆", text: "lunavibes hit rank #1 on the board", time: "5m ago", color: "#a855f7" },
 ];
 
+// ─── Territory system ────────────────────────────────────────────────────────
+// Influence per zone is earned by actually playing — game scores and your
+// ville buildings translate directly into map control. 100% = zone captured.
+
+const BUILDING_EMOJI: Record<string, string> = {
+  house: "🏠", school: "🏫", gym: "🏋️", cafe: "☕", market: "🏪",
+  lab: "🔬", stadium: "🏟️", bank: "🏦", tower: "🗼", castle: "🏰",
+};
+
+// Squad mates lend a hand per zone (their standing bonus toward your takeover)
+const ZONE_ALLIES: Record<string, { name: string; emoji: string; bonus: number }[]> = {
+  city:   [{ name: "lunavibes",   emoji: "🌙", bonus: 10 }],
+  bounty: [{ name: "dragon99",    emoji: "🐉", bonus: 8 }],
+  arena:  [{ name: "tradeknight", emoji: "⚔️", bonus: 12 }],
+  park:   [{ name: "neonmiku",    emoji: "✨", bonus: 6 }],
+  market: [{ name: "pixelrush",   emoji: "🎮", bonus: 9 }],
+};
+
+const ZONE_HINT: Record<string, string> = {
+  city:   "Bygg i din Ville — varje byggnad ger +9% kontroll",
+  bounty: "Spela Bounty Heist & Deep Catch för kontroll",
+  arena:  "Vinn Karma Pulse & Karma Gunner för kontroll",
+  park:   "Spela Karma Runner & Memory Palace för kontroll",
+  market: "Öppna cases & vinn slots för kontroll",
+};
+
+function calcInfluence(zoneId: string, gs: Record<string, number>, villeCount: number): number {
+  const allyBonus = (ZONE_ALLIES[zoneId] ?? []).reduce((s, a) => s + a.bonus, 0);
+  let own = 0;
+  if (zoneId === "city")   own = villeCount * 9;
+  if (zoneId === "bounty") own = (gs.blitz ?? 0) / 8 + (gs.fishing ?? 0) / 2;
+  if (zoneId === "arena")  own = (gs.battle ?? 0) * 15 + (gs.breaker ?? 0) / 60;
+  if (zoneId === "park")   own = (gs.runner ?? 0) / 80 + (gs.memory ?? 0) / 40;
+  if (zoneId === "market") own = (gs.slots ?? 0) / 40 + (gs.cases ?? 0) / 2;
+  return Math.min(100, Math.round(own + allyBonus));
+}
+
 // ─── Canvas helper ─────────────────────────────────────────────────────────────
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
@@ -118,11 +155,29 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 
 // ─── Main component ──────────────────────────────────────────────────────────
 export default function MapPage() {
-  const { pet, user } = useApp();
+  const { pet, user, gameScores } = useApp();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef(0);
   const rafRef = useRef<number>(0);
   const starsRef = useRef<{ x: number; y: number; r: number; bright: number }[]>([]);
+
+  // Your ville lives on this map — same storage as /ville
+  const [villeBuildings, setVilleBuildings] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      const placed: { buildingId: string }[] = JSON.parse(localStorage.getItem("karma_ville_v1") ?? "[]");
+      setVilleBuildings(placed.map(p => BUILDING_EMOJI[p.buildingId] ?? "🏠"));
+    } catch { /* fresh city */ }
+  }, []);
+
+  // Territory influence (live from game scores + ville)
+  const influences: Record<string, number> = {};
+  ZONES.forEach(z => { influences[z.id] = calcInfluence(z.id, gameScores as Record<string, number>, villeBuildings.length); });
+  const capturedCount = ZONES.filter(z => influences[z.id] >= 100).length;
+  const inflRef = useRef(influences);
+  inflRef.current = influences;
+  const villeRef = useRef(villeBuildings);
+  villeRef.current = villeBuildings;
 
   const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
   const [panelExpanded, setPanelExpanded] = useState(false);
@@ -267,8 +322,11 @@ export default function MapPage() {
       ctx.fillText(zone.icon, zx + zw / 2, zy + zh / 2 - 8);
       ctx.textBaseline = "alphabetic";
 
-      // Buildings
-      zone.buildings.forEach((b, bi) => {
+      // Buildings — KARMA CITY shows your REAL ville buildings
+      const zoneBuildings = zone.id === "city" && villeRef.current.length > 0
+        ? villeRef.current.slice(0, 6)
+        : zone.buildings;
+      zoneBuildings.forEach((b, bi) => {
         const bx = zx + 14 + bi * 22;
         const by = zy + zh - 18;
         if (bx + 10 < zx + zw - 10) {
@@ -277,6 +335,33 @@ export default function MapPage() {
           ctx.fillText(b, bx, by);
         }
       });
+
+      // Territory influence — captured flag or progress toward takeover
+      const infl = inflRef.current[zone.id] ?? 0;
+      if (infl >= 100) {
+        ctx.font = "bold 8px 'Courier New', monospace";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#c8ff00";
+        ctx.shadowColor = "#c8ff00";
+        ctx.shadowBlur = 8;
+        ctx.fillText("🚩 DITT OMRÅDE", zx + zw / 2, zy + 32);
+        ctx.shadowBlur = 0;
+      } else if (infl > 0) {
+        const barW = zw - 28, barX = zx + 14, barY = zy + 26;
+        ctx.fillStyle = "rgba(255,255,255,0.08)";
+        roundRect(ctx, barX, barY, barW, 4, 2);
+        ctx.fill();
+        ctx.fillStyle = zone.color;
+        ctx.shadowColor = zone.color;
+        ctx.shadowBlur = 6;
+        roundRect(ctx, barX, barY, Math.max(3, barW * infl / 100), 4, 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.font = "bold 7px 'Courier New', monospace";
+        ctx.textAlign = "right";
+        ctx.fillStyle = zone.color + "cc";
+        ctx.fillText(`${infl}%`, barX + barW, barY - 3);
+      }
     });
 
     // ── 6. Player pulses ───────────────────────────────────────────────────
@@ -650,9 +735,9 @@ export default function MapPage() {
               {selectedZone.desc}
             </p>
 
-            {/* Buildings preview */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-              {selectedZone.buildings.map((b, i) => (
+            {/* Buildings preview — city shows your real ville */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+              {(selectedZone.id === "city" && villeBuildings.length > 0 ? villeBuildings.slice(0, 6) : selectedZone.buildings).map((b, i) => (
                 <span
                   key={i}
                   style={{
@@ -665,6 +750,44 @@ export default function MapPage() {
                 >
                   {b}
                 </span>
+              ))}
+              {selectedZone.id === "city" && (
+                <span style={{ fontSize: 10, color: "#666", alignSelf: "center", fontWeight: 700 }}>
+                  {villeBuildings.length}/12 byggnader
+                </span>
+              )}
+            </div>
+
+            {/* Territory takeover */}
+            <div style={{
+              background: "rgba(255,255,255,0.03)",
+              border: `1px solid ${(influences[selectedZone.id] ?? 0) >= 100 ? "#c8ff0055" : "rgba(255,255,255,0.08)"}`,
+              borderRadius: 12, padding: "10px 12px", marginBottom: 14,
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: "0.08em", color: (influences[selectedZone.id] ?? 0) >= 100 ? "#c8ff00" : selectedZone.color }}>
+                  {(influences[selectedZone.id] ?? 0) >= 100 ? "🚩 DITT OMRÅDE" : "⚡ TA ÖVER OMRÅDET"}
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 900, color: (influences[selectedZone.id] ?? 0) >= 100 ? "#c8ff00" : "#fff" }}>
+                  {influences[selectedZone.id] ?? 0}%
+                </span>
+              </div>
+              <div style={{ height: 6, background: "rgba(255,255,255,0.06)", borderRadius: 3, overflow: "hidden", marginBottom: 8 }}>
+                <div style={{
+                  width: `${influences[selectedZone.id] ?? 0}%`, height: "100%",
+                  background: (influences[selectedZone.id] ?? 0) >= 100 ? "#c8ff00" : selectedZone.color,
+                  borderRadius: 3, boxShadow: `0 0 8px ${selectedZone.color}`,
+                  transition: "width 0.6s ease",
+                }} />
+              </div>
+              <div style={{ fontSize: 10, color: "#777", marginBottom: 6 }}>{ZONE_HINT[selectedZone.id]}</div>
+              {(ZONE_ALLIES[selectedZone.id] ?? []).map(a => (
+                <div key={a.name} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#999" }}>
+                  <span>{a.emoji}</span>
+                  <span style={{ fontWeight: 700, color: "#bbb" }}>@{a.name}</span>
+                  <span>hjälper dig</span>
+                  <span style={{ marginLeft: "auto", fontWeight: 900, color: "#4caf50" }}>+{a.bonus}%</span>
+                </div>
               ))}
             </div>
 
@@ -750,22 +873,25 @@ export default function MapPage() {
         {/* Expanded panel content */}
         <div style={{ padding: "0 16px 16px", overflow: "hidden" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-            {/* YOUR ZONE */}
-            <div
-              style={{
-                background: "rgba(168,85,247,0.1)",
-                border: "1px solid rgba(168,85,247,0.3)",
-                borderRadius: 14,
-                padding: "10px 12px",
-              }}
-            >
-              <div style={{ fontSize: 9, color: "#a855f7", fontWeight: 700, letterSpacing: "0.08em", marginBottom: 6 }}>
-                YOUR ZONE
+            {/* YOUR EMPIRE — real ville + territory data */}
+            <Link href="/ville" onClick={() => setPanelExpanded(false)} style={{ textDecoration: "none" }}>
+              <div
+                style={{
+                  background: "rgba(168,85,247,0.1)",
+                  border: "1px solid rgba(168,85,247,0.3)",
+                  borderRadius: 14,
+                  padding: "10px 12px",
+                  height: "100%",
+                }}
+              >
+                <div style={{ fontSize: 9, color: "#a855f7", fontWeight: 700, letterSpacing: "0.08em", marginBottom: 6 }}>
+                  DITT IMPERIUM
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 900, color: "#fff", marginBottom: 2 }}>KARMA CITY</div>
+                <div style={{ fontSize: 10, color: "#888" }}>🏗️ {villeBuildings.length}/12 byggnader</div>
+                <div style={{ fontSize: 10, color: "#c8ff00", marginTop: 2 }}>🚩 {capturedCount}/5 områden tagna</div>
               </div>
-              <div style={{ fontSize: 13, fontWeight: 900, color: "#fff", marginBottom: 2 }}>KARMA CITY</div>
-              <div style={{ fontSize: 10, color: "#888" }}>🏗️ 4 buildings</div>
-              <div style={{ fontSize: 10, color: "#00ff88", marginTop: 2 }}>💰 +12 karma/hr</div>
-            </div>
+            </Link>
 
             {/* LIVE FEED */}
             <div
@@ -796,10 +922,10 @@ export default function MapPage() {
           {/* Quick actions */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6 }}>
             {[
-              { label: "BUILD", icon: "🏗️", href: "/ville", color: "#a855f7" },
-              { label: "EXPLORE", icon: "🗺️", href: "/map", color: "#ffcc00" },
+              { label: "BYGG", icon: "🏗️", href: "/ville", color: "#a855f7" },
+              { label: "MIN PET", icon: "🐾", href: "/pet", color: "#00ff88" },
               { label: "BATTLE", icon: "⚔️", href: "/games/battle", color: "#ff4444" },
-              { label: "MARKET", icon: "💰", href: "/shop", color: "#ff2d8d" },
+              { label: "PROFIL", icon: "👤", href: "/profile", color: "#ff8c00" },
             ].map((action) => (
               <Link
                 key={action.label}

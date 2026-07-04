@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Settings, Trophy, Zap, Flame, Globe, Star, Languages, Users } from "lucide-react";
 import Link from "next/link";
@@ -48,6 +48,10 @@ export default function ProfilePage() {
   const classColor = getPetClassColor(user.petClass);
 
   const [tab, setTab] = useState<ProfileTab>("stats");
+  const [villeCount, setVilleCount] = useState(0);
+  useEffect(() => {
+    try { setVilleCount((JSON.parse(localStorage.getItem("karma_ville_v1") ?? "[]") as unknown[]).length); } catch { /* fresh */ }
+  }, []);
   const [followTab, setFollowTab] = useState<"followers" | "following">("followers");
   const [followOverrides, setFollowOverrides] = useState<Record<string, boolean>>({});
   const toggleFollow = (id: string, current: boolean) =>
@@ -145,6 +149,28 @@ export default function ProfilePage() {
             ))}
           </div>
         </motion.div>
+
+        {/* Empire strip — profile ⇄ ville ⇄ live map */}
+        <Link href="/map" style={{ textDecoration: "none" }}>
+          <motion.div
+            whileTap={{ scale: 0.97 }}
+            style={{
+              background: "linear-gradient(135deg, #0d0d16, #0a0a12)",
+              border: "1.5px solid #00e5ff33",
+              borderRadius: 16, padding: "12px 14px",
+              display: "flex", alignItems: "center", gap: 12,
+            }}
+          >
+            <span style={{ fontSize: "1.6rem" }}>🌍</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, fontWeight: 900, color: "#00e5ff", letterSpacing: "0.04em" }}>MITT IMPERIUM</div>
+              <div style={{ fontSize: 10, color: "#556", marginTop: 1 }}>
+                🏗️ {villeCount} byggnader i din Ville · ta över områden på live-kartan
+              </div>
+            </div>
+            <span style={{ background: "#00e5ff18", border: "1px solid #00e5ff44", borderRadius: 8, padding: "4px 9px", fontSize: 10, fontWeight: 800, color: "#00e5ff" }}>KARTA →</span>
+          </motion.div>
+        </Link>
 
         {/* Pet companion card */}
         <Link href="/pet" style={{ textDecoration: "none" }}>
