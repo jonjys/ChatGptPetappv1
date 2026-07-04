@@ -131,6 +131,8 @@ interface GameState {
   corals: CoralCluster[];
   vents: ThermalVent[];
   battleGauge: number;
+  tension: number;   // 0-100 line tension — over-tapping snaps the line
+  yankTimer: number; // frames until the fish's next yank (battle phase)
   castPower: number;
 }
 
@@ -421,6 +423,8 @@ export default function DeepCatch({ onCatch, petEmoji = "🐟" }: Props) {
     corals: [],
     vents: [],
     battleGauge: 50,
+    tension: 0,
+    yankTimer: 60,
     castPower: 0,
   });
   const rafRef = useRef<number>(0);
@@ -986,7 +990,33 @@ export default function DeepCatch({ onCatch, petEmoji = "🐟" }: Props) {
         const flash = 0.5 + 0.5 * Math.sin(t * 0.2);
         ctx.fillStyle = `rgba(0,255,136,${flash})`;
         ctx.font = "bold 10px monospace";
-        ctx.fillText("TAP TAP TAP!", LINE_X, gy + gh + 14);
+        ctx.fillText("PACE YOUR TAPS!", LINE_X, gy + gh + 14);
+      }
+
+      // ── Line tension bar (reeling + battle) ──────────────────────────────
+      if (curPhase === "reeling" || curPhase === "battle") {
+        const tn = gs.tension;
+        const tx = LINE_X - 90, ty = CH - 20, tw = 180, th = 8;
+        ctx.fillStyle = "rgba(0,0,0,0.75)";
+        ctx.beginPath();
+        ctx.roundRect?.(tx - 4, ty - 15, tw + 8, th + 20, 6);
+        ctx.fill();
+        const tCol = tn > 75 ? "#ff2244" : tn > 50 ? "#ff8800" : "#00e5ff";
+        ctx.fillStyle = tCol;
+        ctx.font = "bold 9px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(tn > 75 ? "⚠ LINE SNAPPING!" : "LINE TENSION", LINE_X, ty - 5);
+        ctx.fillStyle = "#0a0a14";
+        ctx.beginPath();
+        ctx.roundRect?.(tx, ty, tw, th, 4);
+        ctx.fill();
+        if (tn > 0) {
+          ctx.fillStyle = tCol;
+          if (tn > 75) ctx.fillStyle = `rgba(255,34,68,${0.6 + 0.4 * Math.sin(t * 0.4)})`;
+          ctx.beginPath();
+          ctx.roundRect?.(tx + 1, ty + 1, Math.max(4, (tw - 2) * tn / 100), th - 2, 3);
+          ctx.fill();
+        }
       }
 
       // ── Bite ring ────────────────────────────────────────────────────────
@@ -1283,8 +1313,20 @@ export default function DeepCatch({ onCatch, petEmoji = "🐟" }: Props) {
       // Reeling phase
       if (curPhase === "reeling") {
         gs.reelDecay += 1;
+        const rf = gs.fish[gs.targetFishIdx];
+        const decayRate = rf
+          ? (rf.def.rarity === "secret" ? 2.4 : rf.def.rarity === "legendary" ? 2.0 : rf.def.rarity === "rare" ? 1.6 : 1.1)
+          : 1.2;
         if (gs.reelDecay > 12) {
-          gs.reelGauge = Math.max(0, gs.reelGauge - 1.2);
+          gs.reelGauge = Math.max(0, gs.reelGauge - decayRate);
+        }
+        // tension relaxes when you stop tapping; max tension snaps the line
+        gs.tension = Math.max(0, gs.tension - 0.85);
+        if (gs.tension >= 100) {
+          gs.reelGauge = 0;
+          gs.reelTaps = 1; // force the escape branch below
+          gs.tension = 0;
+          gs.shakeDuration = 14;
         }
         if (gs.reelGauge <= 0 && gs.reelTaps > 0) {
           // Fish escaped
@@ -1311,14 +1353,31 @@ export default function DeepCatch({ onCatch, petEmoji = "🐟" }: Props) {
 
       // Battle phase
       if (curPhase === "battle") {
-        gs.battleGauge = Math.max(0, gs.battleGauge - 0.8);
+        gs.battleGauge = Math.max(0, gs.battleGauge - 0.9);
         battleGaugeRef.current = gs.battleGauge;
         setBattleGauge(gs.battleGauge);
+        gs.tension = Math.max(0, gs.tension - 0.9);
 
         const bf = gs.fish[gs.targetFishIdx];
         if (bf) {
           bf.x = LINE_X + Math.sin(t * 0.15) * 30;
           bf.y = gs.hookY - 30 + Math.sin(t * 0.2) * 15;
+
+          // fish YANKS: sudden pulls that drain the gauge — read the rhythm
+          gs.yankTimer -= 1;
+          if (gs.yankTimer <= 0) {
+            gs.yankTimer = 45 + Math.floor(Math.random() * 60);
+            gs.battleGauge = Math.max(1, gs.battleGauge - (8 + bf.def.speed * 4));
+            gs.tension = Math.max(0, gs.tension - 18); // pull pays out line
+            gs.shakeDuration = 10;
+          }
+        }
+
+        // max tension snaps the line — fish escapes
+        if (gs.tension >= 100) {
+          gs.battleGauge = 0;
+          gs.tension = 0;
+          gs.shakeDuration = 14;
         }
 
         if (gs.battleGauge <= 0) {
@@ -1393,7 +1452,7 @@ export default function DeepCatch({ onCatch, petEmoji = "🐟" }: Props) {
 
             // Bite window — varies by rarity
             const rarity = tf.def.rarity;
-            const window = rarity === "secret" ? 800 : rarity === "legendary" ? 1000 : rarity === "rare" ? 1400 : 1800;
+            const window = rarity === "secret" ? 650 : rarity === "legendary" ? 800 : rarity === "rare" ? 1100 : 1500;
             biteTimerRef.current = setTimeout(() => {
               if (phaseRef.current === "bite") {
                 // Missed the bite window — fish swam away
@@ -1510,6 +1569,7 @@ export default function DeepCatch({ onCatch, petEmoji = "🐟" }: Props) {
     gs.reelGauge = 0;
     gs.reelTaps = 0;
     gs.reelDecay = 0;
+    gs.tension = 0;
     phaseRef.current = "reeling";
     setPhase("reeling");
   }, [weather]);
@@ -1523,6 +1583,9 @@ export default function DeepCatch({ onCatch, petEmoji = "🐟" }: Props) {
     gs.reelTaps += 1;
     gs.reelDecay = 0;
     gs.reelGauge = Math.min(100, gs.reelGauge + (100 / REEL_TAPS_NEEDED));
+    // each tap loads the line — pace your taps or it snaps
+    const tapTension = tf.def.rarity === "secret" ? 9 : tf.def.rarity === "legendary" ? 8 : tf.def.rarity === "rare" ? 6.5 : 5;
+    gs.tension = Math.min(100, gs.tension + tapTension);
     // Move hook up toward surface with each tap
     gs.hookY = Math.max(WATER_TOP + 30, gs.hookY - 20);
 
@@ -1547,6 +1610,8 @@ export default function DeepCatch({ onCatch, petEmoji = "🐟" }: Props) {
         // Reel complete → battle phase (tug-of-war for epic fish)
         gs.reelGauge = 0;
         gs.battleGauge = 50;
+        gs.tension = 0;
+        gs.yankTimer = 60;
         battleGaugeRef.current = 50;
         setBattleGauge(50);
         phaseRef.current = "battle";
@@ -1573,6 +1638,7 @@ export default function DeepCatch({ onCatch, petEmoji = "🐟" }: Props) {
     gs.battleGauge = Math.min(100, gs.battleGauge + 8);
     battleGaugeRef.current = gs.battleGauge;
     setBattleGauge(gs.battleGauge);
+    gs.tension = Math.min(100, gs.tension + (tf.def.rarity === "secret" ? 8 : 7));
 
     for (let i = 0; i < 4; i++) {
       gs.particles.push({
