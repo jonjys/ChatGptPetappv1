@@ -158,7 +158,8 @@ function renderWorld(
       if (bdef) {
         ctx.fillStyle = bdef.color + "1a";
       } else {
-        ctx.fillStyle = "#0d0d22";
+        // buildable land: soft green/teal checker instead of dead void
+        ctx.fillStyle = (col + row) % 2 === 0 ? "#0a1810" : "#0a141c";
       }
       ctx.fill();
 
@@ -218,17 +219,28 @@ function renderWorld(
           ctx.globalAlpha = 1;
         }
       } else {
-        // Empty: faint + icon
+        // Empty: living terrain (deterministic per tile) + build hint
+        const TERRAIN = ["🌲", "🌿", "🪨", "🌸", "🍄", "🌾"];
+        const hash = (col * 7 + row * 13) % TERRAIN.length;
         ctx.save();
-        ctx.globalAlpha = 0.2 + 0.15 * pulse;
-        ctx.strokeStyle = "#5555aa";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(x + w / 2, y + h / 2 - 8);
-        ctx.lineTo(x + w / 2, y + h / 2 + 8);
-        ctx.moveTo(x + w / 2 - 8, y + h / 2);
-        ctx.lineTo(x + w / 2 + 8, y + h / 2);
-        ctx.stroke();
+        ctx.globalAlpha = 0.4;
+        ctx.font = `${Math.min(tileW * 0.24, 18)}px serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        const tBob = Math.sin(frame * 0.03 + col * 1.3 + row * 2.1) * 1.5;
+        ctx.fillText(TERRAIN[hash], x + w * 0.32, y + h * 0.62 + tBob);
+        ctx.globalAlpha = 0.25;
+        ctx.font = `${Math.min(tileW * 0.16, 12)}px serif`;
+        ctx.fillText(TERRAIN[(hash + 2) % TERRAIN.length], x + w * 0.7, y + h * 0.4 - tBob);
+        ctx.restore();
+        // build plus badge, top-right
+        ctx.save();
+        ctx.globalAlpha = 0.35 + 0.3 * pulse;
+        ctx.fillStyle = "#c8ff00";
+        ctx.font = `bold ${Math.min(tileW * 0.16, 13)}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("+", x + w - 12, y + 12);
         ctx.restore();
       }
 
