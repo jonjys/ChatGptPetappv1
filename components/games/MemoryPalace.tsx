@@ -41,13 +41,20 @@ function getLevelConfig(level: number): LevelConfig {
 
 // ─── Card positions ───────────────────────────────────────────────────────────
 const CARD_SIZE = 52;
-const CX = 160; // centre x of 320px container
-const CY = 170; // centre y
+// Virtual coordinate space — the arena is laid out at this fixed size and
+// CSS-scaled down to the real container width so every ring always fits.
+const VIRT_W = 460;
+const CX = VIRT_W / 2;
+
+function arenaCenterY(rings: number[]): number {
+  return Math.max(...rings) + CARD_SIZE / 2 + 16;
+}
 
 interface CardPos { x: number; y: number }
 
 function buildPositions(rings: number[], totalCards: number): CardPos[] {
   const positions: CardPos[] = [];
+  const cy = arenaCenterY(rings);
   // distribute cards evenly across rings
   const perRing = distributeToRings(totalCards, rings.length);
   let startAngle = -Math.PI / 2; // start from top
@@ -58,7 +65,7 @@ function buildPositions(rings: number[], totalCards: number): CardPos[] {
       const angle = startAngle + (2 * Math.PI * i) / count;
       positions.push({
         x: CX + radius * Math.cos(angle) - CARD_SIZE / 2,
-        y: CY + radius * Math.sin(angle) - CARD_SIZE / 2,
+        y: cy + radius * Math.sin(angle) - CARD_SIZE / 2,
       });
     }
   });
@@ -160,9 +167,9 @@ function TimerRing({ timeLeft, timeLimit }: { timeLeft: number; timeLimit: numbe
 }
 
 // ─── Center hub ───────────────────────────────────────────────────────────────
-function CenterHub({ level, combo }: { level: number; combo: number }) {
+function CenterHub({ level, combo, cy }: { level: number; combo: number; cy: number }) {
   return (
-    <div style={{ position: "absolute", left: CX - 34, top: CY - 34, width: 68, height: 68, zIndex: 10 }}>
+    <div style={{ position: "absolute", left: CX - 34, top: cy - 34, width: 68, height: 68, zIndex: 10 }}>
       {/* Outer pulse ring */}
       <motion.div
         style={{
@@ -415,6 +422,16 @@ export default function MemoryPalace({ onEnd }: Props) {
 
   const cfg = getLevelConfig(level);
 
+  // Measure real width so the virtual 460px arena scales to fit any phone
+  const arenaRef = useRef<HTMLDivElement>(null);
+  const [arenaW, setArenaW] = useState(340);
+  useEffect(() => {
+    const measure = () => { if (arenaRef.current) setArenaW(arenaRef.current.offsetWidth || 340); };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
   // Build card positions whenever level changes
   useEffect(() => {
     const newCards = makeCards(level);
@@ -425,14 +442,20 @@ export default function MemoryPalace({ onEnd }: Props) {
   const startLevel = useCallback((lvl: number) => {
     const c = getLevelConfig(lvl);
     const newCards = makeCards(lvl);
-    setCards(newCards);
+    // Ghost preview: flash all cards face-up, shorter each level
+    setCards(newCards.map(card => ({ ...card, flipped: true })));
     setPositions(buildPositions(c.rings, newCards.length));
     setSelected([]);
-    setLocked(false);
+    setLocked(true);
     setMatched(0);
     setCombo(0);
     setTimeLeft(c.timeLimit);
     setPhase("on");
+    const previewMs = Math.max(600, 1600 - lvl * 120);
+    setTimeout(() => {
+      setCards(prev => prev.map(card => card.matched ? card : { ...card, flipped: false }));
+      setLocked(false);
+    }, previewMs);
   }, []);
 
   const start = useCallback(() => {
@@ -512,9 +535,10 @@ export default function MemoryPalace({ onEnd }: Props) {
     }
   }
 
-  // Container height: max ring radius + card size + top/bottom padding
-  const maxRadius = Math.max(...cfg.rings);
-  const containerH = (CY + maxRadius + CARD_SIZE / 2 + 20);
+  // Virtual arena dimensions, scaled down to real width so rings never clip
+  const arenaCY = arenaCenterY(cfg.rings);
+  const virtH = arenaCY * 2;
+  const scale = Math.min(1, arenaW / VIRT_W);
 
   const timerColor = timeLeft <= 10 ? "#ff2d8d" : timeLeft <= Math.floor(cfg.timeLimit * 0.4) ? "#ff6b35" : "#8b5cf6";
 
@@ -563,56 +587,65 @@ export default function MemoryPalace({ onEnd }: Props) {
         </div>
       </div>
 
-      {/* ── Circular ring arena ── */}
+      {/* ── Circular ring arena (virtual 460px space, scaled to fit) ── */}
       <div
+        ref={arenaRef}
         style={{
           position: "relative",
           width: "100%",
-          height: containerH,
-          maxWidth: 340,
+          height: virtH * scale,
           margin: "0 auto",
         }}
       >
-        {/* Ring decorations */}
-        {cfg.rings.map((r, i) => (
-          <motion.div
-            key={i}
-            initial={{ scale: 0.6, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: i * 0.1, duration: 0.5 }}
-            style={{
-              position: "absolute",
-              left: CX - r,
-              top: CY - r,
-              width: r * 2,
-              height: r * 2,
-              borderRadius: "50%",
-              border: "1px solid #2a1050",
-              pointerEvents: "none",
-              zIndex: 1,
-            }}
-          />
-        ))}
+        <div style={{
+          position: "absolute",
+          left: 0, top: 0,
+          width: VIRT_W,
+          height: virtH,
+          transform: `scale(${scale})`,
+          transformOrigin: "top left",
+        }}>
+          {/* Ring decorations */}
+          {cfg.rings.map((r, i) => (
+            <motion.div
+              key={i}
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: i * 0.1, duration: 0.5 }}
+              style={{
+                position: "absolute",
+                left: CX - r,
+                top: arenaCY - r,
+                width: r * 2,
+                height: r * 2,
+                borderRadius: "50%",
+                border: "1px solid #2a1050",
+                pointerEvents: "none",
+                zIndex: 1,
+              }}
+            />
+          ))}
 
-        {/* Center hub */}
-        <CenterHub level={level} combo={combo} />
+          {/* Center hub */}
+          <CenterHub level={level} combo={combo} cy={arenaCY} />
 
-        {/* Cards */}
-        <AnimatePresence>
-          {cards.map((card, idx) => {
-            const pos = positions[idx];
-            if (!pos) return null;
-            return (
-              <CardTile
-                key={`${level}-${card.id}`}
-                card={card}
-                pos={pos}
-                onClick={() => flip(card.id)}
-                active={phase === "on" && !card.matched && !locked}
-              />
-            );
-          })}
-        </AnimatePresence>
+          {/* Cards */}
+          <AnimatePresence>
+            {cards.map((card, idx) => {
+              const pos = positions[idx];
+              if (!pos) return null;
+              return (
+                <CardTile
+                  key={`${level}-${card.id}`}
+                  card={card}
+                  pos={pos}
+                  onClick={() => flip(card.id)}
+                  active={phase === "on" && !card.matched && !locked}
+                />
+              );
+            })}
+          </AnimatePresence>
+        </div>
 
         {/* Level cleared overlay (positioned inside arena) */}
         <AnimatePresence>
