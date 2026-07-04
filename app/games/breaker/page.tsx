@@ -42,6 +42,7 @@ type GS = {
   shields: number;
   fusionElem: Elem | null; fusionFrames: number;
   streak: number; streakElem: Elem | null;
+  combo: number; comboTimer: number; overdrive: number; kills: number;
   shakeFrames: number;
   spawnDone: boolean; spawnTimer: number; spawnQueue: Array<{ x: number; y: number; elem: Elem; hp: number; size: number; vx: number; vy: number }>;
   waveCleared: boolean;
@@ -55,11 +56,12 @@ function mkGS(w: number): GS {
     bullets: [], enemies: [], particles: [], drops: [], floats: [], boss: null, bossBullets: [],
     score: 0, karma: 0, wave: 0, hp: 5,
     frame: 0, idCounter: 0,
-    fireTimer: 0, fireInterval: 28,
+    fireTimer: 0, fireInterval: 20,
     bulletDmg: 1, splitShot: false, magnet: false,
     shields: 0,
     fusionElem: null, fusionFrames: 0,
     streak: 0, streakElem: null,
+    combo: 0, comboTimer: 0, overdrive: 0, kills: 0,
     shakeFrames: 0,
     spawnDone: false, spawnTimer: 0, spawnQueue: [],
     waveCleared: false, bossSpawned: false,
@@ -69,9 +71,10 @@ function mkGS(w: number): GS {
 
 function buildWave(wave: number, w: number): GS["spawnQueue"] {
   const q: GS["spawnQueue"] = [];
-  const count = Math.min(4 + wave * 2, 20);
-  const hp = 1 + Math.floor(wave / 3);
-  const spd = 0.5 + wave * 0.08;
+  // Gentle early ramp (power fantasy waves 1-5), real challenge from ~wave 12
+  const count = Math.min(3 + wave + Math.floor(wave / 2), 22);
+  const hp = wave <= 3 ? 1 : 1 + Math.floor((wave - 2) / 3);
+  const spd = 0.35 + wave * 0.055;
   const elems: Elem[] = ["fire", "ice", "electric", "void"];
   if (wave % 5 === 0 && wave > 0) return q; // boss wave — handled separately
   for (let i = 0; i < count; i++) {
@@ -256,14 +259,15 @@ export default function KarmaGunnerPage() {
       ctx.shadowBlur = 0;
     });
 
-    // player bullets
+    // player bullets (golden during overdrive)
     g.bullets.forEach(b => {
       const cfg = ECFG[b.elem];
-      ctx.shadowColor = cfg.color;
-      ctx.shadowBlur = 8;
-      ctx.fillStyle = cfg.color;
+      const col = g.overdrive > 0 ? "#ffdd00" : cfg.color;
+      ctx.shadowColor = col;
+      ctx.shadowBlur = g.overdrive > 0 ? 14 : 8;
+      ctx.fillStyle = col;
       ctx.beginPath();
-      ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
+      ctx.arc(b.x, b.y, g.overdrive > 0 ? 5 : 4, 0, Math.PI * 2);
       ctx.fill();
       ctx.shadowBlur = 0;
     });
@@ -388,9 +392,14 @@ export default function KarmaGunnerPage() {
       return true;
     });
 
-    // auto-fire
+    // combo decay + overdrive countdown
+    if (g.comboTimer > 0) { g.comboTimer--; if (g.comboTimer === 0) g.combo = 0; }
+    if (g.overdrive > 0) g.overdrive--;
+
+    // auto-fire (overdrive = double fire rate)
     g.fireTimer++;
-    if (g.fireTimer >= g.fireInterval) {
+    const effInterval = g.overdrive > 0 ? Math.max(6, Math.floor(g.fireInterval / 2)) : g.fireInterval;
+    if (g.fireTimer >= effInterval) {
       g.fireTimer = 0;
       const bx = g.turretX;
       const activeElem = g.fusionElem ?? (g.streakElem && g.streak >= 3 ? g.streakElem : ELEMS[g.frame % 4]);
@@ -408,6 +417,19 @@ export default function KarmaGunnerPage() {
     g.bullets = g.bullets.filter(b => {
       b.y += b.vy;
       if (b.y < -10) return false;
+
+      // auto-aim assist: bullets drift toward the nearest target above them
+      let tgtX: number | null = null, tgtD = 1e9;
+      for (const e of g.enemies) {
+        if (e.y > b.y) continue;
+        const d = Math.abs(e.x - b.x) + (b.y - e.y);
+        if (d < tgtD) { tgtD = d; tgtX = e.x; }
+      }
+      if (g.boss && g.boss.y < b.y) {
+        const d = Math.abs(g.boss.x - b.x) + (b.y - g.boss.y);
+        if (d < tgtD) { tgtD = d; tgtX = g.boss.x; }
+      }
+      if (tgtX !== null) b.x += Math.max(-2.4, Math.min(2.4, (tgtX - b.x) * 0.07));
 
       // vs boss
       if (g.boss) {
@@ -457,8 +479,25 @@ export default function KarmaGunnerPage() {
           if (advantage) g.floats.push({ id: g.idCounter++, x: e.x, y: e.y - 14, text: "2×", color: ECFG[b.elem].color, life: 30 });
 
           if (e.hp <= 0) {
-            g.score += 10 + (e.maxHp - 1) * 5;
+            // combo: kills chain a score multiplier; hits at 15 → GOLDEN OVERDRIVE
+            g.combo++;
+            g.comboTimer = 180;
+            g.kills++;
+            const mult = Math.min(5, 1 + Math.floor(g.combo / 5));
+            if (g.combo === 5 || g.combo === 10) {
+              g.floats.push({ id: g.idCounter++, x: e.x, y: e.y - 26, text: `COMBO ×${mult}`, color: "#ffdd00", life: 45 });
+            }
+            if (g.combo === 15 && g.overdrive === 0) {
+              g.overdrive = 300;
+              g.shakeFrames = 12;
+              g.floats.push({ id: g.idCounter++, x: W / 2, y: H / 2 - 40, text: "🔥 GOLDEN OVERDRIVE!", color: "#ffdd00", life: 80 });
+            }
+            g.score += (10 + (e.maxHp - 1) * 5) * mult;
             g.drops.push({ id: g.idCounter++, x: e.x, y: e.y, vy: 1.2 });
+            // killstreak bonus: every 10th kill rains extra karma
+            if (g.kills % 10 === 0) {
+              for (let k = 0; k < 3; k++) g.drops.push({ id: g.idCounter++, x: e.x + (k - 1) * 18, y: e.y - 10, vy: 1.4 });
+            }
             for (let j = 0; j < 6; j++) {
               const a = (j / 6) * Math.PI * 2;
               g.particles.push({ x: e.x, y: e.y, vx: Math.cos(a) * (2 + Math.random() * 2), vy: Math.sin(a) * (2 + Math.random() * 2), life: 25, maxLife: 25, color: ECFG[e.elem].color, size: 3 + Math.random() * 3 });
@@ -486,6 +525,8 @@ export default function KarmaGunnerPage() {
         } else {
           g.hp--;
           g.shakeFrames = 15;
+          g.combo = 0;
+          g.overdrive = 0;
           g.floats.push({ id: g.idCounter++, x: g.turretX, y: TURRET_Y - 30, text: "💔", color: "#ff2244", life: 40 });
         }
       }
