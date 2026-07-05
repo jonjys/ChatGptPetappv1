@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --bg: #faf7f2;
-  --card: #ffffff;
+  --bg: #07070d;
+  --card: #0f0f16;
   --ink: #0a0a0a;
   --lime: #c8ff00;
   --coral: #ff6b35;
@@ -30,7 +30,7 @@ body {
 
 body {
   background: #050505;
-  color: var(--ink);
+  color: #ededf0;
   font-family: var(--font-space-grotesk), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
@@ -39,23 +39,26 @@ body {
 
 /* ─── BRUTALIST CARDS ─────────────────────────────── */
 .neo-card {
-  background: #fff;
-  border: 3px solid var(--ink);
-  box-shadow: var(--shadow);
+  background: var(--card);
+  border: 2px solid #1e1e28;
+  box-shadow: 0 0 20px rgba(200, 255, 0, 0.04);
   border-radius: 20px;
+  color: #ededf0;
 }
 
 .neo-card-lg {
-  background: #fff;
-  border: 3px solid var(--ink);
-  box-shadow: var(--shadow-lg);
+  background: var(--card);
+  border: 2px solid #1e1e28;
+  box-shadow: 0 0 28px rgba(200, 255, 0, 0.05);
   border-radius: 24px;
+  color: #ededf0;
 }
 
 .neo-card-flat {
-  background: #fff;
-  border: 3px solid var(--ink);
+  background: var(--card);
+  border: 2px solid #1e1e28;
   border-radius: 16px;
+  color: #ededf0;
 }
 
 /* ─── BUTTONS ─────────────────────────────────────── */

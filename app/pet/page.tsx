@@ -440,11 +440,11 @@ export default function PetPage() {
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
-    <div style={{ background: "var(--bg)", minHeight: "100dvh" }}>
+    <div style={{ background: "#07070d", minHeight: "100dvh", color: "#fff" }}>
 
       {/* ── Sticky Header ── */}
       <div className="sticky top-0 z-30 px-4 pt-3 pb-2 flex items-center justify-between"
-        style={{ background: "var(--bg)", borderBottom: "3px solid #c8ff0044", boxShadow: "0 2px 24px #c8ff0011" }}>
+        style={{ background: "rgba(7,7,13,0.96)", backdropFilter: "blur(12px)", borderBottom: "2px solid #c8ff0033" }}>
         <div>
           <h1 style={{ fontSize: "1.6rem", fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 1 }}>
             <span style={{ background: "linear-gradient(135deg, #c8ff00, #00e5ff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>{pet.name}</span>
@@ -497,7 +497,7 @@ export default function PetPage() {
         {toast && (
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             className="mx-4 mt-3 p-3 text-center"
-            style={{ background: "#c8ff00", border: "2px solid #0a0a0a", borderRadius: 12, fontWeight: 700, fontSize: 14, zIndex: 50, position: "relative" }}>
+            style={{ background: "#c8ff00", border: "2px solid #0a0a0a", borderRadius: 12, fontWeight: 700, fontSize: 14, zIndex: 50, position: "relative", color: "#0a0a0a" }}>
             {toast}
           </motion.div>
         )}
@@ -1049,71 +1049,83 @@ export default function PetPage() {
               </motion.div>
             )}
 
-            {/* ── CARE ACTIONS ── */}
-            <div style={{
-              background: "#080808", border: "2.5px solid #1a1a1a",
-              borderRadius: 22, padding: "14px 12px",
-            }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "#444", letterSpacing: "0.12em", marginBottom: 10 }}>
-                CARE ACTIONS
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-                {[
-                  { label: "FEAST",  emoji: "🥩", color: "#ffde00", bg: "#1a1200", sub: "-150 ⚡", onClick: () => handleFeed("premium"), badge: "BEST" },
-                  { label: "BATTLE", emoji: "⚔️", color: "#ff2d8d", bg: "#1a0012", sub: "+karma", href: "/games/battle", badge: null },
-                  { label: "SHOP",   emoji: "💊", color: "#8b5cf6", bg: "#100820", sub: "heal+items", href: "/shop", badge: null },
-                ].map(a => {
-                  const inner = (
-                    <div style={{
-                      padding: "14px 4px",
-                      background: `linear-gradient(160deg, ${a.bg}, #050505)`,
-                      border: `2px solid ${a.color}`,
-                      borderRadius: 16, textAlign: "center",
-                      boxShadow: `0 0 16px ${a.color}28`,
-                      position: "relative", cursor: "pointer",
-                    }}>
-                      {a.badge && (
-                        <span style={{ position: "absolute", top: -6, right: -4, background: "#ff2d8d", color: "#fff", borderRadius: 5, fontSize: 8, fontWeight: 700, padding: "1px 4px", border: "1.5px solid #050505" }}>
-                          {a.badge}
-                        </span>
-                      )}
-                      <div style={{ fontSize: "2rem" }}>{a.emoji}</div>
-                      <div style={{ fontSize: 11, fontWeight: 900, color: a.color, marginTop: 5, letterSpacing: "0.06em" }}>{a.label}</div>
-                      <div style={{ fontSize: 9, color: "#444", marginTop: 1 }}>{a.sub}</div>
-                    </div>
-                  );
-                  return a.href
-                    ? <Link key={a.label} href={a.href} style={{ textDecoration: "none" }}>{inner}</Link>
-                    : <div key={a.label} onClick={a.onClick}>{inner}</div>;
-                })}
-              </div>
-            </div>
-
-            {/* ── PET STATS ── */}
-            <div style={{ background: "#080808", border: "2px solid #1a1a1a", borderRadius: 22, padding: "14px 14px" }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "#444", letterSpacing: "0.12em", marginBottom: 10 }}>PET STATS</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {[
-                  { label: "HP",  val: statHP,  color: "#ff6b35", icon: "❤️" },
-                  { label: "ATK", val: statATK, color: "#ff2d8d", icon: "⚔️" },
-                  { label: "SPD", val: statSPD, color: "#c8ff00", icon: "💨" },
-                  { label: "LCK", val: statLCK, color: "#ffde00", icon: "🍀" },
-                ].map(s => (
-                  <div key={s.label} style={{ background: "#111", borderRadius: 14, padding: "10px 12px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                      <span style={{ fontSize: 10, color: "#444", fontWeight: 700, letterSpacing: "0.08em" }}>{s.icon} {s.label}</span>
-                      <span style={{ fontSize: 14, fontWeight: 900, color: s.color }}>{s.val}</span>
-                    </div>
-                    <div style={{ height: 5, background: "#1a1a1a", borderRadius: 999, overflow: "hidden" }}>
-                      <motion.div
-                        animate={{ width: `${s.val}%` }}
-                        transition={{ duration: 1.2, ease: "easeOut" }}
-                        style={{ height: "100%", background: `linear-gradient(90deg,${s.color}77,${s.color})`, borderRadius: 999 }}
-                      />
+            {/* ── CARE ACTIONS — one tight row ── */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+              {[
+                { label: "FEAST",  emoji: "🥩", color: "#ffde00", sub: "-150⚡", onClick: () => handleFeed("premium"), badge: "BEST" },
+                { label: "BATTLE", emoji: "⚔️", color: "#ff2d8d", sub: "+karma", href: "/games/battle", badge: null },
+                { label: "SHOP",   emoji: "💊", color: "#8b5cf6", sub: "heal", href: "/shop", badge: null },
+              ].map(a => {
+                const inner = (
+                  <div style={{
+                    height: 52, padding: "0 10px",
+                    background: "#0d0d14",
+                    border: `1.5px solid ${a.color}55`,
+                    borderRadius: 14,
+                    display: "flex", alignItems: "center", gap: 8,
+                    boxShadow: `0 0 12px ${a.color}18`,
+                    position: "relative", cursor: "pointer",
+                  }}>
+                    {a.badge && (
+                      <span style={{ position: "absolute", top: -6, right: -4, background: "#ff2d8d", color: "#fff", borderRadius: 5, fontSize: 7, fontWeight: 700, padding: "1px 4px", border: "1.5px solid #07070d" }}>
+                        {a.badge}
+                      </span>
+                    )}
+                    <span style={{ fontSize: "1.3rem" }}>{a.emoji}</span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 10, fontWeight: 900, color: a.color, letterSpacing: "0.04em" }}>{a.label}</div>
+                      <div style={{ fontSize: 8, color: "#556" }}>{a.sub}</div>
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+                return a.href
+                  ? <Link key={a.label} href={a.href} style={{ textDecoration: "none" }}>{inner}</Link>
+                  : <div key={a.label} onClick={a.onClick}>{inner}</div>;
+              })}
+            </div>
+
+            {/* ── PET STATS — compact chips ── */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+              {[
+                { label: "HP",  val: statHP,  color: "#ff6b35", icon: "❤️" },
+                { label: "ATK", val: statATK, color: "#ff2d8d", icon: "⚔️" },
+                { label: "SPD", val: statSPD, color: "#c8ff00", icon: "💨" },
+                { label: "LCK", val: statLCK, color: "#ffde00", icon: "🍀" },
+              ].map(s => (
+                <div key={s.label} style={{ background: "#0d0d14", border: "1px solid #16161f", borderRadius: 12, padding: "8px 6px 7px", textAlign: "center" }}>
+                  <div style={{ fontSize: 9, color: "#556", fontWeight: 700, letterSpacing: "0.06em" }}>{s.icon} {s.label}</div>
+                  <div style={{ fontSize: 15, fontWeight: 900, color: s.color, margin: "2px 0 4px" }}>{s.val}</div>
+                  <div style={{ height: 3, background: "#1a1a22", borderRadius: 999, overflow: "hidden" }}>
+                    <motion.div
+                      animate={{ width: `${s.val}%` }}
+                      transition={{ duration: 1.2, ease: "easeOut" }}
+                      style={{ height: "100%", background: s.color, borderRadius: 999 }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── PLATFFORM LINKS — pet ⇄ map ⇄ castle ⇄ me ── */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+              {[
+                { label: "LIVE KARTA", emoji: "🌍", href: "/map", color: "#00e5ff", sub: "ta över områden" },
+                { label: "MITT SLOTT", emoji: "🏰", href: "/ville", color: "#a855f7", sub: "bygg & tjäna" },
+                { label: "MIN PROFIL", emoji: "👤", href: "/profile", color: "#ff8c00", sub: "stats & flex" },
+              ].map(l => (
+                <Link key={l.label} href={l.href} style={{ textDecoration: "none" }}>
+                  <motion.div whileTap={{ scale: 0.95 }} style={{
+                    height: 58, borderRadius: 14,
+                    background: `linear-gradient(150deg, ${l.color}12, #0a0a12)`,
+                    border: `1.5px solid ${l.color}44`,
+                    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2,
+                  }}>
+                    <span style={{ fontSize: "1.15rem" }}>{l.emoji}</span>
+                    <span style={{ fontSize: 9, fontWeight: 900, color: l.color, letterSpacing: "0.04em" }}>{l.label}</span>
+                    <span style={{ fontSize: 7, color: "#556" }}>{l.sub}</span>
+                  </motion.div>
+                </Link>
+              ))}
             </div>
 
           </div>

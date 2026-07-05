@@ -57,8 +57,8 @@ export default function BottomNav() {
       style={{
         maxWidth: 560,
         margin: "0 auto",
-        borderTop: "2px solid rgba(0,0,0,0.12)",
-        background: "rgba(250,247,242,0.97)",
+        borderTop: "1px solid rgba(200,255,0,0.14)",
+        background: "rgba(9,9,14,0.96)",
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
       }}
@@ -82,11 +82,11 @@ export default function BottomNav() {
                   }}
                   transition={{ repeat: Infinity, duration: 2 }}
                   className="flex items-center justify-center w-12 h-12 rounded-2xl active:scale-90"
-                  style={{ background: "#0a0a0a", border: "3px solid #0a0a0a", transition: "transform 0.1s" }}
+                  style={{ background: "#0a0a0a", border: "2px solid #c8ff0055", transition: "transform 0.1s" }}
                 >
                   <Icon size={24} color="#c8ff00" strokeWidth={2.5} />
                 </motion.span>
-                <span style={{ fontSize: "9px", fontWeight: 700, color: "#0a0a0a", marginTop: 2, letterSpacing: "0.06em" }}>
+                <span style={{ fontSize: "9px", fontWeight: 700, color: "#c8ff00", marginTop: 2, letterSpacing: "0.06em" }}>
                   GAMES
                 </span>
                 {/* Live event dot */}
@@ -97,7 +97,7 @@ export default function BottomNav() {
                     transition={{ repeat: Infinity, duration: 1.1 }}
                     style={{
                       width: 19, height: 19, borderRadius: "50%",
-                      background: "#ff2d8d", border: "2px solid rgba(250,247,242,0.97)",
+                      background: "#ff2d8d", border: "2px solid rgba(9,9,14,0.96)",
                       display: "flex", alignItems: "center", justifyContent: "center",
                       fontSize: "9px", lineHeight: 1,
                     }}
@@ -124,9 +124,9 @@ export default function BottomNav() {
                     transition: "all 0.15s",
                   }}
                 >
-                  <Icon size={20} color={active ? worldColor : "#0a0a0a"} strokeWidth={active ? 2.5 : 2} />
+                  <Icon size={20} color={active ? worldColor : "#7d7d8a"} strokeWidth={active ? 2.5 : 2} />
                 </motion.span>
-                <span style={{ fontSize: "9px", fontWeight: active ? 700 : 500, color: active ? worldColor : "#0a0a0a" }}>
+                <span style={{ fontSize: "9px", fontWeight: active ? 700 : 500, color: active ? worldColor : "#7d7d8a" }}>
                   WORLD
                 </span>
               </Link>
@@ -145,8 +145,8 @@ export default function BottomNav() {
               className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl relative active:scale-90"
               style={{
                 background: active ? "#c8ff00" : "transparent",
-                border: active ? "2px solid #0a0a0a" : "2px solid transparent",
-                boxShadow: active ? "3px 3px 0px #0a0a0a" : "none",
+                border: "2px solid transparent",
+                boxShadow: active ? "0 0 16px #c8ff0055" : "none",
                 transition: "all 0.15s",
               }}
             >
@@ -159,7 +159,7 @@ export default function BottomNav() {
                     position: "absolute", top: 2, right: 6,
                     width: 9, height: 9,
                     background: "#ff3333", borderRadius: "50%",
-                    border: "1.5px solid rgba(250,247,242,0.97)",
+                    border: "1.5px solid rgba(9,9,14,0.96)",
                   }}
                 />
               )}
@@ -189,13 +189,13 @@ export default function BottomNav() {
               >
                 <Icon
                   size={22}
-                  color={showNewBadge ? "#c8ff00" : "#0a0a0a"}
+                  color={showNewBadge ? "#c8ff00" : active ? "#0a0a0a" : "#7d7d8a"}
                   strokeWidth={active ? 2.5 : 2}
                 />
               </motion.span>
               <span style={{
                 fontSize: "9px", fontWeight: active ? 700 : 500,
-                color: showNewBadge ? "#c8ff00" : "#0a0a0a",
+                color: showNewBadge ? "#c8ff00" : active ? "#0a0a0a" : "#7d7d8a",
                 letterSpacing: showNewBadge ? "0.04em" : "normal",
               }}>
                 {tab.label}
