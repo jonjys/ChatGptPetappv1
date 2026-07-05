@@ -147,71 +147,71 @@ export default function FeedPage() {
         )}
       </AnimatePresence>
 
-      {/* Header */}
-      <div className="sticky top-0 z-30 px-4 pt-4 pb-3" style={{ background: "#0a0a0a", borderBottom: "3px solid #111" }}>
+      {/* Header — compact, content-first */}
+      <div className="sticky top-0 z-30 px-4 pt-3 pb-2" style={{ background: "rgba(10,10,10,0.96)", backdropFilter: "blur(12px)", borderBottom: "2px solid #111" }}>
         <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              {/* Epic gradient KARMA title */}
-              <h1 style={{
-                fontSize: "2.4rem", fontWeight: 700, letterSpacing: "-0.04em", lineHeight: 1,
-                background: "linear-gradient(90deg, #c8ff00, #00e5ff, #ff2d8d)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}>KARMA</h1>
-              {streak >= 2 && (
-                <motion.div
-                  animate={{ scale: [1, 1.08, 1] }}
-                  transition={{ duration: 1.4, repeat: Infinity }}
-                  style={{
-                    background: "#ff6b35", border: "2px solid #0a0a0a",
-                    borderRadius: 8, padding: "2px 8px",
-                    display: "flex", alignItems: "center", gap: 4,
-                    boxShadow: "0 0 12px #ff6b3566",
-                  }}
-                >
-                  <Flame size={12} color="#fff" fill="#fff" />
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>{streak}d</span>
-                </motion.div>
-              )}
+          <div className="flex items-center gap-2">
+            <h1 style={{
+              fontSize: "1.55rem", fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1,
+              background: "linear-gradient(90deg, #c8ff00, #00e5ff, #ff2d8d)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}>KARMA</h1>
+            {streak >= 2 && (
+              <motion.div
+                animate={{ scale: [1, 1.08, 1] }}
+                transition={{ duration: 1.4, repeat: Infinity }}
+                style={{
+                  background: "#ff6b35", borderRadius: 7, padding: "2px 7px",
+                  display: "flex", alignItems: "center", gap: 3,
+                  boxShadow: "0 0 12px #ff6b3566",
+                }}
+              >
+                <Flame size={10} color="#fff" fill="#fff" />
+                <span style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>{streak}d</span>
+              </motion.div>
+            )}
+            {/* Live status inline */}
+            <div style={{ display: "flex", alignItems: "center", gap: 5, marginLeft: 2 }}>
+              <motion.div
+                animate={{ opacity: [1, 0.3, 1] }}
+                transition={{ duration: 1.2, repeat: Infinity }}
+                style={{ width: 5, height: 5, background: "#c8ff00", borderRadius: "50%", boxShadow: "0 0 6px #c8ff00" }}
+              />
+              <span style={{ fontSize: 9, fontWeight: 700, color: "#556", letterSpacing: "0.06em" }}>2,341 ONLINE · LV{level}</span>
             </div>
-            <p style={{ fontSize: 11, fontWeight: 600, color: "#555", letterSpacing: "0.08em" }}>
-              REAL-LIFE GAME ENGINE · LV{level}
-            </p>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* XP pill with neon glow */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5"
+            <div className="flex items-center gap-1 px-2.5 py-1"
               style={{
-                background: "#c8ff00", border: "2.5px solid #0a0a0a",
-                borderRadius: 12, boxShadow: "3px 3px 0px #0a0a0a, 0 0 16px #c8ff0066",
+                background: "#c8ff00", borderRadius: 10,
+                boxShadow: "0 0 14px #c8ff0055",
               }}>
-              <Zap size={14} color="#0a0a0a" fill="#0a0a0a" />
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#0a0a0a" }}>{formatXP(displayXP)} XP</span>
+              <Zap size={12} color="#0a0a0a" fill="#0a0a0a" />
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#0a0a0a" }}>{formatXP(displayXP)}</span>
             </div>
             <div style={{ position: "relative" }}>
               <button onClick={() => setShowNotifs(v => !v)}
                 style={{
-                  width: 40, height: 40,
+                  width: 34, height: 34,
                   background: showNotifs ? "#1a1a1a" : "#111",
-                  border: "2.5px solid #333",
-                  borderRadius: 12,
+                  border: "2px solid #292929",
+                  borderRadius: 10,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   boxShadow: showNotifs ? "0 0 12px #c8ff0044" : "none",
                   cursor: "pointer",
                 }}>
-                <Bell size={18} color={showNotifs ? "#c8ff00" : "#888"} />
+                <Bell size={15} color={showNotifs ? "#c8ff00" : "#888"} />
               </button>
               <motion.span animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 2, repeat: Infinity }}
                 style={{
                   position: "absolute", top: -4, right: -4,
-                  width: 18, height: 18,
+                  width: 15, height: 15,
                   background: "#ff2d8d", border: "2px solid #0a0a0a",
-                  borderRadius: "50%", fontSize: 10, fontWeight: 700, color: "#fff",
+                  borderRadius: "50%", fontSize: 8, fontWeight: 700, color: "#fff",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  boxShadow: "0 0 8px #ff2d8d88",
                 }}>
                 {NOTIFS.length}
               </motion.span>
@@ -219,47 +219,18 @@ export default function FeedPage() {
           </div>
         </div>
 
-        {/* Glowing neon status strip */}
-        <div style={{
-          display: "flex", alignItems: "center", gap: 12, marginTop: 6,
-          padding: "5px 10px",
-          background: "#0d0d0d", border: "1px solid #c8ff0022",
-          borderRadius: 8,
-        }}>
-          <motion.div
-            animate={{ opacity: [1, 0.3, 1] }}
-            transition={{ duration: 1.2, repeat: Infinity }}
-            style={{ width: 6, height: 6, background: "#c8ff00", borderRadius: "50%", flexShrink: 0, boxShadow: "0 0 6px #c8ff00" }}
-          />
-          <span style={{ fontSize: 10, fontWeight: 700, color: "#c8ff00", letterSpacing: "0.08em" }}>
-            2,341 PLAYERS ONLINE
-          </span>
-          <span style={{ fontSize: 10, color: "#333" }}>·</span>
-          <span style={{ fontSize: 10, fontWeight: 600, color: "#00e5ff", letterSpacing: "0.06em" }}>
-            POT: 249 KR
-          </span>
-          <span style={{ fontSize: 10, color: "#333" }}>·</span>
-          <motion.span
-            animate={{ color: ["#ff2d8d", "#c8ff00", "#ff2d8d"] }}
-            transition={{ duration: 3, repeat: Infinity }}
-            style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em" }}
-          >
-            LIVE
-          </motion.span>
-        </div>
-
         {/* Filters */}
-        <div className="flex gap-2 mt-3 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
+        <div className="flex gap-1.5 mt-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           {FILTERS.map((f) => (
-            <button key={f} onClick={() => setFilter(f)} className="flex-shrink-0 px-4 py-1.5"
+            <button key={f} onClick={() => setFilter(f)} className="flex-shrink-0 px-3 py-1"
               style={{
                 background: filter === f ? "#0a0a0a" : "#111",
-                border: filter === f ? "2.5px solid #c8ff0088" : "2.5px solid #222",
-                borderRadius: 10,
-                fontSize: 12, fontWeight: 700,
-                color: filter === f ? "#c8ff00" : "#888",
+                border: filter === f ? "2px solid #c8ff0088" : "2px solid #1e1e1e",
+                borderRadius: 9,
+                fontSize: 11, fontWeight: 700,
+                color: filter === f ? "#c8ff00" : "#777",
                 letterSpacing: "0.04em",
-                boxShadow: filter === f ? "0 0 12px #c8ff0044" : "none",
+                boxShadow: filter === f ? "0 0 10px #c8ff0033" : "none",
                 cursor: "pointer",
                 transition: "all 0.15s ease",
               }}>
@@ -269,157 +240,79 @@ export default function FeedPage() {
         </div>
       </div>
 
-      {/* Pet Status Mini-Card */}
-      <Link href="/pet" style={{ textDecoration: "none", display: "block", margin: "10px 16px 0" }}>
-        <motion.div
-          whileTap={{ scale: 0.97 }}
-          style={{
-            background: "#0d0d0d",
-            border: "1px solid #1a1a1a",
-            borderRadius: 14,
-            padding: "10px 14px",
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-          }}
-        >
-          {/* Pet emoji */}
-          <div style={{
-            width: 42, height: 42, borderRadius: 12, flexShrink: 0,
-            background: `${classColor}18`, border: `1.5px solid ${classColor}55`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: "1.5rem",
-          }}>
-            {petEmoji}
-          </div>
+      {/* Stories — Insta/Snap style, first thing under the header */}
+      <div className="px-4 pt-2">
+        <StoriesBar />
+      </div>
 
-          {/* Name + mood + bars */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {pet.name}
-              </span>
-              <span style={{ fontSize: 13 }}>{getMoodEmoji(petMoodComputed)}</span>
+      {/* Pet + quests — one tight hub row */}
+      <div style={{ margin: "8px 16px 0", display: "flex", gap: 8 }}>
+        <Link href="/pet" style={{ textDecoration: "none", flex: 1, minWidth: 0 }}>
+          <motion.div
+            whileTap={{ scale: 0.97 }}
+            style={{
+              background: "#0d0d0d",
+              border: `1px solid ${classColor}33`,
+              borderRadius: 12,
+              padding: "7px 10px",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              height: 50,
+            }}
+          >
+            <div style={{
+              width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+              background: `${classColor}18`, border: `1.5px solid ${classColor}55`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: "1.2rem",
+            }}>
+              {petEmoji}
             </div>
-            {/* Mini progress bars */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              {[
-                { label: "Hunger", value: pet.needs.hunger, color: "#ff6b35" },
-                { label: "Happy",  value: pet.needs.happiness, color: "#ff2d8d" },
-                { label: "Energy", value: pet.needs.energy, color: "#4488ff" },
-              ].map(bar => (
-                <div key={bar.label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 9, fontWeight: 600, color: "#444", width: 38, flexShrink: 0 }}>{bar.label}</span>
-                  <div style={{ flex: 1, height: 4, background: "#1a1a1a", borderRadius: 2, overflow: "hidden" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {pet.name}
+                </span>
+                <span style={{ fontSize: 11 }}>{getMoodEmoji(petMoodComputed)}</span>
+                <span style={{ fontSize: 9, fontWeight: 700, color: classColor, marginLeft: "auto", flexShrink: 0 }}>♥{bondLevel} · ⚡{stamina}</span>
+              </div>
+              {/* segmented vitality bar: hunger / happy / energy */}
+              <div style={{ display: "flex", gap: 3, marginTop: 5 }}>
+                {[
+                  { value: pet.needs.hunger, color: "#ff6b35" },
+                  { value: pet.needs.happiness, color: "#ff2d8d" },
+                  { value: pet.needs.energy, color: "#4488ff" },
+                ].map((bar, i) => (
+                  <div key={i} style={{ flex: 1, height: 4, background: "#1a1a1a", borderRadius: 2, overflow: "hidden" }}>
                     <div style={{ width: `${bar.value}%`, height: "100%", background: bar.color, borderRadius: 2, transition: "width 0.4s ease" }} />
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          </motion.div>
+        </Link>
 
-          {/* Bond + Stamina */}
-          <div style={{ textAlign: "right", flexShrink: 0 }}>
-            <div style={{ fontSize: 9, color: "#555", letterSpacing: "0.06em" }}>BOND</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: classColor }}>{bondLevel}</div>
-            <div style={{ fontSize: 9, color: "#555", letterSpacing: "0.06em", marginTop: 4 }}>STA</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#4488ff" }}>{stamina}</div>
-          </div>
-        </motion.div>
-      </Link>
-
-      {/* Daily Quests Quick Strip */}
-      <div style={{ margin: "8px 16px 0", display: "flex", alignItems: "center", gap: 10 }}>
-        <Link href="/quests" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: "#555", letterSpacing: "0.06em", flexShrink: 0 }}>
-            {claimedCount}/5 QUESTS
-          </span>
-          <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none" as const }}>
-            {dailyQuests.map(q => {
-              const isClaimed = questClaimed.includes(q.id);
-              return (
-                <motion.div
-                  key={q.id}
-                  whileTap={{ scale: 0.9 }}
-                  style={{
-                    width: 38, height: 38, borderRadius: "50%", flexShrink: 0,
-                    background: isClaimed ? "#c8ff0022" : "#111",
-                    border: isClaimed ? "2px solid #c8ff00" : "2px solid #222",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: "1.1rem", position: "relative",
-                    boxShadow: isClaimed ? "0 0 10px #c8ff0044" : "none",
-                  }}
-                >
-                  {isClaimed ? (
-                    <span style={{ fontSize: "1.1rem" }}>✅</span>
-                  ) : (
-                    <span>{q.emoji}</span>
-                  )}
-                </motion.div>
-              );
-            })}
-          </div>
+        {/* Quests chip */}
+        <Link href="/quests" style={{ textDecoration: "none", flexShrink: 0 }}>
+          <motion.div
+            whileTap={{ scale: 0.95 }}
+            style={{
+              height: 50, borderRadius: 12, padding: "0 12px",
+              background: claimedCount >= 5 ? "#c8ff0018" : "#0d0d0d",
+              border: `1px solid ${claimedCount >= 5 ? "#c8ff0066" : "#1e1e1e"}`,
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            <span style={{ fontSize: 14 }}>{claimedCount >= 5 ? "🏆" : dailyQuests.find(q => !questClaimed.includes(q.id))?.emoji ?? "🎯"}</span>
+            <span style={{ fontSize: 9, fontWeight: 800, color: claimedCount >= 5 ? "#c8ff00" : "#667", letterSpacing: "0.04em" }}>{claimedCount}/5</span>
+          </motion.div>
         </Link>
       </div>
 
-      {/* Streak hero banner */}
-      {streak >= 3 && filter === "ALL" && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mx-4 mt-3"
-          style={{
-            background: "linear-gradient(135deg, #ff6b35, #ff2d8d)",
-            border: "3px solid #0a0a0a",
-            borderRadius: 18, padding: "14px 16px",
-            boxShadow: "4px 4px 0px #0a0a0a, 0 0 30px #ff2d8d33",
-            position: "relative", overflow: "hidden",
-          }}
-        >
-          <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: "3rem", opacity: 0.2 }}>🔥</div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.7)", letterSpacing: "0.1em" }}>YOU&apos;RE ON FIRE 🔥</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", marginTop: 2 }}>{streak}-DAY STREAK!</div>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 2 }}>Keep playing daily to grow your multiplier</div>
-          <div className="flex gap-2 mt-3">
-            {Array.from({ length: Math.min(streak, 7) }).map((_, i) => (
-              <div key={i} style={{ width: 28, height: 28, background: i < streak ? "#ffcc00" : "rgba(255,255,255,0.2)", border: "2px solid rgba(0,0,0,0.3)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.9rem" }}>
-                {i < streak ? "🔥" : "·"}
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      )}
-
-      {/* BOUNTY BURST */}
-      {filter === "ALL" && (
-        <div style={{ margin: "12px 16px 0", display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-          {[
-            { emoji: "🌳", title: "Plant a Tree", karma: 200, xp: 80, difficulty: "EASY", color: "#00ff88" },
-            { emoji: "🏃", title: "Run 5km", karma: 500, xp: 200, difficulty: "HARD", color: "#ff6b35" },
-            { emoji: "📚", title: "Read 30min", karma: 150, xp: 60, difficulty: "EASY", color: "#a855f7" },
-          ].map((b, i) => (
-            <Link key={b.title} href="/quests" style={{ textDecoration: "none" }}>
-              <motion.div
-                whileTap={{ scale: 0.95 }}
-                style={{
-                  background: "#111",
-                  border: `2px solid ${b.color}44`,
-                  borderRadius: 16, padding: "12px 10px",
-                }}
-              >
-                <div style={{ fontSize: "1.6rem", marginBottom: 5 }}>{b.emoji}</div>
-                <div style={{ fontSize: 9, fontWeight: 800, color: b.color, marginBottom: 3 }}>{b.difficulty}</div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#fff", marginBottom: 6, lineHeight: 1.2 }}>{b.title}</div>
-                <div style={{ fontSize: 9, color: "#555" }}>+{b.karma} ⚡ · +{b.xp} XP</div>
-              </motion.div>
-            </Link>
-          ))}
-        </div>
-      )}
-
       {/* Quick action cards */}
       {filter === "ALL" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6, padding: "12px 16px 0" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6, padding: "8px 16px 0" }}>
           {[
             { href: "/karma-pot", emoji: "💰", label: "POTTEN",   sub: "249 kr",    color: "#c8ff00" },
             { href: "/squads",    emoji: "⚡",  label: "SQUADS",   sub: "Wars live",  color: "#c8ff00" },
@@ -446,93 +339,113 @@ export default function FeedPage() {
         </div>
       )}
 
-      {/* TRENDING CHALLENGES */}
+      {/* ── LIVE NU — one horizontal carousel: event, pot, bounties, challenges ── */}
       {filter === "ALL" && (
-        <div style={{ padding: "12px 16px 0" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-            <span style={{ fontSize: 10, fontWeight: 800, color: "#555", letterSpacing: "0.12em" }}>⚡ TRENDING CHALLENGES</span>
-            <Link href="/quests" style={{ textDecoration: "none", fontSize: 10, fontWeight: 700, color: "#c8ff00" }}>SEE ALL →</Link>
+        <div style={{ padding: "10px 0 0" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "0 16px 6px" }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: "#556", letterSpacing: "0.12em" }}>⚡ LIVE NU</span>
+            <Link href="/quests" style={{ textDecoration: "none", fontSize: 10, fontWeight: 700, color: "#c8ff00" }}>ALLA →</Link>
           </div>
-          <div style={{ display: "flex", gap: 10, overflowX: "auto", scrollbarWidth: "none" as const, paddingBottom: 4 }}>
-            {[
-              { emoji: "👟", name: "10K STEPS",      xp: 120, participants: "2.3k", timeLeft: "18h", color: "#00ff88", progress: 65 },
-              { emoji: "💧", name: "DRINK 2 LITERS", xp: 80,  participants: "1.8k", timeLeft: "18h", color: "#00e5ff", progress: 40 },
-              { emoji: "🧘", name: "5MIN MEDITATE",  xp: 60,  participants: "941",  timeLeft: "18h", color: "#a855f7", progress: 82 },
-              { emoji: "🥦", name: "EAT CLEAN",      xp: 100, participants: "1.2k", timeLeft: "18h", color: "#ff6b35", progress: 30 },
-            ].map((ch, i) => (
+          <div style={{ display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none" as const, padding: "0 16px 2px" }}>
+
+            {/* Live event card */}
+            <Link href="/event" style={{ textDecoration: "none", flexShrink: 0 }}>
               <motion.div
-                key={ch.name}
-                whileTap={{ scale: 0.95 }}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.07 }}
+                whileTap={{ scale: 0.96 }}
+                animate={{ boxShadow: [`0 0 10px ${liveEvent.color}22`, `0 0 20px ${liveEvent.color}44`, `0 0 10px ${liveEvent.color}22`] }}
+                transition={{ duration: 1.8, repeat: Infinity }}
                 style={{
-                  flexShrink: 0, width: 130,
-                  background: "#111",
-                  border: `2px solid ${ch.color}44`,
-                  borderRadius: 16, padding: "12px",
-                  boxShadow: `0 0 20px ${ch.color}11`,
+                  width: 150, height: 118, borderRadius: 14, padding: "10px 12px",
+                  background: "linear-gradient(135deg, #0a0a0a, #111)",
+                  border: `1.5px solid ${liveEvent.color}66`,
+                  display: "flex", flexDirection: "column",
                 }}
               >
-                <div style={{ fontSize: "1.8rem", marginBottom: 6 }}>{ch.emoji}</div>
-                <div style={{ fontSize: 11, fontWeight: 800, color: "#fff", marginBottom: 2 }}>{ch.name}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 8 }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: ch.color }}>+{ch.xp} XP</span>
-                  <span style={{ fontSize: 9, color: "#333" }}>·</span>
-                  <span style={{ fontSize: 9, color: "#444" }}>{ch.participants} joined</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ repeat: Infinity, duration: 0.9 }}
+                    style={{ width: 5, height: 5, background: liveEvent.color, borderRadius: "50%", boxShadow: `0 0 5px ${liveEvent.color}` }} />
+                  <span style={{ fontSize: 8, fontWeight: 900, color: liveEvent.color, letterSpacing: "0.08em" }}>LIVE EVENT</span>
+                  <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 900, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{fmt(secsLeft)}</span>
                 </div>
-                {/* Progress bar */}
-                <div style={{ height: 4, background: "#1a1a1a", borderRadius: 2, overflow: "hidden", marginBottom: 6 }}>
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${ch.progress}%` }}
-                    transition={{ delay: 0.5 + i * 0.1, duration: 0.6 }}
-                    style={{ height: "100%", background: ch.color, borderRadius: 2 }}
-                  />
-                </div>
-                <div style={{ fontSize: 9, color: "#555" }}>ends in {ch.timeLeft}</div>
+                <div style={{ fontSize: "1.5rem", margin: "6px 0 2px" }}>{liveEvent.emoji}</div>
+                <div style={{ fontSize: 11, fontWeight: 900, color: "#fff", lineHeight: 1.15 }}>{liveEvent.name}</div>
+                <div style={{ fontSize: 9, color: "#667", marginTop: 2 }}>{liveEvent.tagline}</div>
               </motion.div>
+            </Link>
+
+            {/* Pot card */}
+            <Link href="/karma-pot" style={{ textDecoration: "none", flexShrink: 0 }}>
+              <motion.div whileTap={{ scale: 0.96 }}
+                style={{
+                  width: 128, height: 118, borderRadius: 14, padding: "10px 12px",
+                  background: "linear-gradient(135deg, #0d1400, #0a0a0a)",
+                  border: "1.5px solid #c8ff0055",
+                  display: "flex", flexDirection: "column",
+                }}
+              >
+                <span style={{ fontSize: 8, fontWeight: 900, color: "#c8ff00", letterSpacing: "0.08em" }}>DAGLIG POTT</span>
+                <motion.div
+                  animate={{ rotate: [0, -6, 6, 0] }}
+                  transition={{ duration: 3, repeat: Infinity, repeatDelay: 2 }}
+                  style={{ fontSize: "1.5rem", margin: "6px 0 2px" }}
+                >💰</motion.div>
+                <div style={{ fontSize: 15, fontWeight: 900, color: "#c8ff00" }}>249 kr</div>
+                <div style={{ fontSize: 9, color: "#556", marginTop: 2 }}>Var aktiv → vinn riktiga pengar</div>
+              </motion.div>
+            </Link>
+
+            {/* Bounties */}
+            {[
+              { emoji: "🌳", title: "Plant a Tree", karma: 200, difficulty: "EASY", color: "#00ff88" },
+              { emoji: "🏃", title: "Run 5km", karma: 500, difficulty: "HARD", color: "#ff6b35" },
+              { emoji: "📚", title: "Read 30min", karma: 150, difficulty: "EASY", color: "#a855f7" },
+            ].map(b => (
+              <Link key={b.title} href="/quests" style={{ textDecoration: "none", flexShrink: 0 }}>
+                <motion.div whileTap={{ scale: 0.96 }}
+                  style={{
+                    width: 110, height: 118, borderRadius: 14, padding: "10px 12px",
+                    background: "#101010",
+                    border: `1.5px solid ${b.color}44`,
+                    display: "flex", flexDirection: "column",
+                  }}
+                >
+                  <span style={{ fontSize: 8, fontWeight: 900, color: b.color, letterSpacing: "0.08em" }}>{b.difficulty} BOUNTY</span>
+                  <div style={{ fontSize: "1.5rem", margin: "6px 0 2px" }}>{b.emoji}</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "#fff", lineHeight: 1.15 }}>{b.title}</div>
+                  <div style={{ fontSize: 9, color: "#556", marginTop: "auto" }}>+{b.karma} ⚡</div>
+                </motion.div>
+              </Link>
+            ))}
+
+            {/* Challenges */}
+            {[
+              { emoji: "👟", name: "10K STEPS", xp: 120, joined: "2.3k", color: "#00ff88", progress: 65 },
+              { emoji: "💧", name: "DRICK 2L", xp: 80, joined: "1.8k", color: "#00e5ff", progress: 40 },
+              { emoji: "🧘", name: "5MIN ZEN", xp: 60, joined: "941", color: "#a855f7", progress: 82 },
+            ].map(ch => (
+              <Link key={ch.name} href="/quests" style={{ textDecoration: "none", flexShrink: 0 }}>
+                <motion.div whileTap={{ scale: 0.96 }}
+                  style={{
+                    width: 110, height: 118, borderRadius: 14, padding: "10px 12px",
+                    background: "#101010",
+                    border: `1.5px solid ${ch.color}44`,
+                    display: "flex", flexDirection: "column",
+                  }}
+                >
+                  <span style={{ fontSize: 8, fontWeight: 900, color: ch.color, letterSpacing: "0.08em" }}>CHALLENGE</span>
+                  <div style={{ fontSize: "1.5rem", margin: "6px 0 2px" }}>{ch.emoji}</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>{ch.name}</div>
+                  <div style={{ marginTop: "auto" }}>
+                    <div style={{ height: 3, background: "#1a1a1a", borderRadius: 2, overflow: "hidden", marginBottom: 3 }}>
+                      <div style={{ width: `${ch.progress}%`, height: "100%", background: ch.color, borderRadius: 2 }} />
+                    </div>
+                    <div style={{ fontSize: 8, color: "#556" }}>+{ch.xp} XP · {ch.joined} med</div>
+                  </div>
+                </motion.div>
+              </Link>
             ))}
           </div>
         </div>
-      )}
-
-      {/* Karma Pot teaser */}
-      {filter === "ALL" && (
-        <Link href="/karma-pot" style={{ textDecoration: "none" }}>
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            whileTap={{ scale: 0.98 }}
-            className="mx-4 mt-3"
-            style={{
-              background: "linear-gradient(135deg, #0a0a0a, #111)",
-              border: "2px solid #c8ff0066",
-              borderRadius: 16, padding: "12px 14px",
-              display: "flex", alignItems: "center", gap: 12,
-              boxShadow: "0 0 30px #c8ff0022",
-            }}
-          >
-            <motion.div
-              animate={{ scale: [1, 1.1, 1], rotate: [0, -5, 5, 0] }}
-              transition={{ duration: 3, repeat: Infinity, repeatDelay: 2 }}
-              style={{ fontSize: "2rem", flexShrink: 0 }}
-            >💰</motion.div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, fontWeight: 900, color: "#c8ff00", letterSpacing: "0.04em" }}>
-                DAGLIG POTT — 249 kr
-              </div>
-              <div style={{ fontSize: 10, color: "#555", marginTop: 1 }}>
-                Var aktiv idag → tjäna biljetter → vinn riktiga pengar
-              </div>
-            </div>
-            <div style={{
-              background: "#c8ff00", color: "#0a0a0a",
-              fontSize: 10, fontWeight: 800,
-              borderRadius: 8, padding: "5px 10px", whiteSpace: "nowrap",
-            }}>SE POTTEN →</div>
-          </motion.div>
-        </Link>
       )}
 
       {/* Live activity ticker */}
@@ -573,44 +486,6 @@ export default function FeedPage() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* ── LIVE EVENT BANNER ── */}
-      <Link href="/event" style={{ textDecoration: "none", display: "block", padding: "10px 16px 0" }}>
-        <motion.div
-          whileTap={{ scale: 0.97 }}
-          animate={{ boxShadow: [`0 0 16px ${liveEvent.color}22`, `0 0 32px ${liveEvent.color}55`, `0 0 16px ${liveEvent.color}22`] }}
-          transition={{ duration: 1.8, repeat: Infinity }}
-          style={{
-            background: `linear-gradient(135deg, #0a0a0a, #111)`,
-            border: `2px solid ${liveEvent.color}77`,
-            borderRadius: 16, padding: "12px 14px",
-            display: "flex", alignItems: "center", gap: 12,
-          }}
-        >
-          <motion.span
-            animate={{ scale: [1, 1.15, 1] }}
-            transition={{ repeat: Infinity, duration: 1.2 }}
-            style={{ fontSize: "1.6rem", flexShrink: 0 }}
-          >{liveEvent.emoji}</motion.span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-              <motion.div animate={{ opacity: [1, 0.3, 1] }} transition={{ repeat: Infinity, duration: 0.9 }}
-                style={{ width: 6, height: 6, background: liveEvent.color, borderRadius: "50%", boxShadow: `0 0 6px ${liveEvent.color}`, flexShrink: 0 }} />
-              <span style={{ fontSize: 11, fontWeight: 900, color: liveEvent.color, letterSpacing: "0.08em" }}>LIVE · {liveEvent.name}</span>
-            </div>
-            <div style={{ fontSize: 11, color: "#666" }}>{liveEvent.tagline}</div>
-          </div>
-          <div style={{ textAlign: "right", flexShrink: 0 }}>
-            <div style={{ fontSize: 10, color: "#444" }}>ends in</div>
-            <div style={{ fontSize: 14, fontWeight: 900, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{fmt(secsLeft)}</div>
-          </div>
-        </motion.div>
-      </Link>
-
-      {/* Stories */}
-      <div className="px-4 pt-3" style={{ borderBottom: "2px solid #c8ff0022" }}>
-        <StoriesBar />
-      </div>
 
       {/* Feed */}
       <div className="px-4 pt-4" style={{ display: "flex", flexDirection: "column", gap: 12, paddingBottom: 120 }}>
