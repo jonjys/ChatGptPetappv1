@@ -160,6 +160,14 @@ interface GS {
   aimAngle: number;
   focusing: boolean;
 
+  // Free-flying ship
+  shipX: number;
+  shipY: number;
+  targetX: number;
+  targetY: number;
+  moving: boolean;
+  novaFlash: number;
+
   screenShake: number;
   showWaveBanner: number;
   shipFlash: number;   // white flash when damaged
@@ -218,6 +226,7 @@ function nextId() { return ++_eid; }
 const NOVA_COST = 35;
 const MAX_PARTICLES = 300;
 const MAX_BULLETS = 420;
+const SHIP_MAX_SPEED = 3.7;   // px/frame the ship flies toward your finger
 
 function initStats(): Stats {
   return {
@@ -271,6 +280,12 @@ function initGS(): GS {
     missileTimer: 0,
     aimAngle: -Math.PI / 2,
     focusing: false,
+    shipX: 180,
+    shipY: 180,
+    targetX: 180,
+    targetY: 180,
+    moving: false,
+    novaFlash: 0,
     screenShake: 0,
     showWaveBanner: 0,
     shipFlash: 0,
@@ -472,6 +487,8 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
     const cy = H / 2;
     const R = W / 2;
     const SHIP_R = R * 0.11;
+    const sx = gs.shipX;
+    const sy = gs.shipY;
 
     // Screen shake
     let shakeX = 0, shakeY = 0;
@@ -513,23 +530,29 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
       ctx.stroke();
     });
 
-    // 4. Focus cone
-    if (gs.focusing && (gs.phase === "wave" || gs.phase === "between")) {
-      const cone = 0.55;
-      ctx.save();
-      const coneGrad = ctx.createRadialGradient(cx, cy, SHIP_R, cx, cy, R);
-      coneGrad.addColorStop(0, "rgba(200,255,0,0.20)");
-      coneGrad.addColorStop(1, "rgba(200,255,0,0.02)");
-      ctx.fillStyle = coneGrad;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.arc(cx, cy, R * 0.94, gs.aimAngle - cone, gs.aimAngle + cone);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = "rgba(200,255,0,0.28)";
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.restore();
+    // 4. Movement target indicator (where the ship is flying to)
+    if (gs.moving && (gs.phase === "wave" || gs.phase === "between")) {
+      const td = Math.hypot(gs.targetX - sx, gs.targetY - sy);
+      if (td > SHIP_R) {
+        ctx.save();
+        // trail line from ship to target
+        ctx.strokeStyle = "rgba(200,255,0,0.16)";
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 5]);
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(gs.targetX, gs.targetY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // target ring
+        const tp = 0.6 + 0.4 * Math.sin(gs.frame * 0.2);
+        ctx.strokeStyle = `rgba(200,255,0,${0.5 * tp})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(gs.targetX, gs.targetY, 7 + tp * 3, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
 
     // 5. XP orbs
@@ -617,8 +640,8 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
     gs.drones.forEach((d, i) => {
       const a = gs.droneSpin + (i / Math.max(1, gs.drones.length)) * Math.PI * 2;
       const dr = SHIP_R * 2.4;
-      const dx = cx + Math.cos(a) * dr;
-      const dy = cy + Math.sin(a) * dr;
+      const dx = sx + Math.cos(a) * dr;
+      const dy = sy + Math.sin(a) * dr;
       ctx.save();
       ctx.shadowColor = "#38bdf8";
       ctx.shadowBlur = 8;
@@ -662,18 +685,18 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
     const shipPulse = 1 + Math.sin(gs.frame * 0.06) * 0.08;
     for (let i = 3; i >= 0; i--) {
       const nr = SHIP_R * (1.1 + i * 0.45) * shipPulse;
-      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, nr);
+      const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, nr);
       grad.addColorStop(0, `rgba(168,85,247,${0.28 - i * 0.06})`);
       grad.addColorStop(1, "rgba(168,85,247,0)");
       ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.arc(cx, cy, nr, 0, Math.PI * 2);
+      ctx.arc(sx, sy, nr, 0, Math.PI * 2);
       ctx.fill();
     }
 
     // Hull — rotates toward aim
     ctx.save();
-    ctx.translate(cx, cy);
+    ctx.translate(sx, sy);
     ctx.rotate(gs.aimAngle);
     ctx.fillStyle = gs.shipFlash > 0 ? "#ffffff" : "#1e0a3c";
     ctx.strokeStyle = gs.shipFlash > 0 ? "#ffffff" : "#a855f7";
@@ -702,7 +725,7 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
 
     // Spinning energy dots around ship
     ctx.save();
-    ctx.translate(cx, cy);
+    ctx.translate(sx, sy);
     ctx.rotate(gs.frame * 0.03);
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2;
@@ -718,7 +741,7 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
     ctx.font = `${Math.round(SHIP_R * 1.15)}px serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(shipEmoji, cx, cy);
+    ctx.fillText(shipEmoji, sx, sy);
 
     // Shield bubble
     if (gs.shield > 0) {
@@ -729,7 +752,7 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
       ctx.shadowColor = "#34d399";
       ctx.shadowBlur = 10;
       ctx.beginPath();
-      ctx.arc(cx, cy, SHIP_R * 1.9, 0, Math.PI * 2);
+      ctx.arc(sx, sy, SHIP_R * 1.9, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
@@ -809,9 +832,33 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
     if (gs.screenShake > 0) gs.screenShake -= 1.5;
     if (gs.shipFlash > 0) gs.shipFlash--;
     if (gs.muzzle > 0) gs.muzzle--;
+    if (gs.novaFlash > 0) gs.novaFlash--;
     if (gs.showWaveBanner > 0) gs.showWaveBanner--;
 
     const simulating = gs.phase === "wave" || gs.phase === "between";
+
+    // ── Ship movement: fly toward your finger ──
+    if (simulating) {
+      const maxSpd = SHIP_MAX_SPEED * SPEED_SCALE;
+      const dx = gs.targetX - gs.shipX;
+      const dy = gs.targetY - gs.shipY;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 0.6) {
+        const step = Math.min(dist, maxSpd * (gs.moving ? 1 : 0.5));
+        gs.shipX += (dx / dist) * step;
+        gs.shipY += (dy / dist) * step;
+      }
+      // keep inside the arena
+      const cdx = gs.shipX - cx, cdy = gs.shipY - cy;
+      const cd = Math.hypot(cdx, cdy);
+      const limit = R * 0.84;
+      if (cd > limit) {
+        gs.shipX = cx + (cdx / cd) * limit;
+        gs.shipY = cy + (cdy / cd) * limit;
+      }
+    }
+    const sx = gs.shipX;
+    const sy = gs.shipY;
 
     if (simulating) {
       // ── Spawning ──
@@ -851,65 +898,45 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
       if (gs.fireTimer <= 0 && gs.bullets.length < MAX_BULLETS) {
         gs.fireTimer = gs.stats.fireDelay;
         const n = gs.stats.bullets;
-        const cone = 0.55;
 
-        // Target pool: focused cone first if dragging
-        const byDist = [...gs.enemies].sort((a, b) =>
-          (Math.hypot(a.x - cx, a.y - cy)) - (Math.hypot(b.x - cx, b.y - cy))
+        // Auto-aim: nearest enemies to the ship
+        const pool = [...gs.enemies].sort((a, b) =>
+          (Math.hypot(a.x - sx, a.y - sy)) - (Math.hypot(b.x - sx, b.y - sy))
         );
-        let pool = byDist;
-        if (gs.focusing) {
-          const inCone = byDist.filter(e => {
-            const ea = Math.atan2(e.y - cy, e.x - cx);
-            let d = ea - gs.aimAngle;
-            d = ((d % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
-            return Math.abs(d) <= cone;
-          });
-          if (inCone.length > 0) pool = inCone;
-        }
 
         let fired = false;
         for (let i = 0; i < n; i++) {
           let ang: number;
-          let bonus = 1;
           if (pool.length > 0) {
             const target = pool[i % pool.length];
-            ang = Math.atan2(target.y - cy, target.x - cx) + (Math.random() - 0.5) * 0.10;
-            if (gs.focusing && pool !== byDist) bonus = 1.6;
-            else if (gs.focusing) {
-              // focused but target outside cone: still small bonus if inside
-              const ea = Math.atan2(target.y - cy, target.x - cx);
-              let d = ea - gs.aimAngle;
-              d = ((d % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
-              if (Math.abs(d) <= cone) bonus = 1.6;
-            }
+            ang = Math.atan2(target.y - sy, target.x - sx) + (Math.random() - 0.5) * 0.10;
           } else {
             ang = gs.aimAngle + (i - (n - 1) / 2) * 0.22;
           }
           const spd = gs.stats.bulletSpeed * SPEED_SCALE;
           gs.bullets.push({
-            x: cx + Math.cos(ang) * SHIP_R * 1.4,
-            y: cy + Math.sin(ang) * SHIP_R * 1.4,
+            x: sx + Math.cos(ang) * SHIP_R * 1.4,
+            y: sy + Math.sin(ang) * SHIP_R * 1.4,
             vx: Math.cos(ang) * spd,
             vy: Math.sin(ang) * spd,
-            dmg: Math.round(gs.stats.dmg * bonus),
+            dmg: gs.stats.dmg,
             pierce: gs.stats.pierce,
             ricochet: gs.stats.ricochet,
             life: 90,
-            color: bonus > 1 ? "#c8ff00" : "#fbbf24",
-            r: bonus > 1 ? 3.4 : 2.6,
+            color: "#fbbf24",
+            r: 2.8,
             homing: false,
             boomR: 0,
             hitIds: [],
             targetId: 0,
           });
           fired = true;
-          // rotate ship toward first target when not focusing
-          if (i === 0 && !gs.focusing && pool.length > 0) gs.aimAngle = ang;
+          // point the hull at the nearest target
+          if (i === 0 && pool.length > 0) gs.aimAngle = ang;
         }
         if (fired) {
           gs.muzzle = 4;
-          spawnParticles(gs, cx + Math.cos(gs.aimAngle) * SHIP_R * 1.5, cy + Math.sin(gs.aimAngle) * SHIP_R * 1.5, "#fde68a", 2, 1.4, 1.6, 10);
+          spawnParticles(gs, sx + Math.cos(gs.aimAngle) * SHIP_R * 1.5, sy + Math.sin(gs.aimAngle) * SHIP_R * 1.5, "#fde68a", 2, 1.4, 1.6, 10);
         }
       }
 
@@ -923,7 +950,7 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
             const ang = Math.random() * Math.PI * 2;
             const spd = 2.4 * SPEED_SCALE;
             gs.bullets.push({
-              x: cx, y: cy,
+              x: sx, y: sy,
               vx: Math.cos(ang) * spd,
               vy: Math.sin(ang) * spd,
               dmg: Math.round(gs.stats.dmg * 1.6),
@@ -949,8 +976,8 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
         if (d.cooldown <= 0 && gs.enemies.length > 0 && gs.bullets.length < MAX_BULLETS) {
           d.cooldown = 42;
           const a = gs.droneSpin + (i / Math.max(1, gs.drones.length)) * Math.PI * 2;
-          const dx = cx + Math.cos(a) * SHIP_R * 2.4;
-          const dy = cy + Math.sin(a) * SHIP_R * 2.4;
+          const dx = sx + Math.cos(a) * SHIP_R * 2.4;
+          const dy = sy + Math.sin(a) * SHIP_R * 2.4;
           let best: Enemy | null = null;
           let bestD = Infinity;
           gs.enemies.forEach(e => {
@@ -1068,7 +1095,7 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
       gs.enemies.forEach(e => {
         if (e.hitFlash > 0) e.hitFlash--;
         const def = ENEMY_DEFS[e.type];
-        const ang = Math.atan2(cy - e.y, cx - e.x);
+        const ang = Math.atan2(sy - e.y, sx - e.x);
         let weave = 0;
         if (e.type === "ghost" || e.type === "swarm") {
           weave = Math.sin(gs.frame * 0.07 + e.wobble) * 0.7;
@@ -1079,7 +1106,7 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
         e.x += Math.cos(ang + weave) * spd;
         e.y += Math.sin(ang + weave) * spd;
 
-        const distToShip = Math.hypot(e.x - cx, e.y - cy);
+        const distToShip = Math.hypot(e.x - sx, e.y - sy);
 
         if (e.hp <= 0) {
           killEnemy(gs, e);
@@ -1109,15 +1136,15 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
         o.y += o.vy;
         o.vx *= 0.92;
         o.vy *= 0.92;
-        const d = Math.hypot(o.x - cx, o.y - cy);
+        const d = Math.hypot(o.x - sx, o.y - sy);
         const magnetR = gs.stats.magnetR * SPEED_SCALE;
         if (d < magnetR) {
           const pull = (1 - d / magnetR) * 3.2 + 0.6;
-          const a = Math.atan2(cy - o.y, cx - o.x);
+          const a = Math.atan2(sy - o.y, sx - o.x);
           o.x += Math.cos(a) * pull;
           o.y += Math.sin(a) * pull;
         }
-        if (d <= SHIP_R * 1.4) {
+        if (d <= SHIP_R * 1.7) {
           gs.xp += o.xp;
           gs.score += 1;
           gs.energy = Math.min(gs.maxEnergy, gs.energy + 1);
@@ -1138,19 +1165,39 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
           gs.upgradeChoices = choices;
           gs.resumePhase = gs.phase === "between" ? "between" : "wave";
           gs.phase = "upgrade";
-          gs.floats.push({ x: cx, y: cy - SHIP_R * 3, text: "LEVEL UP!", color: "#c8ff00", life: 60 });
+          gs.floats.push({ x: sx, y: sy - SHIP_R * 3, text: "LEVEL UP!", color: "#c8ff00", life: 60 });
         } else {
           gs.score += 50;
-          gs.floats.push({ x: cx, y: cy - SHIP_R * 3, text: "MAXED! +50", color: "#fbbf24", life: 45 });
+          gs.floats.push({ x: sx, y: sy - SHIP_R * 3, text: "MAXED! +50", color: "#fbbf24", life: 45 });
         }
+      }
+
+      // ── Auto NOVA: fires itself when energy is full ──
+      if (gs.energy >= gs.maxEnergy && gs.enemies.length > 0) {
+        // aim at the densest nearby cluster (nearest enemy centroid)
+        const near = [...gs.enemies].sort((a, b) =>
+          Math.hypot(a.x - sx, a.y - sy) - Math.hypot(b.x - sx, b.y - sy)
+        ).slice(0, 5);
+        let nx = 0, ny = 0;
+        near.forEach(e => { nx += e.x; ny += e.y; });
+        nx /= near.length; ny /= near.length;
+        gs.energy = 0;
+        gs.novaFlash = 10;
+        const radius = W * 0.19;
+        damageEnemiesInRadius(gs, nx, ny, radius, Math.round(gs.stats.dmg * 6 + 60));
+        gs.shockwaves.push({ x: nx, y: ny, r: 6, maxR: radius, life: 18, maxLife: 18, color: "#c8ff00", lw: 4 });
+        gs.shockwaves.push({ x: nx, y: ny, r: 2, maxR: radius * 0.6, life: 12, maxLife: 12, color: "#ffffff", lw: 2 });
+        spawnParticles(gs, nx, ny, "#c8ff00", 20, 3.4, 2.6, 32);
+        gs.screenShake = Math.max(gs.screenShake, 12);
+        gs.floats.push({ x: nx, y: ny - 20, text: "NOVA!", color: "#c8ff00", life: 35 });
       }
 
       // ── Ship death ──
       if (gs.hp <= 0) {
         gs.hp = 0;
         gs.phase = "gameover";
-        spawnExplosion(gs, cx, cy, "#a855f7", true);
-        spawnParticles(gs, cx, cy, "#c8ff00", 30, 4, 3, 50);
+        spawnExplosion(gs, sx, sy, "#a855f7", true);
+        spawnParticles(gs, sx, sy, "#c8ff00", 30, 4, 3, 50);
         gs.screenShake = 24;
         onEnd?.(false, Math.floor(gs.earnedKarma));
       }
@@ -1208,26 +1255,7 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
     rafRef.current = requestAnimationFrame(gameLoop);
   }, [draw, onEnd, onWin, pet]);
 
-  // ─── Nova strike (tap) ──────────────────────────────────────────────────────
-  const novaStrike = useCallback((x: number, y: number) => {
-    const gs = gsRef.current;
-    if (gs.phase !== "wave" && gs.phase !== "between") return;
-    if (gs.energy < NOVA_COST) {
-      gs.floats.push({ x, y, text: "NO ENERGY", color: "#64748b", life: 30 });
-      return;
-    }
-    gs.energy -= NOVA_COST;
-    const W = gs.size;
-    const radius = W * 0.18;
-    damageEnemiesInRadius(gs, x, y, radius, Math.round(gs.stats.dmg * 6 + 60));
-    gs.shockwaves.push({ x, y, r: 6, maxR: radius, life: 18, maxLife: 18, color: "#c8ff00", lw: 4 });
-    gs.shockwaves.push({ x, y, r: 2, maxR: radius * 0.6, life: 12, maxLife: 12, color: "#ffffff", lw: 2 });
-    spawnParticles(gs, x, y, "#c8ff00", 20, 3.4, 2.6, 32);
-    gs.screenShake = Math.max(gs.screenShake, 12);
-    gs.floats.push({ x, y: y - 20, text: "NOVA!", color: "#c8ff00", life: 35 });
-  }, []);
-
-  // ─── Pointer handling (drag = aim, tap = nova) ──────────────────────────────
+  // ─── Pointer handling: drag anywhere = fly the ship there ───────────────────
   const toLocal = useCallback((clientX: number, clientY: number): { x: number; y: number } => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
@@ -1244,9 +1272,9 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
     if (gs.phase !== "wave" && gs.phase !== "between") return;
     const p = toLocal(clientX, clientY);
     pointerRef.current = { down: true, startX: p.x, startY: p.y, moved: false };
-    const cx = gs.size / 2;
-    gs.aimAngle = Math.atan2(p.y - cx, p.x - cx);
-    gs.focusing = true;
+    gs.targetX = p.x;
+    gs.targetY = p.y;
+    gs.moving = true;
   }, [toLocal]);
 
   const pointerMove = useCallback((clientX: number, clientY: number) => {
@@ -1254,22 +1282,17 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
     if (!pr.down) return;
     const gs = gsRef.current;
     const p = toLocal(clientX, clientY);
-    if (Math.hypot(p.x - pr.startX, p.y - pr.startY) > 14) pr.moved = true;
-    const cx = gs.size / 2;
-    gs.aimAngle = Math.atan2(p.y - cx, p.x - cx);
+    gs.targetX = p.x;
+    gs.targetY = p.y;
+    gs.moving = true;
   }, [toLocal]);
 
-  const pointerUp = useCallback((clientX: number, clientY: number) => {
+  const pointerUp = useCallback(() => {
     const pr = pointerRef.current;
     const gs = gsRef.current;
-    if (pr.down && !pr.moved) {
-      // Tap → nova at tap point
-      const p = toLocal(clientX, clientY);
-      novaStrike(p.x, p.y);
-    }
     pr.down = false;
-    gs.focusing = false;
-  }, [toLocal, novaStrike]);
+    gs.moving = false;
+  }, []);
 
   // ─── Setup: sizing, native touch listeners, UI sync, rAF ────────────────────
   useEffect(() => {
@@ -1284,7 +1307,12 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
       canvas.height = Math.round(w * dpr);
       canvas.style.width = `${w}px`;
       canvas.style.height = `${w}px`;
-      gsRef.current.size = w;
+      const gs = gsRef.current;
+      gs.size = w;
+      if (gs.phase === "idle") {
+        gs.shipX = gs.targetX = w / 2;
+        gs.shipY = gs.targetY = w / 2;
+      }
       draw();
     };
     window.addEventListener("resize", updateSize);
@@ -1303,8 +1331,7 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
     };
     const onTouchEnd = (e: TouchEvent) => {
       e.preventDefault();
-      const t = e.changedTouches[0];
-      if (t) pointerUp(t.clientX, t.clientY);
+      pointerUp();
     };
     canvas.addEventListener("touchstart", onTouchStart, { passive: false });
     canvas.addEventListener("touchmove", onTouchMove, { passive: false });
@@ -1312,7 +1339,7 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
 
     const onMouseDown = (e: MouseEvent) => pointerDown(e.clientX, e.clientY);
     const onMouseMove = (e: MouseEvent) => pointerMove(e.clientX, e.clientY);
-    const onMouseUp = (e: MouseEvent) => pointerUp(e.clientX, e.clientY);
+    const onMouseUp = () => pointerUp();
     canvas.addEventListener("mousedown", onMouseDown);
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
@@ -1361,6 +1388,8 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
     const size = gsRef.current.size;
     gsRef.current = initGS();
     gsRef.current.size = size;
+    gsRef.current.shipX = gsRef.current.targetX = size / 2;
+    gsRef.current.shipY = gsRef.current.targetY = size / 2;
     gsRef.current.phase = "wave";
     gsRef.current.wave = 1;
     gsRef.current.spawnQueue = buildWave(1);
@@ -1389,62 +1418,50 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
 
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div style={{ background: "#0d0d0d", borderRadius: 12, overflow: "hidden", userSelect: "none" }}>
-      {/* HUD bar */}
+    <div style={{ background: "#0d0d0d", borderRadius: 16, overflow: "hidden", userSelect: "none" }}>
+      {/* Compact HUD — one line */}
       <div style={{
-        display: "flex", gap: 8, padding: "8px 10px",
-        background: "#111", borderBottom: "1px solid #222",
-        flexWrap: "wrap", alignItems: "center",
+        display: "flex", gap: 10, padding: "7px 12px",
+        background: "#0b0b12", borderBottom: "1px solid #1c1c28",
+        alignItems: "center",
       }}>
-        {/* Ship HP */}
-        <div style={{ flex: 1, minWidth: 90 }}>
-          <div style={{ fontSize: 10, color: "#a855f7", marginBottom: 2, fontWeight: 700, letterSpacing: 1 }}>
-            SHIP {uiShield > 0 ? `+🛡️${uiShield}` : ""}
+        {/* Wave */}
+        <div style={{ display: "flex", alignItems: "baseline", gap: 3, flexShrink: 0 }}>
+          <span style={{ fontSize: 9, color: "#fbbf24", fontWeight: 700, letterSpacing: 1 }}>WAVE</span>
+          <span style={{ fontSize: 14, color: "#fbbf24", fontWeight: 900 }}>{uiPhase === "idle" ? "–" : uiWave}</span>
+          <span style={{ fontSize: 9, color: "#665" }}>/25</span>
+        </div>
+
+        {/* HP bar (flex) */}
+        <div style={{ flex: 1, minWidth: 60 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+            <span style={{ fontSize: 8, color: "#a855f7", fontWeight: 800, letterSpacing: 1 }}>
+              ❤ HP {uiShield > 0 ? `· 🛡${uiShield}` : ""}
+            </span>
+            <span style={{ fontSize: 8, color: "#a78bfa", fontWeight: 700 }}>LV{uiLevel}</span>
           </div>
-          <div style={{ background: "#1a0a2e", borderRadius: 4, height: 8, overflow: "hidden" }}>
+          <div style={{ background: "#1a0a2e", borderRadius: 3, height: 6, overflow: "hidden" }}>
             <div style={{
               width: `${hpPct}%`, height: "100%",
               background: hpPct > 50 ? "#a855f7" : hpPct > 20 ? "#f97316" : "#ef4444",
               transition: "width 0.3s",
             }} />
           </div>
-          <div style={{ fontSize: 9, color: "#666", marginTop: 1 }}>{uiHp}/200</div>
-        </div>
-
-        {/* Wave */}
-        <div style={{ textAlign: "center", minWidth: 46 }}>
-          <div style={{ fontSize: 10, color: "#fbbf24", fontWeight: 700, letterSpacing: 1 }}>WAVE</div>
-          <div style={{ fontSize: 16, color: "#fbbf24", fontWeight: 900 }}>
-            {uiPhase === "idle" ? "–" : `${uiWave}/25`}
+          {/* thin xp + nova sliver */}
+          <div style={{ display: "flex", gap: 3, marginTop: 2 }}>
+            <div style={{ flex: 1, background: "#14102a", borderRadius: 2, height: 3, overflow: "hidden" }}>
+              <div style={{ width: `${uiXpPct}%`, height: "100%", background: "#a78bfa" }} />
+            </div>
+            <div style={{ flex: 1, background: "#1a2000", borderRadius: 2, height: 3, overflow: "hidden" }}>
+              <div style={{ width: `${energyPct}%`, height: "100%", background: novaReady ? "#c8ff00" : "#5a7a00", boxShadow: novaReady ? "0 0 4px #c8ff00" : "none" }} />
+            </div>
           </div>
         </div>
 
         {/* Score */}
-        <div style={{ textAlign: "center", minWidth: 50 }}>
-          <div style={{ fontSize: 10, color: "#38bdf8", fontWeight: 700, letterSpacing: 1 }}>SCORE</div>
-          <div style={{ fontSize: 16, color: "#38bdf8", fontWeight: 900 }}>{uiScore}</div>
-        </div>
-
-        {/* Energy / Nova */}
-        <div style={{ flex: 1, minWidth: 90 }}>
-          <div style={{ fontSize: 10, color: "#c8ff00", marginBottom: 2, fontWeight: 700, letterSpacing: 1 }}>
-            NOVA {novaReady ? "⚡ TAP ENEMY" : `${Math.floor(energyPct)}%`}
-          </div>
-          <div style={{ background: "#1a2000", borderRadius: 4, height: 8, overflow: "hidden" }}>
-            <div style={{
-              width: `${energyPct}%`, height: "100%",
-              background: novaReady ? "#c8ff00" : "#5a7a00",
-              transition: "width 0.2s",
-              boxShadow: novaReady ? "0 0 6px #c8ff00" : "none",
-            }} />
-          </div>
-          {/* XP bar */}
-          <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3 }}>
-            <span style={{ fontSize: 8, color: "#a78bfa", fontWeight: 700 }}>LV{uiLevel}</span>
-            <div style={{ flex: 1, background: "#14102a", borderRadius: 3, height: 4, overflow: "hidden" }}>
-              <div style={{ width: `${uiXpPct}%`, height: "100%", background: "#a78bfa", transition: "width 0.2s" }} />
-            </div>
-          </div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 3, flexShrink: 0 }}>
+          <span style={{ fontSize: 14, color: "#38bdf8", fontWeight: 900 }}>{uiScore}</span>
+          <span style={{ fontSize: 8, color: "#38bdf8", fontWeight: 700, letterSpacing: 1 }}>PTS</span>
         </div>
       </div>
 
@@ -1454,6 +1471,30 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
           ref={canvasRef}
           style={{ display: "block", width: "100%", touchAction: "none", cursor: "crosshair" }}
         />
+
+        {/* Owned upgrades — tiny overlay, bottom-left */}
+        {ownedList.length > 0 && (uiPhase === "wave" || uiPhase === "between") && (
+          <div style={{
+            position: "absolute", left: 8, bottom: 8,
+            display: "flex", gap: 4, flexWrap: "wrap", maxWidth: "62%",
+            pointerEvents: "none",
+          }}>
+            {ownedList.map(id => {
+              const def = UPGRADE_DEFS[id];
+              const lvl = uiOwned[id] ?? 0;
+              return (
+                <div key={id} style={{
+                  display: "flex", alignItems: "center", gap: 2,
+                  padding: "2px 5px", borderRadius: 6,
+                  background: "rgba(0,0,0,0.5)", border: `1px solid ${def.color}66`,
+                }}>
+                  <span style={{ fontSize: 11 }}>{def.emoji}</span>
+                  <span style={{ fontSize: 8, color: def.color, fontWeight: 800 }}>{lvl}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Idle overlay */}
         {uiPhase === "idle" && (
@@ -1468,10 +1509,10 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
               letterSpacing: 3, textShadow: "0 0 20px #a855f7",
               marginBottom: 4,
             }}>KARMA PULSE</div>
-            <div style={{ fontSize: 11, color: "#888", marginBottom: 20, textAlign: "center", padding: "0 24px", lineHeight: 1.5 }}>
-              Your pet&apos;s ship auto-fires at the swarm.<br />
-              DRAG to focus fire (bonus damage) · TAP for a NOVA strike<br />
-              Collect XP orbs · Pick upgrades · Survive 25 waves
+            <div style={{ fontSize: 11, color: "#888", marginBottom: 20, textAlign: "center", padding: "0 24px", lineHeight: 1.6 }}>
+              <strong style={{ color: "#c8ff00" }}>DRA för att flyga skeppet</strong> vart du vill.<br />
+              Skeppet skjuter själv · flyg in i 💜 orbs för att samla XP<br />
+              NOVA laddar & smäller av automatiskt · överlev 25 vågor
             </div>
             <button
               onClick={startGame}
@@ -1607,42 +1648,6 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
         )}
       </div>
 
-      {/* Build summary bar */}
-      <div style={{
-        background: "#111", borderTop: "1px solid #222",
-        padding: "8px 10px", display: "flex", gap: 6,
-        overflowX: "auto", alignItems: "center", minHeight: 46,
-      }}>
-        {ownedList.length === 0 ? (
-          <div style={{ fontSize: 10, color: "#555", letterSpacing: 0.5 }}>
-            {uiPhase === "idle"
-              ? "Collect XP orbs from kills to unlock upgrades…"
-              : "No upgrades yet — collect the purple XP orbs!"}
-          </div>
-        ) : (
-          ownedList.map(id => {
-            const def = UPGRADE_DEFS[id];
-            const lvl = uiOwned[id] ?? 0;
-            return (
-              <div
-                key={id}
-                title={`${def.name} Lv${lvl}`}
-                style={{
-                  flex: "0 0 auto",
-                  display: "flex", alignItems: "center", gap: 3,
-                  padding: "4px 8px",
-                  background: `${def.color}14`,
-                  border: `1px solid ${def.color}55`,
-                  borderRadius: 8,
-                }}
-              >
-                <span style={{ fontSize: 14 }}>{def.emoji}</span>
-                <span style={{ fontSize: 9, color: def.color, fontWeight: 800 }}>×{lvl}</span>
-              </div>
-            );
-          })
-        )}
-      </div>
     </div>
   );
 }
