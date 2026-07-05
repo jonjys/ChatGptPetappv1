@@ -16,7 +16,8 @@ type Phase = "idle" | "wave" | "between" | "upgrade" | "win" | "gameover";
 type EnemyType = "seeker" | "runner" | "tank" | "ghost" | "swarm" | "boss";
 type UpgradeId =
   | "rate" | "multi" | "dmg" | "pierce" | "drone"
-  | "missile" | "ricochet" | "boom" | "magnet" | "shield";
+  | "missile" | "ricochet" | "boom" | "magnet" | "shield"
+  | "crit" | "speed" | "regen" | "maxhp" | "vamp" | "slow";
 
 interface EnemyDef {
   type: EnemyType;
@@ -114,6 +115,12 @@ interface Stats {
   magnetR: number;
   shieldMax: number;
   bulletSpeed: number;
+  crit: number;        // crit chance 0..1
+  speedMul: number;    // ship move-speed multiplier
+  regen: number;       // hp regen per second
+  maxHpBonus: number;  // +max hp
+  lifesteal: number;   // hp healed per kill
+  slowAura: number;    // enemy slow radius (0 = off)
 }
 
 interface GS {
@@ -160,13 +167,18 @@ interface GS {
   aimAngle: number;
   focusing: boolean;
 
-  // Free-flying ship
+  // Free-flying ship (velocity steering via joystick)
   shipX: number;
   shipY: number;
-  targetX: number;
-  targetY: number;
   moving: boolean;
   novaFlash: number;
+  // Virtual joystick
+  stickActive: boolean;
+  stickBaseX: number;
+  stickBaseY: number;
+  stickDX: number;   // -1..1 steering vector
+  stickDY: number;
+  hpRegenAcc: number;
 
   screenShake: number;
   showWaveBanner: number;
@@ -206,9 +218,15 @@ const UPGRADE_DEFS: Record<UpgradeId, UpgradeDef> = {
   boom:     { id: "boom",     emoji: "💥", name: "Detonator",    desc: "Kills explode, bigger AoE",  max: 4, color: "#fb7185", apply: s => { s.boomRadius += 34; } },
   magnet:   { id: "magnet",   emoji: "🧲", name: "Magnet",       desc: "+70% XP pickup range",       max: 3, color: "#a78bfa", apply: s => { s.magnetR *= 1.7; } },
   shield:   { id: "shield",   emoji: "🛡️", name: "Shield",       desc: "+30 shield, refills each wave", max: 3, color: "#34d399", apply: s => { s.shieldMax += 30; } },
+  crit:     { id: "crit",     emoji: "🎯", name: "Critical",     desc: "+12% crit chance (3× dmg)",  max: 6, color: "#facc15", apply: s => { s.crit = Math.min(0.75, s.crit + 0.12); } },
+  speed:    { id: "speed",    emoji: "💨", name: "Thrusters",    desc: "+18% ship speed",            max: 5, color: "#22d3ee", apply: s => { s.speedMul *= 1.18; } },
+  regen:    { id: "regen",    emoji: "💚", name: "Regen",        desc: "+4 HP/sec self-repair",      max: 5, color: "#4ade80", apply: s => { s.regen += 4; } },
+  maxhp:    { id: "maxhp",    emoji: "❤️", name: "Reinforce",    desc: "+60 max HP (heals too)",     max: 6, color: "#fb7185", apply: s => { s.maxHpBonus += 60; } },
+  vamp:     { id: "vamp",     emoji: "🩸", name: "Lifesteal",    desc: "Heal +2 HP per kill",        max: 5, color: "#e11d48", apply: s => { s.lifesteal += 2; } },
+  slow:     { id: "slow",     emoji: "🕸️", name: "Slow Aura",    desc: "Slow nearby enemies +radius", max: 4, color: "#818cf8", apply: s => { s.slowAura += 46; } },
 };
 
-const UPGRADE_ORDER: UpgradeId[] = ["rate", "multi", "dmg", "pierce", "drone", "missile", "ricochet", "boom", "magnet", "shield"];
+const UPGRADE_ORDER: UpgradeId[] = ["rate", "multi", "dmg", "pierce", "drone", "missile", "ricochet", "boom", "magnet", "shield", "crit", "speed", "regen", "maxhp", "vamp", "slow"];
 
 // ─── Stars (static) ────────────────────────────────────────────────────────────
 const STARS = Array.from({ length: 50 }, () => ({
@@ -241,6 +259,12 @@ function initStats(): Stats {
     magnetR: 46,
     shieldMax: 0,
     bulletSpeed: 5.2,
+    crit: 0,
+    speedMul: 1,
+    regen: 0,
+    maxHpBonus: 0,
+    lifesteal: 0,
+    slowAura: 0,
   };
 }
 
@@ -282,10 +306,14 @@ function initGS(): GS {
     focusing: false,
     shipX: 180,
     shipY: 180,
-    targetX: 180,
-    targetY: 180,
     moving: false,
     novaFlash: 0,
+    stickActive: false,
+    stickBaseX: 0,
+    stickBaseY: 0,
+    stickDX: 0,
+    stickDY: 0,
+    hpRegenAcc: 0,
     screenShake: 0,
     showWaveBanner: 0,
     shipFlash: 0,
@@ -320,11 +348,12 @@ function buildWave(wave: number): { type: EnemyType; delay: number }[] {
     add("ghost", 2 + Math.floor(wave / 3));
     add("swarm", 6 + wave);
   } else {
-    add("seeker", 4 + wave);
+    // Endless scaling — counts keep climbing past wave 15
+    add("seeker", 5 + Math.floor(wave * 1.3));
     add("runner", 5 + wave);
-    add("tank", 2 + Math.floor(wave / 5));
-    add("ghost", 3 + Math.floor(wave / 3));
-    add("swarm", 8 + wave);
+    add("tank", 2 + Math.floor(wave / 4));
+    add("ghost", 3 + Math.floor(wave / 2));
+    add("swarm", 10 + Math.floor(wave * 1.4));
   }
 
   // Shuffle for variety
@@ -334,14 +363,21 @@ function buildWave(wave: number): { type: EnemyType; delay: number }[] {
   }
 
   if (wave % 5 === 0) {
-    q.push({ type: "boss", delay: delay * 2 });
+    // extra bosses at very high waves
+    const bosses = 1 + Math.floor(wave / 20);
+    for (let i = 0; i < bosses; i++) q.push({ type: "boss", delay: delay * 2 });
   }
 
   return q;
 }
 
+// Steep curve so early clears aren't trivial and it never stops getting harder
 function enemyHpScale(wave: number): number {
-  return 1 + (wave - 1) * 0.13;
+  return 1 + (wave - 1) * 0.17 + Math.pow(wave / 9, 1.95);
+}
+// Enemies also get faster over time
+function waveSpeedScale(wave: number): number {
+  return 1 + Math.min(1.1, (wave - 1) * 0.028);
 }
 
 // ─── Particle / FX helpers (mutate gs) ─────────────────────────────────────────
@@ -393,6 +429,11 @@ function killEnemy(gs: GS, e: Enemy) {
   gs.earnedKarma += def.reward / 3;
   gs.killCount++;
   gs.energy = Math.min(gs.maxEnergy, gs.energy + (e.type === "boss" ? 25 : 3));
+
+  // Lifesteal
+  if (gs.stats.lifesteal > 0 && gs.hp < gs.maxHp) {
+    gs.hp = Math.min(gs.maxHp, gs.hp + gs.stats.lifesteal * (e.type === "boss" ? 6 : 1));
+  }
 
   const big = e.type === "boss" || e.type === "tank";
   spawnExplosion(gs, e.x, e.y, def.color, big);
@@ -461,6 +502,7 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
   const [uiWave, setUiWave] = useState(0);
   const [uiScore, setUiScore] = useState(0);
   const [uiHp, setUiHp] = useState(200);
+  const [uiMaxHp, setUiMaxHp] = useState(200);
   const [uiShield, setUiShield] = useState(0);
   const [uiEnergy, setUiEnergy] = useState(40);
   const [uiLevel, setUiLevel] = useState(1);
@@ -530,30 +572,7 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
       ctx.stroke();
     });
 
-    // 4. Movement target indicator (where the ship is flying to)
-    if (gs.moving && (gs.phase === "wave" || gs.phase === "between")) {
-      const td = Math.hypot(gs.targetX - sx, gs.targetY - sy);
-      if (td > SHIP_R) {
-        ctx.save();
-        // trail line from ship to target
-        ctx.strokeStyle = "rgba(200,255,0,0.16)";
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([4, 5]);
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(gs.targetX, gs.targetY);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        // target ring
-        const tp = 0.6 + 0.4 * Math.sin(gs.frame * 0.2);
-        ctx.strokeStyle = `rgba(200,255,0,${0.5 * tp})`;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(gs.targetX, gs.targetY, 7 + tp * 3, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-      }
-    }
+    // (joystick is drawn last, on top of everything)
 
     // 5. XP orbs
     gs.orbs.forEach(o => {
@@ -809,7 +828,61 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
       ctx.restore();
     }
 
-    ctx.restore();
+    ctx.restore(); // end shake transform
+
+    // 15. Virtual joystick (screen-space, on top)
+    if (gs.phase === "wave" || gs.phase === "between") {
+      const jr = W * 0.13;         // knob travel radius
+      const hintX = W - jr - 22;   // resting hint position (bottom-right)
+      const hintY = H - jr - 22;
+      if (gs.stickActive) {
+        const bx = gs.stickBaseX, by = gs.stickBaseY;
+        const kx = bx + gs.stickDX * jr;
+        const ky = by + gs.stickDY * jr;
+        // base ring
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        ctx.strokeStyle = "#c8ff00";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(bx, by, jr, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = "rgba(200,255,0,0.05)";
+        ctx.fill();
+        // knob
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = "#c8ff00";
+        ctx.shadowColor = "#c8ff00";
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(kx, ky, jr * 0.42, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      } else {
+        // resting hint bottom-right
+        ctx.save();
+        ctx.globalAlpha = 0.16 + 0.06 * Math.sin(gs.frame * 0.08);
+        ctx.strokeStyle = "#c8ff00";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.arc(hintX, hintY, jr, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = "#c8ff00";
+        ctx.beginPath();
+        ctx.arc(hintX, hintY, jr * 0.34, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 0.5;
+        ctx.font = "bold 9px sans-serif";
+        ctx.fillStyle = "#c8ff00";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("STYR", hintX, hintY + jr + 12);
+        ctx.restore();
+      }
+    }
   }, [shipEmoji]);
 
   // ─── Game Loop ──────────────────────────────────────────────────────────────
@@ -837,17 +910,11 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
 
     const simulating = gs.phase === "wave" || gs.phase === "between";
 
-    // ── Ship movement: fly toward your finger ──
+    // ── Ship movement: joystick velocity steering ──
     if (simulating) {
-      const maxSpd = SHIP_MAX_SPEED * SPEED_SCALE;
-      const dx = gs.targetX - gs.shipX;
-      const dy = gs.targetY - gs.shipY;
-      const dist = Math.hypot(dx, dy);
-      if (dist > 0.6) {
-        const step = Math.min(dist, maxSpd * (gs.moving ? 1 : 0.5));
-        gs.shipX += (dx / dist) * step;
-        gs.shipY += (dy / dist) * step;
-      }
+      const maxSpd = SHIP_MAX_SPEED * SPEED_SCALE * gs.stats.speedMul;
+      gs.shipX += gs.stickDX * maxSpd;
+      gs.shipY += gs.stickDY * maxSpd;
       // keep inside the arena
       const cdx = gs.shipX - cx, cdy = gs.shipY - cy;
       const cd = Math.hypot(cdx, cdy);
@@ -891,6 +958,16 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
       // Slow shield trickle
       if (gs.stats.shieldMax > 0) {
         gs.shield = Math.min(gs.stats.shieldMax, gs.shield + 0.02);
+      }
+
+      // HP self-repair (regen upgrade)
+      if (gs.stats.regen > 0 && gs.hp < gs.maxHp) {
+        gs.hpRegenAcc += gs.stats.regen / 60;
+        if (gs.hpRegenAcc >= 1) {
+          const heal = Math.floor(gs.hpRegenAcc);
+          gs.hp = Math.min(gs.maxHp, gs.hp + heal);
+          gs.hpRegenAcc -= heal;
+        }
       }
 
       // ── Auto-fire ──
@@ -1044,10 +1121,13 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
           if (b.hitIds.includes(e.id)) continue;
           const def = ENEMY_DEFS[e.type];
           if (Math.hypot(e.x - b.x, e.y - b.y) <= def.radius + b.r) {
-            e.hp -= b.dmg;
+            const isCrit = gs.stats.crit > 0 && Math.random() < gs.stats.crit;
+            const dealt = isCrit ? b.dmg * 3 : b.dmg;
+            e.hp -= dealt;
             e.hitFlash = 6;
             b.hitIds.push(e.id);
-            spawnParticles(gs, b.x, b.y, b.color, 3, 1.6, 1.6, 12);
+            spawnParticles(gs, b.x, b.y, isCrit ? "#facc15" : b.color, isCrit ? 6 : 3, 1.6, 1.6, 12);
+            if (isCrit) gs.floats.push({ x: e.x, y: e.y - def.radius - 4, text: `${dealt}!`, color: "#facc15", life: 24 });
 
             if (b.boomR > 0) {
               // Missile: explode
@@ -1102,7 +1182,13 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
         } else if (e.type === "runner") {
           weave = Math.sin(gs.frame * 0.05 + e.wobble) * 0.35;
         }
-        const spd = def.speed * SPEED_SCALE;
+        let spd = def.speed * SPEED_SCALE * waveSpeedScale(gs.wave);
+        // Slow aura: enemies near the ship get sluggish
+        if (gs.stats.slowAura > 0) {
+          const da = Math.hypot(e.x - sx, e.y - sy);
+          const auraR = gs.stats.slowAura * SPEED_SCALE;
+          if (da < auraR) spd *= 0.45 + 0.55 * (da / auraR);
+        }
         e.x += Math.cos(ang + weave) * spd;
         e.y += Math.sin(ang + weave) * spd;
 
@@ -1202,23 +1288,24 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
         onEnd?.(false, Math.floor(gs.earnedKarma));
       }
 
-      // ── Wave complete ──
+      // ── Wave complete → endless ──
       if (gs.phase === "wave" && gs.spawnQueue.length === 0 && gs.enemies.length === 0) {
-        if (gs.wave >= 25) {
-          gs.phase = "win";
-          onEnd?.(true, Math.floor(gs.earnedKarma));
+        // Milestone rewards at 25 (and every 25) but the run never stops
+        if (gs.wave === 25) {
           onWin?.(
             Math.floor(gs.earnedKarma),
             gs.killCount * 10,
             pet?.name ?? "Unknown",
             pet?.rarity ?? "common"
           );
-        } else {
-          gs.phase = "between";
-          gs.betweenTimer = 130;
-          // Shield refill between waves
-          gs.shield = gs.stats.shieldMax;
         }
+        if (gs.wave % 25 === 0) {
+          gs.earnedKarma += 100;
+          gs.floats.push({ x: sx, y: sy - SHIP_R * 3, text: `👑 WAVE ${gs.wave}! +100`, color: "#facc15", life: 80 });
+        }
+        gs.phase = "between";
+        gs.betweenTimer = 120;
+        gs.shield = gs.stats.shieldMax;
       } else if (gs.phase === "between") {
         gs.betweenTimer--;
         if (gs.betweenTimer <= 0) {
@@ -1272,8 +1359,12 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
     if (gs.phase !== "wave" && gs.phase !== "between") return;
     const p = toLocal(clientX, clientY);
     pointerRef.current = { down: true, startX: p.x, startY: p.y, moved: false };
-    gs.targetX = p.x;
-    gs.targetY = p.y;
+    // Floating joystick: base spawns wherever the thumb lands
+    gs.stickActive = true;
+    gs.stickBaseX = p.x;
+    gs.stickBaseY = p.y;
+    gs.stickDX = 0;
+    gs.stickDY = 0;
     gs.moving = true;
   }, [toLocal]);
 
@@ -1282,8 +1373,15 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
     if (!pr.down) return;
     const gs = gsRef.current;
     const p = toLocal(clientX, clientY);
-    gs.targetX = p.x;
-    gs.targetY = p.y;
+    const maxR = gs.size * 0.13;
+    let dx = p.x - gs.stickBaseX;
+    let dy = p.y - gs.stickBaseY;
+    const d = Math.hypot(dx, dy);
+    if (d > maxR) { dx = (dx / d) * maxR; dy = (dy / d) * maxR; }
+    // dead-zone near center
+    const mag = Math.hypot(dx, dy) / maxR;
+    if (mag < 0.12) { gs.stickDX = 0; gs.stickDY = 0; }
+    else { gs.stickDX = dx / maxR; gs.stickDY = dy / maxR; }
     gs.moving = true;
   }, [toLocal]);
 
@@ -1292,6 +1390,9 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
     const gs = gsRef.current;
     pr.down = false;
     gs.moving = false;
+    gs.stickActive = false;
+    gs.stickDX = 0;
+    gs.stickDY = 0;
   }, []);
 
   // ─── Setup: sizing, native touch listeners, UI sync, rAF ────────────────────
@@ -1310,8 +1411,8 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
       const gs = gsRef.current;
       gs.size = w;
       if (gs.phase === "idle") {
-        gs.shipX = gs.targetX = w / 2;
-        gs.shipY = gs.targetY = w / 2;
+        gs.shipX = w / 2;
+        gs.shipY = w / 2;
       }
       draw();
     };
@@ -1351,6 +1452,7 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
       setUiWave(gs.wave);
       setUiScore(gs.score);
       setUiHp(Math.max(0, Math.ceil(gs.hp)));
+      setUiMaxHp(gs.maxHp);
       setUiShield(Math.ceil(gs.shield));
       setUiEnergy(gs.energy);
       setUiLevel(gs.level);
@@ -1388,8 +1490,8 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
     const size = gsRef.current.size;
     gsRef.current = initGS();
     gsRef.current.size = size;
-    gsRef.current.shipX = gsRef.current.targetX = size / 2;
-    gsRef.current.shipY = gsRef.current.targetY = size / 2;
+    gsRef.current.shipX = size / 2;
+    gsRef.current.shipY = size / 2;
     gsRef.current.phase = "wave";
     gsRef.current.wave = 1;
     gsRef.current.spawnQueue = buildWave(1);
@@ -1401,6 +1503,11 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
     const gs = gsRef.current;
     if (gs.phase !== "upgrade") return;
     UPGRADE_DEFS[id].apply(gs.stats);
+    // Reinforce: bump max HP and heal for the gained amount
+    if (id === "maxhp") {
+      gs.maxHp += 60;
+      gs.hp = Math.min(gs.maxHp, gs.hp + 60);
+    }
     gs.owned[id] = (gs.owned[id] ?? 0) + 1;
     gs.upgradeChoices = [];
     gs.phase = gs.resumePhase;
@@ -1411,7 +1518,7 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
   }
 
   // ─── Derived UI ─────────────────────────────────────────────────────────────
-  const hpPct = (uiHp / 200) * 100;
+  const hpPct = (uiHp / uiMaxHp) * 100;
   const energyPct = (uiEnergy / 100) * 100;
   const novaReady = uiEnergy >= NOVA_COST;
   const ownedList = UPGRADE_ORDER.filter(id => (uiOwned[id] ?? 0) > 0);
@@ -1429,7 +1536,7 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
         <div style={{ display: "flex", alignItems: "baseline", gap: 3, flexShrink: 0 }}>
           <span style={{ fontSize: 9, color: "#fbbf24", fontWeight: 700, letterSpacing: 1 }}>WAVE</span>
           <span style={{ fontSize: 14, color: "#fbbf24", fontWeight: 900 }}>{uiPhase === "idle" ? "–" : uiWave}</span>
-          <span style={{ fontSize: 9, color: "#665" }}>/25</span>
+          <span style={{ fontSize: 9, color: "#665" }}>∞</span>
         </div>
 
         {/* HP bar (flex) */}
@@ -1510,9 +1617,9 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
               marginBottom: 4,
             }}>KARMA PULSE</div>
             <div style={{ fontSize: 11, color: "#888", marginBottom: 20, textAlign: "center", padding: "0 24px", lineHeight: 1.6 }}>
-              <strong style={{ color: "#c8ff00" }}>DRA för att flyga skeppet</strong> vart du vill.<br />
-              Skeppet skjuter själv · flyg in i 💜 orbs för att samla XP<br />
-              NOVA laddar & smäller av automatiskt · överlev 25 vågor
+              <strong style={{ color: "#c8ff00" }}>Håll tummen nere till höger</strong> — en joystick<br />
+              dyker upp och styr skeppet. Skjuter & NOVA:r själv.<br />
+              Flyg in i 💜 orbs · välj upgrades · <strong style={{ color: "#facc15" }}>oändliga vågor</strong>
             </div>
             <button
               onClick={startGame}
