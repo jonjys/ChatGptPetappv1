@@ -488,14 +488,106 @@ function rollUpgrades(gs: GS): UpgradeId[] {
   return avail.slice(0, 3);
 }
 
+// ─── External joystick (fixed control, outside the arena) ───────────────────────
+function JoyStick({ onSteer, disabled }: { onSteer: (dx: number, dy: number) => void; disabled: boolean }) {
+  const baseRef = useRef<HTMLDivElement>(null);
+  const [knob, setKnob] = useState({ x: 0, y: 0 });
+  const activeRef = useRef(false);
+  const SIZE = 128;   // base diameter (px)
+  const MAXR = 46;    // knob travel radius
+
+  const apply = useCallback((clientX: number, clientY: number) => {
+    const el = baseRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    let dx = clientX - cx;
+    let dy = clientY - cy;
+    const d = Math.hypot(dx, dy);
+    if (d > MAXR) { dx = (dx / d) * MAXR; dy = (dy / d) * MAXR; }
+    setKnob({ x: dx, y: dy });
+    const mag = Math.hypot(dx, dy) / MAXR;
+    if (mag < 0.16) onSteer(0, 0);
+    else onSteer(dx / MAXR, dy / MAXR);
+  }, [onSteer]);
+
+  const release = useCallback(() => {
+    activeRef.current = false;
+    setKnob({ x: 0, y: 0 });
+    onSteer(0, 0);
+  }, [onSteer]);
+
+  useEffect(() => {
+    const el = baseRef.current;
+    if (!el) return;
+    const onTS = (e: TouchEvent) => { e.preventDefault(); activeRef.current = true; const t = e.touches[0]; if (t) apply(t.clientX, t.clientY); };
+    const onTM = (e: TouchEvent) => { if (!activeRef.current) return; e.preventDefault(); const t = e.touches[0]; if (t) apply(t.clientX, t.clientY); };
+    const onTE = (e: TouchEvent) => { e.preventDefault(); release(); };
+    el.addEventListener("touchstart", onTS, { passive: false });
+    window.addEventListener("touchmove", onTM, { passive: false });
+    window.addEventListener("touchend", onTE, { passive: false });
+
+    const onMD = (e: MouseEvent) => { activeRef.current = true; apply(e.clientX, e.clientY); };
+    const onMM = (e: MouseEvent) => { if (!activeRef.current) return; apply(e.clientX, e.clientY); };
+    const onMU = () => release();
+    el.addEventListener("mousedown", onMD);
+    window.addEventListener("mousemove", onMM);
+    window.addEventListener("mouseup", onMU);
+    return () => {
+      el.removeEventListener("touchstart", onTS);
+      window.removeEventListener("touchmove", onTM);
+      window.removeEventListener("touchend", onTE);
+      el.removeEventListener("mousedown", onMD);
+      window.removeEventListener("mousemove", onMM);
+      window.removeEventListener("mouseup", onMU);
+    };
+  }, [apply, release]);
+
+  return (
+    <div
+      ref={baseRef}
+      style={{
+        width: SIZE, height: SIZE, borderRadius: "50%", position: "relative",
+        touchAction: "none", userSelect: "none", flexShrink: 0,
+        background: "radial-gradient(circle at 50% 50%, #14141f 0%, #0b0b12 70%)",
+        border: "2px solid #2a2a3a",
+        boxShadow: "inset 0 0 24px rgba(0,0,0,0.6), 0 0 16px rgba(200,255,0,0.06)",
+        opacity: disabled ? 0.35 : 1,
+        transition: "opacity 0.2s",
+      }}
+    >
+      {/* direction ticks */}
+      {[0, 90, 180, 270].map(a => (
+        <div key={a} style={{
+          position: "absolute", left: "50%", top: "50%",
+          width: 3, height: 8, background: "#2f2f42", borderRadius: 2,
+          transform: `rotate(${a}deg) translate(0, -${SIZE / 2 - 8}px)`, transformOrigin: "center top",
+        }} />
+      ))}
+      {/* knob */}
+      <div style={{
+        position: "absolute", left: "50%", top: "50%",
+        width: 54, height: 54, borderRadius: "50%",
+        marginLeft: -27, marginTop: -27,
+        transform: `translate(${knob.x}px, ${knob.y}px)`,
+        background: "radial-gradient(circle at 40% 35%, #d9ff4d, #9ecc00)",
+        boxShadow: "0 0 16px rgba(200,255,0,0.5), inset 0 -3px 6px rgba(0,0,0,0.3)",
+        border: "2px solid #0a0a0a",
+      }} />
+      <span style={{
+        position: "absolute", bottom: -18, left: 0, right: 0, textAlign: "center",
+        fontSize: 8, fontWeight: 800, color: "#556", letterSpacing: 2,
+      }}>STYR</span>
+    </div>
+  );
+}
+
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gsRef = useRef<GS>(initGS());
   const rafRef = useRef<number>(0);
-  const pointerRef = useRef<{ down: boolean; startX: number; startY: number; moved: boolean }>({
-    down: false, startX: 0, startY: 0, moved: false,
-  });
 
   // UI state — synced at 10fps from the game-state ref
   const [uiPhase, setUiPhase] = useState<Phase>("idle");
@@ -829,60 +921,6 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
     }
 
     ctx.restore(); // end shake transform
-
-    // 15. Virtual joystick (screen-space, on top)
-    if (gs.phase === "wave" || gs.phase === "between") {
-      const jr = W * 0.13;         // knob travel radius
-      const hintX = W - jr - 22;   // resting hint position (bottom-right)
-      const hintY = H - jr - 22;
-      if (gs.stickActive) {
-        const bx = gs.stickBaseX, by = gs.stickBaseY;
-        const kx = bx + gs.stickDX * jr;
-        const ky = by + gs.stickDY * jr;
-        // base ring
-        ctx.save();
-        ctx.globalAlpha = 0.5;
-        ctx.strokeStyle = "#c8ff00";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(bx, by, jr, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.fillStyle = "rgba(200,255,0,0.05)";
-        ctx.fill();
-        // knob
-        ctx.globalAlpha = 0.9;
-        ctx.fillStyle = "#c8ff00";
-        ctx.shadowColor = "#c8ff00";
-        ctx.shadowBlur = 12;
-        ctx.beginPath();
-        ctx.arc(kx, ky, jr * 0.42, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      } else {
-        // resting hint bottom-right
-        ctx.save();
-        ctx.globalAlpha = 0.16 + 0.06 * Math.sin(gs.frame * 0.08);
-        ctx.strokeStyle = "#c8ff00";
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.arc(hintX, hintY, jr, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.globalAlpha = 0.3;
-        ctx.fillStyle = "#c8ff00";
-        ctx.beginPath();
-        ctx.arc(hintX, hintY, jr * 0.34, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 0.5;
-        ctx.font = "bold 9px sans-serif";
-        ctx.fillStyle = "#c8ff00";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("STYR", hintX, hintY + jr + 12);
-        ctx.restore();
-      }
-    }
   }, [shipEmoji]);
 
   // ─── Game Loop ──────────────────────────────────────────────────────────────
@@ -1354,45 +1392,12 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
     };
   }, []);
 
-  const pointerDown = useCallback((clientX: number, clientY: number) => {
+  // External joystick writes the steering vector straight into game state
+  const steer = useCallback((dx: number, dy: number) => {
     const gs = gsRef.current;
-    if (gs.phase !== "wave" && gs.phase !== "between") return;
-    const p = toLocal(clientX, clientY);
-    pointerRef.current = { down: true, startX: p.x, startY: p.y, moved: false };
-    // Floating joystick: base spawns wherever the thumb lands
-    gs.stickActive = true;
-    gs.stickBaseX = p.x;
-    gs.stickBaseY = p.y;
-    gs.stickDX = 0;
-    gs.stickDY = 0;
-    gs.moving = true;
-  }, [toLocal]);
-
-  const pointerMove = useCallback((clientX: number, clientY: number) => {
-    const pr = pointerRef.current;
-    if (!pr.down) return;
-    const gs = gsRef.current;
-    const p = toLocal(clientX, clientY);
-    const maxR = gs.size * 0.13;
-    let dx = p.x - gs.stickBaseX;
-    let dy = p.y - gs.stickBaseY;
-    const d = Math.hypot(dx, dy);
-    if (d > maxR) { dx = (dx / d) * maxR; dy = (dy / d) * maxR; }
-    // dead-zone near center
-    const mag = Math.hypot(dx, dy) / maxR;
-    if (mag < 0.12) { gs.stickDX = 0; gs.stickDY = 0; }
-    else { gs.stickDX = dx / maxR; gs.stickDY = dy / maxR; }
-    gs.moving = true;
-  }, [toLocal]);
-
-  const pointerUp = useCallback(() => {
-    const pr = pointerRef.current;
-    const gs = gsRef.current;
-    pr.down = false;
-    gs.moving = false;
-    gs.stickActive = false;
-    gs.stickDX = 0;
-    gs.stickDY = 0;
+    gs.stickDX = dx;
+    gs.stickDY = dy;
+    gs.moving = dx !== 0 || dy !== 0;
   }, []);
 
   // ─── Setup: sizing, native touch listeners, UI sync, rAF ────────────────────
@@ -1418,32 +1423,6 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
     };
     window.addEventListener("resize", updateSize);
     updateSize();
-
-    // Native touch listeners (non-passive so preventDefault works)
-    const onTouchStart = (e: TouchEvent) => {
-      e.preventDefault();
-      const t = e.touches[0];
-      if (t) pointerDown(t.clientX, t.clientY);
-    };
-    const onTouchMove = (e: TouchEvent) => {
-      e.preventDefault();
-      const t = e.touches[0];
-      if (t) pointerMove(t.clientX, t.clientY);
-    };
-    const onTouchEnd = (e: TouchEvent) => {
-      e.preventDefault();
-      pointerUp();
-    };
-    canvas.addEventListener("touchstart", onTouchStart, { passive: false });
-    canvas.addEventListener("touchmove", onTouchMove, { passive: false });
-    canvas.addEventListener("touchend", onTouchEnd, { passive: false });
-
-    const onMouseDown = (e: MouseEvent) => pointerDown(e.clientX, e.clientY);
-    const onMouseMove = (e: MouseEvent) => pointerMove(e.clientX, e.clientY);
-    const onMouseUp = () => pointerUp();
-    canvas.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
 
     // UI sync at 10fps
     const uiTimer = setInterval(() => {
@@ -1474,16 +1453,10 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
 
     return () => {
       window.removeEventListener("resize", updateSize);
-      canvas.removeEventListener("touchstart", onTouchStart);
-      canvas.removeEventListener("touchmove", onTouchMove);
-      canvas.removeEventListener("touchend", onTouchEnd);
-      canvas.removeEventListener("mousedown", onMouseDown);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
       clearInterval(uiTimer);
       cancelAnimationFrame(rafRef.current);
     };
-  }, [draw, gameLoop, pointerDown, pointerMove, pointerUp]);
+  }, [draw, gameLoop]);
 
   // ─── Actions ────────────────────────────────────────────────────────────────
   function startGame() {
@@ -1576,7 +1549,7 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
       <div style={{ position: "relative" }}>
         <canvas
           ref={canvasRef}
-          style={{ display: "block", width: "100%", touchAction: "none", cursor: "crosshair" }}
+          style={{ display: "block", width: "100%", touchAction: "none" }}
         />
 
         {/* Owned upgrades — tiny overlay, bottom-left */}
@@ -1617,9 +1590,9 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
               marginBottom: 4,
             }}>KARMA PULSE</div>
             <div style={{ fontSize: 11, color: "#888", marginBottom: 20, textAlign: "center", padding: "0 24px", lineHeight: 1.6 }}>
-              <strong style={{ color: "#c8ff00" }}>Håll tummen nere till höger</strong> — en joystick<br />
-              dyker upp och styr skeppet. Skjuter & NOVA:r själv.<br />
-              Flyg in i 💜 orbs · välj upgrades · <strong style={{ color: "#facc15" }}>oändliga vågor</strong>
+              Styr skeppet med <strong style={{ color: "#c8ff00" }}>joysticken nere till höger</strong>.<br />
+              Skjuter & NOVA:r själv · flyg in i 💜 orbs för XP<br />
+              Välj upgrades · <strong style={{ color: "#facc15" }}>oändliga vågor</strong>, hur långt når du?
             </div>
             <button
               onClick={startGame}
@@ -1753,6 +1726,33 @@ export default function PetBattle({ pet, petEmoji, onEnd, onWin }: PetBattleProp
             </button>
           </div>
         )}
+      </div>
+
+      {/* ── Control deck — joystick lives OUTSIDE the arena, bottom-right ── */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "14px 20px 20px",
+        background: "linear-gradient(180deg, #0b0b12, #07070d)",
+        borderTop: "1px solid #1a1a26",
+      }}>
+        {/* Left: quick tips / auto badges */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#556", fontWeight: 700 }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#fbbf24", boxShadow: "0 0 6px #fbbf24" }} />
+            AUTO-FIRE
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#556", fontWeight: 700 }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#c8ff00", boxShadow: "0 0 6px #c8ff00" }} />
+            AUTO-NOVA
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "#556", fontWeight: 700 }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#a78bfa", boxShadow: "0 0 6px #a78bfa" }} />
+            SAMLA 💜
+          </div>
+        </div>
+
+        {/* Right: the joystick */}
+        <JoyStick onSteer={steer} disabled={uiPhase !== "wave" && uiPhase !== "between"} />
       </div>
 
     </div>
