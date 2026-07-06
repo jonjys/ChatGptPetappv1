@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import { getPetEmoji, getPetClassColor, getEvolutionByLevel } from "@/lib/pet-evolution";
+import { calculateLevel } from "@/lib/xp-system";
 
 // ─── Zone definitions ─────────────────────────────────────────────────────────
 interface Zone {
@@ -155,7 +156,10 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 
 // ─── Main component ──────────────────────────────────────────────────────────
 export default function MapPage() {
-  const { pet, user, gameScores } = useApp();
+  const { pet, user, gameScores, streak } = useApp();
+  const playerLevel = calculateLevel(user.xp ?? 0);
+  const xpInLevel = (user.xp ?? 0) % 500;
+  const xpPct = Math.min(100, (xpInLevel / 500) * 100);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef(0);
   const rafRef = useRef<number>(0);
@@ -872,6 +876,55 @@ export default function MapPage() {
 
         {/* Expanded panel content */}
         <div style={{ padding: "0 16px 16px", overflow: "hidden" }}>
+
+          {/* ── Player identity header (this map = your command center) ── */}
+          <Link href="/profile" onClick={() => setPanelExpanded(false)} style={{ textDecoration: "none", display: "block", marginBottom: 10 }}>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 11,
+              background: `linear-gradient(135deg, ${classColor}14, rgba(255,255,255,0.02))`,
+              border: `1px solid ${classColor}33`, borderRadius: 14, padding: "10px 12px",
+            }}>
+              <div style={{
+                width: 42, height: 42, borderRadius: 12, flexShrink: 0,
+                background: `${classColor}1a`, border: `1.5px solid ${classColor}66`,
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem",
+                boxShadow: `0 0 14px ${classColor}44`,
+              }}>{petEmoji}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 900, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.displayName}</span>
+                  <span style={{ fontSize: 9, fontWeight: 800, color: classColor, background: `${classColor}18`, borderRadius: 5, padding: "1px 6px", flexShrink: 0 }}>LV{playerLevel}</span>
+                </div>
+                <div style={{ fontSize: 9, color: "#667", marginTop: 1 }}>@{user.username}</div>
+                {/* xp bar */}
+                <div style={{ height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 2, overflow: "hidden", marginTop: 4 }}>
+                  <div style={{ width: `${xpPct}%`, height: "100%", background: classColor, borderRadius: 2 }} />
+                </div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#c8ff00" }}>{(user.karma ?? 0).toLocaleString()}⚡</div>
+                <div style={{ fontSize: 10, color: "#ff6b35", fontWeight: 700, marginTop: 2 }}>🔥 {streak}d</div>
+              </div>
+            </div>
+          </Link>
+
+          {/* ── Stat chips row ── */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+            {[
+              { label: "OMRÅDEN", value: `${capturedCount}/5`, color: "#c8ff00" },
+              { label: "BYGGNADER", value: `${villeBuildings.length}`, color: "#a855f7" },
+              { label: "ONLINE", value: String(onlineCount), color: "#00e5ff" },
+            ].map(s => (
+              <div key={s.label} style={{
+                flex: 1, background: "rgba(255,255,255,0.03)", border: `1px solid ${s.color}22`,
+                borderRadius: 10, padding: "7px 4px", textAlign: "center",
+              }}>
+                <div style={{ fontSize: 13, fontWeight: 900, color: s.color }}>{s.value}</div>
+                <div style={{ fontSize: 7, fontWeight: 700, color: "#556", letterSpacing: "0.06em", marginTop: 1 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
             {/* YOUR EMPIRE — real ville + territory data */}
             <Link href="/ville" onClick={() => setPanelExpanded(false)} style={{ textDecoration: "none" }}>

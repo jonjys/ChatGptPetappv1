@@ -41,7 +41,7 @@ function Toggle({ on, onToggle, color }: { on: boolean; onToggle: () => void; co
 }
 
 export default function ProfilePage() {
-  const { user, worldId, setWorldId, streak, achievements, showToast, lang, setLang, pet, petMoodComputed } = useApp();
+  const { user, worldId, setWorldId, streak, achievements, showToast, lang, setLang, pet, petMoodComputed, gameScores } = useApp();
   const progress   = xpProgress(user.xp);
   const xpToNext   = xpToNextLevel(user.xp);
   const level      = calculateLevel(user.xp);
@@ -150,27 +150,56 @@ export default function ProfilePage() {
           </div>
         </motion.div>
 
-        {/* Empire strip — profile ⇄ ville ⇄ live map */}
-        <Link href="/map" style={{ textDecoration: "none" }}>
-          <motion.div
-            whileTap={{ scale: 0.97 }}
-            style={{
+        {/* Empire card — profile ⇄ ville ⇄ live-map, with live territory */}
+        {(() => {
+          const gs = gameScores as Record<string, number>;
+          const zones = [
+            { id: "city",   name: "KARMA CITY",     emoji: "🏙️", color: "#a855f7", infl: Math.min(100, Math.round(villeCount * 9 + 10)) },
+            { id: "bounty", name: "BOUNTY DISTRICT", emoji: "🎯", color: "#ffcc00", infl: Math.min(100, Math.round((gs.blitz ?? 0) / 8 + (gs.fishing ?? 0) / 2 + 8)) },
+            { id: "arena",  name: "ARENA ZONE",      emoji: "⚔️", color: "#ff4444", infl: Math.min(100, Math.round((gs.battle ?? 0) * 15 + (gs.breaker ?? 0) / 60 + 12)) },
+            { id: "park",   name: "PET PARK",        emoji: "🌿", color: "#00ff88", infl: Math.min(100, Math.round((gs.runner ?? 0) / 80 + (gs.memory ?? 0) / 40 + 6)) },
+            { id: "market", name: "SHADOW MARKET",   emoji: "💎", color: "#ff2d8d", infl: Math.min(100, Math.round((gs.slots ?? 0) / 40 + (gs.cases ?? 0) / 2 + 9)) },
+          ];
+          const captured = zones.filter(z => z.infl >= 100).length;
+          return (
+            <div style={{
               background: "linear-gradient(135deg, #0d0d16, #0a0a12)",
-              border: "1.5px solid #00e5ff33",
-              borderRadius: 16, padding: "12px 14px",
-              display: "flex", alignItems: "center", gap: 12,
-            }}
-          >
-            <span style={{ fontSize: "1.6rem" }}>🌍</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, fontWeight: 900, color: "#00e5ff", letterSpacing: "0.04em" }}>MITT IMPERIUM</div>
-              <div style={{ fontSize: 10, color: "#556", marginTop: 1 }}>
-                🏗️ {villeCount} byggnader i din Ville · ta över områden på live-kartan
+              border: "1.5px solid #00e5ff33", borderRadius: 18, padding: "14px 14px 12px",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                <span style={{ fontSize: "1.5rem" }}>🌍</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 900, color: "#00e5ff", letterSpacing: "0.04em" }}>MITT IMPERIUM</div>
+                  <div style={{ fontSize: 10, color: "#556", marginTop: 1 }}>🏗️ {villeCount} byggnader · 🚩 {captured}/5 områden tagna</div>
+                </div>
+                <Link href="/map" style={{ textDecoration: "none" }}>
+                  <span style={{ background: "#00e5ff18", border: "1px solid #00e5ff44", borderRadius: 8, padding: "5px 10px", fontSize: 10, fontWeight: 800, color: "#00e5ff", whiteSpace: "nowrap" }}>LIVE KARTA →</span>
+                </Link>
               </div>
+              {/* Zone control bars */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {zones.map(z => (
+                  <div key={z.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 13, width: 18, flexShrink: 0 }}>{z.emoji}</span>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: "#889", width: 92, flexShrink: 0, letterSpacing: "0.02em" }}>{z.name}</span>
+                    <div style={{ flex: 1, height: 5, background: "rgba(255,255,255,0.07)", borderRadius: 3, overflow: "hidden" }}>
+                      <div style={{ width: `${z.infl}%`, height: "100%", background: z.infl >= 100 ? "#c8ff00" : z.color, borderRadius: 3, boxShadow: `0 0 6px ${z.infl >= 100 ? "#c8ff00" : z.color}` }} />
+                    </div>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: z.infl >= 100 ? "#c8ff00" : "#667", width: 32, textAlign: "right", flexShrink: 0 }}>
+                      {z.infl >= 100 ? "🚩" : `${z.infl}%`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {/* Castle link */}
+              <Link href="/ville" style={{ textDecoration: "none" }}>
+                <div style={{ marginTop: 10, textAlign: "center", background: "#a855f712", border: "1px solid #a855f733", borderRadius: 10, padding: "8px", fontSize: 11, fontWeight: 800, color: "#a855f7" }}>
+                  🏰 BYGG DITT SLOTT I KARMA VILLE →
+                </div>
+              </Link>
             </div>
-            <span style={{ background: "#00e5ff18", border: "1px solid #00e5ff44", borderRadius: 8, padding: "4px 9px", fontSize: 10, fontWeight: 800, color: "#00e5ff" }}>KARTA →</span>
-          </motion.div>
-        </Link>
+          );
+        })()}
 
         {/* Pet companion card */}
         <Link href="/pet" style={{ textDecoration: "none" }}>
