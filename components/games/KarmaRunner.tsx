@@ -1191,7 +1191,7 @@ export default function KarmaRunner({ petEmoji = "🦁", onEnd }: { petEmoji?: s
       let chosen: PwupKind = "boost";
       for (let ti = 0; ti < types.length; ti++) { rnd -= weights[ti]!; if (rnd <= 0) { chosen = types[ti]!; break; } }
       g.pwups.push({ id: g.frame, x: GW + 10, type: chosen, done: false });
-      g.nxtPwup = 260 + Math.floor(Math.random() * 160);
+      g.nxtPwup = 170 + Math.floor(Math.random() * 120);
     }
     g.pwups = g.pwups.map(p => ({ ...p, x: p.x - effSpeed })).filter(p => p.x > -30);
 
