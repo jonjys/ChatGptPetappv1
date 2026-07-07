@@ -605,6 +605,12 @@ export default function PetPage() {
                 {/* Time-of-day tint */}
                 <div style={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none", background: timeOverlay }} />
 
+                {/* Atmospheric depth — top light + vignette */}
+                <div style={{ position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none",
+                  background: `radial-gradient(ellipse 70% 45% at 50% 8%, ${world.glowColor}18, transparent 70%)` }} />
+                <div style={{ position: "absolute", inset: 0, zIndex: 5, pointerEvents: "none",
+                  boxShadow: "inset 0 0 90px rgba(0,0,0,0.55), inset 0 -30px 50px rgba(0,0,0,0.4)" }} />
+
                 {/* ── Ville cityscape silhouette in background ── */}
                 <div style={{ position: "absolute", bottom: 88, left: 0, right: 0, height: 140, zIndex: 2, pointerEvents: "none", overflow: "hidden" }}>
                   {villePlaced.map((p, i) => {
@@ -663,39 +669,10 @@ export default function PetPage() {
                   />
                 ))}
 
-                {/* Floating world emojis */}
-                {world.petRoomEmojis.slice(0, 3).map((emoji, i) => (
-                  <motion.div key={i}
-                    animate={{ y: [0, -8, 0], opacity: [0.55, 0.85, 0.55] }}
-                    transition={{ duration: 3.5 + i, repeat: Infinity, delay: i * 0.7 }}
-                    style={{
-                      position: "absolute",
-                      top: 14 + i * 20,
-                      left: i === 0 ? 14 : i === 1 ? "38%" : undefined,
-                      right: i === 2 ? 14 : undefined,
-                      fontSize: ["1.8rem", "1.3rem", "1.1rem"][i],
-                      zIndex: 3, pointerEvents: "none",
-                    }}>
-                    {emoji}
-                  </motion.div>
-                ))}
-
-                {/* Ground decor */}
-                {world.petRoomEmojis.slice(3).map((emoji, i) => (
-                  <div key={i} style={{
-                    position: "absolute", bottom: 92,
-                    left: i === 0 ? 10 : i === 1 ? "25%" : undefined,
-                    right: i === 2 ? 10 : undefined,
-                    fontSize: ["2.2rem", "1.6rem", "2rem"][i],
-                    opacity: 0.8, zIndex: 3, pointerEvents: "none",
-                  }}>{emoji}</div>
-                ))}
-
-                {/* Food bowl */}
-                <div style={{
-                  position: "absolute", bottom: 92, left: "50%", transform: "translateX(-50%)",
-                  zIndex: 3, pointerEvents: "none", fontSize: "1.8rem", opacity: 0.6,
-                }}>🍜</div>
+                {/* Cozy habitat props — a few deliberate ground items, not scattered soup */}
+                <div style={{ position: "absolute", bottom: 90, left: 14, zIndex: 3, pointerEvents: "none", fontSize: "1.9rem", opacity: 0.9, filter: `drop-shadow(0 4px 6px ${world.accent}33)` }}>🛏️</div>
+                <div style={{ position: "absolute", bottom: 90, right: 16, zIndex: 3, pointerEvents: "none", fontSize: "1.7rem", opacity: 0.9, filter: `drop-shadow(0 4px 6px ${world.accent}33)` }}>🪴</div>
+                <div style={{ position: "absolute", bottom: 92, left: "50%", transform: "translateX(-50%)", zIndex: 3, pointerEvents: "none", fontSize: "1.5rem", opacity: 0.75 }}>🍜</div>
 
                 {/* Giant glow orb */}
                 <motion.div
@@ -865,17 +842,19 @@ export default function PetPage() {
                         : { duration: petMoodComputed === "excited" ? 1.6 : 3.2, repeat: Infinity, ease: "easeInOut" }
                     }
                     style={{
-                      width: 168, height: 168,
-                      background: "#fff",
-                      border: `4px solid ${pet.rarity === "common" || pet.rarity === "rare" ? petColor : rarityColor}`,
+                      width: 176, height: 176,
+                      background: `radial-gradient(circle at 50% 36%, ${world.glowColor}22 0%, #12121f 55%, #07070f 100%)`,
+                      border: `2.5px solid ${pet.rarity === "common" || pet.rarity === "rare" ? petColor : rarityColor}`,
                       borderRadius: "50%",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: "4.8rem",
-                      boxShadow: `5px 5px 0px ${petColor}, 0 0 60px ${world.glowColor}, 0 0 120px ${world.glowColor}44, 0 0 40px ${rarityGlow}`,
+                      fontSize: "5rem",
+                      boxShadow: `0 0 44px ${world.glowColor}, 0 0 100px ${world.glowColor}55, inset 0 0 44px ${(pet.rarity === "common" || pet.rarity === "rare" ? petColor : rarityColor)}22, 0 16px 34px rgba(0,0,0,0.6)`,
                       position: "relative",
                     }}
                   >
-                    {petEmoji}
+                    {/* soft spotlight behind the pet */}
+                    <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: `radial-gradient(circle at 50% 40%, ${world.glowColor}33, transparent 60%)`, pointerEvents: "none" }} />
+                    <span style={{ position: "relative", filter: `drop-shadow(0 4px 10px ${world.glowColor}88)` }}>{petEmoji}</span>
 
                     {/* Love bubble */}
                     <AnimatePresence>
@@ -890,7 +869,7 @@ export default function PetPage() {
                             position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)",
                             background: "#fff", border: "2px solid #0a0a0a",
                             borderRadius: 12, padding: "4px 12px",
-                            fontSize: 13, fontWeight: 700,
+                            fontSize: 13, fontWeight: 700, color: "#0a0a0a",
                             whiteSpace: "nowrap", boxShadow: "2px 2px 0px #0a0a0a", zIndex: 30,
                           }}>
                           Love! 💗
@@ -937,14 +916,17 @@ export default function PetPage() {
                     exit={{ opacity: 0, scale: 0.85 }}
                     transition={{ duration: 0.22 }}
                     style={{
-                      position: "absolute", bottom: 200, left: 10,
-                      background: "#fff", border: "2px solid #0a0a0a",
-                      borderRadius: 14, padding: "6px 10px",
-                      fontSize: 11, fontWeight: 600, maxWidth: 120,
-                      boxShadow: "2px 2px 0px #0a0a0a", lineHeight: 1.35, zIndex: 12,
+                      position: "absolute", bottom: 210, left: 12,
+                      background: "rgba(15,15,24,0.92)", border: `1.5px solid ${world.accent}55`,
+                      borderRadius: 14, padding: "8px 12px",
+                      fontSize: 11, fontWeight: 600, maxWidth: 150, color: "#e8e8f0",
+                      boxShadow: `0 6px 18px rgba(0,0,0,0.5), 0 0 16px ${world.accent}22`,
+                      lineHeight: 1.4, zIndex: 12, backdropFilter: "blur(6px)",
                     }}>
-                    <div style={{ fontSize: "1.1rem", marginBottom: 2 }}>{moodEmoji}</div>
+                    <span style={{ fontSize: "1rem", marginRight: 4 }}>{moodEmoji}</span>
                     {currentSpeech}
+                    {/* tail */}
+                    <div style={{ position: "absolute", bottom: -6, left: 18, width: 12, height: 12, background: "rgba(15,15,24,0.92)", borderRight: `1.5px solid ${world.accent}55`, borderBottom: `1.5px solid ${world.accent}55`, transform: "rotate(45deg)" }} />
                   </motion.div>
                 </AnimatePresence>
 
