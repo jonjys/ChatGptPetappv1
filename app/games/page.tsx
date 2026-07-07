@@ -14,15 +14,12 @@ type Game = {
 };
 
 const GAMES: Game[] = [
-  { id: "ville",   href: "/ville",         emoji: "🏙️", name: "KARMA VILLE",   tagline: "Bygg din stad · passiv karma · vänner besöker", reward: "Passiv: 2–60 ⚡/timme", accent: "#c8ff00",  bg: "#060f06",  tag: "NY 🆕",   hot: true,  players: 421 },
-  { id: "fishing", href: "/games/fishing", emoji: "🎣", name: "DEEP CATCH",    tagline: "Sonar · Charged cast · 30 fish · Battle legendaries", reward: "15–700 ⚡ per catch", accent: "#4488ff",  bg: "#010d1a",  tag: "HOT 🔥",  hot: true,  players: 342 },
-  { id: "runner",  href: "/games/runner",  emoji: "🏃", name: "KARMA RUNNER",  tagline: "Ghost runners · Geometry Dash · Warp portals · Aurora", reward: "Up to 500 ⚡",      accent: "#c8ff00",  bg: "#060f06",  hot: true,  players: 218 },
-  { id: "slots",   href: "/games/slots",   emoji: "🎰", name: "KARMA SLOTS",   tagline: "5 reels · Jackpot 2000⚡ · Wild WARP",           reward: "Jackpot: 2000 ⚡",    accent: "#ffaa00",  bg: "#1a0d00",  players: 189 },
-  { id: "cases",   href: "/games/cases",   emoji: "🏴‍☠️", name: "SHADOW VAULT", tagline: "Unbox rare artifacts · Roll the vault",          reward: "10–800 ⚡ per vault", accent: "#cc44ff",  bg: "#080010",  tag: "NEW",  players: 156 },
-  { id: "breaker", href: "/games/breaker", emoji: "🔫", name: "KARMA GUNNER", tagline: "Auto-shooter · Element wars · Upgrade shop · Bosses", reward: "Up to 400 ⚡",      accent: "#ff4422",  bg: "#1a0000",  tag: "NEW 🔥", hot: true, players: 234 },
-  { id: "battle",  href: "/games/battle",  emoji: "🌀", name: "KARMA PULSE",  tagline: "Circular TD · Nexus defense · 12-slot ring",    reward: "Win: 100–300 ⚡",     accent: "#a855f7",  bg: "#05020f",  tag: "NEW 🆕", players: 98  },
-  { id: "memory",  href: "/games/memory",  emoji: "🧠", name: "MEMORY PALACE", tagline: "Circular ring · Combo chain · 60 stars",        reward: "Up to 150 ⚡",        accent: "#ff44cc",  bg: "#1a0015",  players: 87  },
-  { id: "blitz",   href: "/games/blitz",   emoji: "🚨", name: "BOUNTY HEIST",  tagline: "Swipe · risk the chain · bank before you bust", reward: "Up to 800 ⚡",       accent: "#00e5ff",  bg: "#001a1a",  tag: "NEW",  players: 203 },
+  { id: "battle",  href: "/games/battle",  emoji: "🌀", name: "KARMA PULSE",  tagline: "Flyg skeppet · auto-eld · oändliga vågor · upgrades", reward: "Win: 100–300 ⚡",     accent: "#a855f7",  bg: "#05020f",  tag: "HOT 🔥", hot: true, players: 234 },
+  { id: "fishing", href: "/games/fishing", emoji: "🎣", name: "DEEP CATCH",    tagline: "Skill-fiske · linspänning · 30 fiskar · legendarer", reward: "15–700 ⚡ per catch", accent: "#4488ff",  bg: "#010d1a",  tag: "HOT 🔥",  hot: true,  players: 342 },
+  { id: "blitz",   href: "/games/blitz",   emoji: "🚨", name: "BOUNTY HEIST",  tagline: "Svep · risk-kedja · banka innan du åker dit", reward: "Up to 800 ⚡",       accent: "#00e5ff",  bg: "#001a1a",  tag: "NY",  hot: true, players: 203 },
+  { id: "runner",  href: "/games/runner",  emoji: "🏃", name: "KARMA RUNNER",  tagline: "Endless runner · power-ups · biomes · bossjakt", reward: "Up to 500 ⚡",      accent: "#c8ff00",  bg: "#060f06",  hot: true,  players: 218 },
+  { id: "breaker", href: "/games/breaker", emoji: "🔫", name: "KARMA GUNNER", tagline: "Auto-shooter · element · combo overdrive · bossar", reward: "Up to 400 ⚡",      accent: "#ff4422",  bg: "#1a0000",  players: 234 },
+  { id: "memory",  href: "/games/memory",  emoji: "🧠", name: "MEMORY PALACE", tagline: "Minnesringar · combo-kedja · ghost preview",        reward: "Up to 150 ⚡",        accent: "#ff44cc",  bg: "#1a0015",  players: 87  },
 ];
 
 const HOT_GAMES = GAMES.filter(g => g.hot);
