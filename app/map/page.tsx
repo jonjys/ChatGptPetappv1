@@ -77,20 +77,22 @@ const ZONES: Zone[] = [
 
 // ─── Live players ─────────────────────────────────────────────────────────────
 interface LivePlayer {
-  name: string;
-  emoji: string;
+  name: string;     // owner @username
+  petName: string;
+  emoji: string;    // the PET emoji (follow pets, not people)
   x: number;
   y: number;
   color: string;
   pulseOffset: number;
+  online: boolean;
 }
 
 const LIVE_PLAYERS: LivePlayer[] = [
-  { name: "dragon99",    emoji: "🐉", x: 0.20, y: 0.22, color: "#ff4444", pulseOffset: 0 },
-  { name: "lunavibes",   emoji: "🌙", x: 0.74, y: 0.40, color: "#ff2d8d", pulseOffset: 60 },
-  { name: "tradeknight", emoji: "⚔️", x: 0.57, y: 0.72, color: "#ffcc00", pulseOffset: 120 },
-  { name: "neonmiku",    emoji: "✨", x: 0.14, y: 0.60, color: "#00e5ff", pulseOffset: 40 },
-  { name: "pixelrush",   emoji: "🎮", x: 0.82, y: 0.80, color: "#a855f7", pulseOffset: 90 },
+  { name: "dragon99",    petName: "Ember", emoji: "🐉", x: 0.20, y: 0.22, color: "#ff4444", pulseOffset: 0,   online: true },
+  { name: "lunavibes",   petName: "Sora",  emoji: "🦋", x: 0.74, y: 0.40, color: "#ff2d8d", pulseOffset: 60,  online: true },
+  { name: "tradeknight", petName: "Aura",  emoji: "🐲", x: 0.57, y: 0.72, color: "#ffcc00", pulseOffset: 120, online: false },
+  { name: "neonmiku",    petName: "Yuki",  emoji: "🦋", x: 0.14, y: 0.60, color: "#00e5ff", pulseOffset: 40,  online: true },
+  { name: "pixelrush",   petName: "Rex",   emoji: "🦊", x: 0.82, y: 0.80, color: "#a855f7", pulseOffset: 90,  online: false },
 ];
 
 // ─── Live feed ────────────────────────────────────────────────────────────────
@@ -187,6 +189,9 @@ export default function MapPage() {
   const [panelExpanded, setPanelExpanded] = useState(false);
   const [currentZone, setCurrentZone] = useState("KARMA CITY");
   const [onlineCount] = useState(247);
+  const [visitPet, setVisitPet] = useState<(typeof LIVE_PLAYERS)[number] | null>(null);
+  const [visitToast, setVisitToast] = useState<string | null>(null);
+  function doVisit(msg: string) { setVisitToast(msg); setVisitPet(null); setTimeout(() => setVisitToast(null), 1800); }
 
   // Derive pet display info
   const evolution = getEvolutionByLevel(pet.level);
@@ -600,7 +605,7 @@ export default function MapPage() {
               backgroundClip: "text",
             }}
           >
-            KARMA WORLD
+            UTFORSKA
           </span>
         </div>
 
@@ -925,6 +930,27 @@ export default function MapPage() {
             ))}
           </div>
 
+          {/* ── VÄNNER NÄRA DIG — the Snapchat friend map, but pets ── */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 9, fontWeight: 800, color: "#556", letterSpacing: "0.1em", marginBottom: 6 }}>🐾 VÄNNER NÄRA DIG</div>
+            <div style={{ display: "flex", gap: 10, overflowX: "auto", scrollbarWidth: "none" as const, paddingBottom: 2 }}>
+              {LIVE_PLAYERS.map(p => (
+                <div key={p.name} onClick={() => setVisitPet(p)}
+                  style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, width: 54, cursor: "pointer", flexShrink: 0 }}>
+                  <div style={{ position: "relative" }}>
+                    <div style={{
+                      width: 48, height: 48, borderRadius: "50%",
+                      background: "#0f0f18", border: `2px solid ${p.online ? "#00ff88" : "#2a2a38"}`,
+                      display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem",
+                    }}>{p.emoji}</div>
+                    {p.online && <div style={{ position: "absolute", bottom: 0, right: 0, width: 11, height: 11, borderRadius: "50%", background: "#00ff88", border: "2px solid #04040e" }} />}
+                  </div>
+                  <span style={{ fontSize: 8, fontWeight: 600, color: "#889", maxWidth: 54, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.petName}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
             {/* YOUR EMPIRE — real ville + territory data */}
             <Link href="/ville" onClick={() => setPanelExpanded(false)} style={{ textDecoration: "none" }}>
@@ -1005,6 +1031,72 @@ export default function MapPage() {
           </div>
         </div>
       </motion.div>
+
+      {/* ── Visit-a-pet sheet ── */}
+      <AnimatePresence>
+        {visitPet && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setVisitPet(null)}
+              style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.75)" }} />
+            <motion.div
+              initial={{ opacity: 0, y: 40, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 30, scale: 0.95 }}
+              transition={{ type: "spring", damping: 24, stiffness: 320 }}
+              style={{
+                position: "fixed", bottom: 90, left: "50%", transform: "translateX(-50%)",
+                width: "calc(100% - 32px)", maxWidth: 340, zIndex: 301,
+                background: "#0f0f16", border: "1.5px solid #1e1e2a", borderRadius: 22,
+                padding: "20px 18px", boxShadow: "0 12px 48px rgba(0,0,0,0.7)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                <div style={{
+                  width: 60, height: 60, borderRadius: "50%", flexShrink: 0,
+                  background: "#14141f", border: `2.5px solid ${visitPet.online ? "#00ff88" : "#2a2a36"}`,
+                  display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2rem",
+                }}>{visitPet.emoji}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 17, fontWeight: 900, color: "#fff" }}>{visitPet.petName}</div>
+                  <div style={{ fontSize: 11, color: "#667" }}>@{visitPet.name} · {visitPet.online ? "🟢 online nu" : "⚫ offline"}</div>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {[
+                  { emoji: "👋", label: "Vinka", color: "#c8ff00", msg: `Du vinkade till ${visitPet.petName}! 👋` },
+                  { emoji: "🎁", label: "Gåva", color: "#ff2d8d", msg: `Du gav ${visitPet.petName} en gåva! 🎁` },
+                  { emoji: "🏰", label: "Besök hem", color: "#a855f7", msg: `Du besökte ${visitPet.petName}s hem! 🏰` },
+                  { emoji: "🔥", label: "Håll streak", color: "#ff6b35", msg: `Pet-streak med ${visitPet.petName} förlängd! 🔥` },
+                ].map(a => (
+                  <motion.button key={a.label} whileTap={{ scale: 0.94 }} onClick={() => doVisit(a.msg)}
+                    style={{
+                      display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                      padding: "12px 4px", background: `${a.color}12`, border: `1.5px solid ${a.color}44`,
+                      borderRadius: 14, cursor: "pointer", fontFamily: "inherit",
+                    }}>
+                    <span style={{ fontSize: "1.4rem" }}>{a.emoji}</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: a.color }}>{a.label}</span>
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Visit toast */}
+      <AnimatePresence>
+        {visitToast && (
+          <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+            style={{
+              position: "fixed", top: 20, left: 16, right: 16, zIndex: 320,
+              background: "linear-gradient(135deg, #0a1400, #111)", border: "2px solid #c8ff00",
+              borderRadius: 14, padding: "12px 16px", textAlign: "center",
+              fontWeight: 700, fontSize: 14, color: "#c8ff00", boxShadow: "0 0 24px #c8ff0033",
+            }}>
+            {visitToast}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
