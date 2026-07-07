@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Flame, PawPrint, Gamepad2, Globe, Users, User } from "lucide-react";
+import { Flame, PawPrint, Gamepad2, User } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { t } from "@/lib/i18n";
 import { useEffect, useState } from "react";
@@ -40,12 +40,11 @@ export default function BottomNav() {
     if (path === "/pet" && petIsNew) setPetIsNew(false);
   }, [path, petIsNew]);
 
+  // Focused 4-tab nav: Pet (Tamagotchi core) · Social · Spela · Jag
   const TABS = [
-    { href: "/feed",     icon: Flame,    label: t(lang, "feed") },
     { href: "/pet",      icon: PawPrint, label: t(lang, "pet") },
+    { href: "/feed",     icon: Flame,    label: t(lang, "social") },
     { href: "/games",    icon: Gamepad2, label: t(lang, "games"), special: true },
-    { href: "/map",      icon: Globe,    label: "WORLD", world: true },
-    { href: "/social",   icon: Users,    label: t(lang, "social") },
     { href: "/profile",  icon: User,     label: t(lang, "me") },
   ];
 
