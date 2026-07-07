@@ -27,12 +27,12 @@ import type { WorldId } from "@/types/world";
 
 // ─── Speech ──────────────────────────────────────────────────────────────────
 const SPEECH: Record<string, string[]> = {
-  excited: ["Let's go!! I'm READY!", "MAXIMUM POWER! 🔥", "I feel unstoppable today!"],
-  happy: ["Life is good ✨", "Keep grinding, we got this!", "I believe in us 🌟"],
-  neutral: ["Just vibing...", "What are we doing today?", "I could go for an adventure"],
-  hungry: ["...I'm starving 😭", "Feed me please!!", "My stomach is empty 🥲"],
-  sad: ["I miss when we used to play...", "A little love would be nice 💔", "Come back to me..."],
-  sleeping: ["Zzzz... 💤", "Shh... resting...", "Don't wake me..."],
+  excited: ["Nu kör vi!! Jag är REDO!", "MAXKRAFT! 🔥", "Jag känner mig ostoppbar idag!"],
+  happy: ["Livet är bra ✨", "Vi fixar det här tillsammans!", "Jag tror på oss 🌟"],
+  neutral: ["Bara chillar...", "Vad ska vi göra idag?", "Jag är sugen på äventyr"],
+  hungry: ["...jag svälter 😭", "Mata mig snälla!!", "Magen är helt tom 🥲"],
+  sad: ["Jag saknar när vi lekte...", "Lite kärlek vore skönt 💔", "Kom tillbaka till mig..."],
+  sleeping: ["Zzzz... 💤", "Shh... vilar...", "Väck mig inte..."],
 };
 
 // ─── Evolution stages ────────────────────────────────────────────────────────
@@ -120,6 +120,32 @@ export default function PetPage() {
     if (typeof window === "undefined") return true;
     return localStorage.getItem("pet_daily_v2") === new Date().toDateString();
   });
+
+  // ── Welcome-back memory: the pet remembers how long you were away ──────────
+  const [welcomeBack, setWelcomeBack] = useState<{ emoji: string; title: string; sub: string } | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const KEY = "pet_last_visit_v1";
+    const last = Number(localStorage.getItem(KEY) || "0");
+    const now = Date.now();
+    localStorage.setItem(KEY, String(now));
+    if (!last) return; // first ever visit — no greeting
+    const hrs = (now - last) / 3600000;
+    if (hrs < 0.5) return; // just here, don't nag
+    const name = pet.name;
+    const hungry = pet.needs.hunger < 45;
+    let emoji = "🥰", title = `${name} är glad att se dig!`;
+    if (hrs >= 24)      { emoji = "🥺"; title = `${name} trodde du glömt bort hen...`; }
+    else if (hrs >= 12) { emoji = "💜"; title = `${name} väntade hela dagen på dig`; }
+    else if (hrs >= 4)  { emoji = "🐾"; title = `${name} har saknat dig!`; }
+    else if (hrs >= 1)  { emoji = "👀"; title = `${name} undrade var du var`; }
+    const away = hrs >= 24 ? `${Math.round(hrs / 24)}d borta` : `${Math.round(hrs)}h borta`;
+    const sub = hungry ? `${away} · och är jättehungrig 🍖` : `${away} · ge lite kärlek 💛`;
+    setWelcomeBack({ emoji, title, sub });
+    const t = setTimeout(() => setWelcomeBack(null), 6000);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Room / accessory state ─────────────────────────────────────────────────
   const [particles, setParticles] = useState<Particle[]>([]);
@@ -492,6 +518,30 @@ export default function PetPage() {
         </div>
       </div>
 
+      {/* ── Welcome-back — the pet remembers you ── */}
+      <AnimatePresence>
+        {welcomeBack && (
+          <motion.div
+            initial={{ opacity: 0, y: -12, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -12 }}
+            onClick={() => setWelcomeBack(null)}
+            className="mx-4 mt-3"
+            style={{
+              display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
+              background: `linear-gradient(135deg, ${classColor}1e, #0d0d14)`,
+              border: `1.5px solid ${classColor}55`, borderRadius: 16,
+              boxShadow: `0 0 24px ${classColor}22`, cursor: "pointer", position: "relative", zIndex: 50,
+            }}
+          >
+            <motion.span animate={{ scale: [1, 1.15, 1], rotate: [0, -8, 8, 0] }} transition={{ duration: 1.4, repeat: Infinity }}
+              style={{ fontSize: "2rem", flexShrink: 0 }}>{welcomeBack.emoji}</motion.span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 900, color: "#fff" }}>{welcomeBack.title}</div>
+              <div style={{ fontSize: 11, color: "#889", marginTop: 1 }}>{welcomeBack.sub}</div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Toast ── */}
       <AnimatePresence>
         {toast && (
@@ -512,12 +562,11 @@ export default function PetPage() {
 
         {/* ── Tab Nav ── */}
         <div style={{ display: "flex", gap: 4, overflowX: "auto", scrollbarWidth: "none" }}>
-          {(["room", "train", "bond", "grow", "squad", "ville"] as const).map(t => {
+          {(["room", "train", "bond", "grow", "ville"] as const).map(t => {
             const isVille = t === "ville";
-            const isSquad = t === "squad";
-            const activeColor = isVille ? "#ff9d00" : isSquad ? "#06b6d4" : "#c8ff00";
-            const activeShadow = isVille ? "0 0 14px #ff9d0055" : isSquad ? "0 0 14px #06b6d444" : "0 0 14px #c8ff0044";
-            const labelMap: Record<string, string> = { room: "🏠 ROOM", train: "⚔️ TRAIN", bond: "💖 BOND", grow: "🌱 GROW", squad: "👥 SQUAD", ville: "🏙️ VILLE" };
+            const activeColor = isVille ? "#ff9d00" : "#c8ff00";
+            const activeShadow = isVille ? "0 0 14px #ff9d0055" : "0 0 14px #c8ff0044";
+            const labelMap: Record<string, string> = { room: "🏠 HEM", train: "⚔️ TRÄNA", bond: "💖 BAND", grow: "🌱 VÄX", ville: "🏰 SLOTT" };
             const label = labelMap[t] ?? t.toUpperCase();
             return (
               <button key={t} onClick={() => setTab(t)}
