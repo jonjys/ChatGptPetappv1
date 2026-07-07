@@ -1739,9 +1739,9 @@ export default function PetPage() {
 
             {/* City header stats */}
             <div style={{
-              background: "linear-gradient(135deg, #0d0800, #1a1000)",
-              border: "2.5px solid #ff9d00", borderRadius: 20, padding: "14px 16px",
-              boxShadow: "0 0 28px #ff9d0022",
+              background: "linear-gradient(135deg, #150d02, #0a0810)",
+              border: "1.5px solid #ff9d0044", borderRadius: 20, padding: "14px 16px",
+              boxShadow: "0 0 28px #ff9d0018, inset 0 0 40px rgba(0,0,0,0.35)",
             }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <div>
@@ -1755,12 +1755,12 @@ export default function PetPage() {
               </div>
               <button onClick={villeCollect} disabled={villeCollecting}
                 style={{
-                  width: "100%", padding: "10px",
+                  width: "100%", padding: "11px",
                   background: villeCollecting ? "#1a1a1a" : "linear-gradient(135deg, #ff9d00, #ffd000)",
-                  border: "2.5px solid #0a0a0a", borderRadius: 12,
+                  border: "none", borderRadius: 12,
                   fontSize: 14, fontWeight: 900, color: "#0a0a0a",
                   cursor: villeCollecting ? "not-allowed" : "pointer",
-                  boxShadow: villeCollecting ? "none" : "3px 3px 0 #0a0a0a",
+                  boxShadow: villeCollecting ? "none" : "0 0 20px #ff9d0066",
                   opacity: villeCollecting ? 0.5 : 1,
                   letterSpacing: "0.04em",
                 }}>
@@ -1768,21 +1768,23 @@ export default function PetPage() {
               </button>
             </div>
 
-            {/* City grid */}
+            {/* City grid — atmospheric buildable land */}
             <div style={{
-              background: "#060e06", border: "2.5px solid #ff9d00",
+              background: "radial-gradient(ellipse 90% 70% at 50% 0%, #14100a, #08080e 80%)",
+              border: "1.5px solid #ff9d0033",
               borderRadius: 20, padding: 14,
-              boxShadow: "0 0 20px #ff9d0018",
+              boxShadow: "inset 0 0 60px rgba(0,0,0,0.5), 0 0 24px #ff9d0012",
             }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#ff9d00", letterSpacing: "0.08em", marginBottom: 10 }}>
-                🗺️ STADSVY — tryck på en ruta
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#ff9d00", letterSpacing: "0.08em", marginBottom: 10 }}>
+                🗺️ STADSVY — tryck på en ruta för att bygga
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: `repeat(${VILLE_COLS}, 1fr)`, gap: 6 }}>
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${VILLE_COLS}, 1fr)`, gap: 7 }}>
                 {Array.from({ length: VILLE_ROWS }).map((_, row) =>
                   Array.from({ length: VILLE_COLS }).map((_, col) => {
                     const placed = villeGetCell(col, row);
                     const def = placed ? VILLE_BUILDINGS.find(b => b.id === placed.buildingId) : null;
                     const isSelected = villeSelectedCell?.col === col && villeSelectedCell?.row === row;
+                    const terrain = ["🌲", "🌿", "🪨", "🌸"][(col * 3 + row * 5) % 4];
                     return (
                       <button key={`${col}-${row}`}
                         onClick={() => {
@@ -1790,20 +1792,29 @@ export default function PetPage() {
                           else { setVilleSelectedCell({ col, row }); setVilleShopOpen(false); }
                         }}
                         style={{
-                          aspectRatio: "1",
-                          background: def ? `${def.color}18` : "#0a0a0a",
+                          aspectRatio: "1", position: "relative", overflow: "hidden",
+                          background: def
+                            ? `radial-gradient(circle at 50% 35%, ${def.color}2a, ${def.color}10 70%, #0a0a12)`
+                            : (col + row) % 2 === 0 ? "linear-gradient(160deg,#0e1810,#0a1016)" : "linear-gradient(160deg,#0c140f,#0a0e14)",
                           border: isSelected
-                            ? "2.5px solid #ff9d00"
-                            : def ? `2px solid ${def.color}66` : "2px solid #1a1a1a",
-                          borderRadius: 10,
+                            ? "2px solid #ff9d00"
+                            : def ? `1.5px solid ${def.color}77` : "1px solid #1a2a1e",
+                          borderRadius: 12,
                           display: "flex", flexDirection: "column",
                           alignItems: "center", justifyContent: "center",
-                          cursor: "pointer", fontSize: "1.4rem",
-                          boxShadow: isSelected ? "0 0 12px #ff9d0066" : def ? `0 0 8px ${def.color}22` : "none",
+                          cursor: "pointer", fontSize: "1.5rem",
+                          boxShadow: isSelected ? "0 0 16px #ff9d0077" : def ? `0 0 12px ${def.color}33, inset 0 0 12px ${def.color}18` : "inset 0 0 14px rgba(0,0,0,0.5)",
                           transition: "all 0.15s",
                         }}>
-                        {def ? def.emoji : <span style={{ color: "#222", fontSize: "1rem" }}>+</span>}
-                        {def && <span style={{ fontSize: 8, color: def.color, fontWeight: 700, marginTop: 2 }}>{def.name.slice(0,5)}</span>}
+                        {def ? (
+                          <span style={{ filter: `drop-shadow(0 2px 5px ${def.color}66)` }}>{def.emoji}</span>
+                        ) : (
+                          <>
+                            <span style={{ fontSize: "1rem", opacity: 0.28 }}>{terrain}</span>
+                            <span style={{ position: "absolute", top: 4, right: 6, color: "#ff9d0088", fontSize: "0.85rem", fontWeight: 900 }}>+</span>
+                          </>
+                        )}
+                        {def && <span style={{ fontSize: 8, color: def.color, fontWeight: 800, marginTop: 1 }}>{def.name.slice(0,5)}</span>}
                       </button>
                     );
                   })

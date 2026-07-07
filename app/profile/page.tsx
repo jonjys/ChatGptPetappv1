@@ -95,13 +95,15 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Hero banner */}
-      <div style={{ position: "relative", height: 120, overflow: "hidden", marginBottom: -50 }}>
-        <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${classColor}22 0%, #080808 60%, #0a0015 100%)`, borderBottom: `2px solid ${classColor}22` }} />
-        <div style={{ position: "absolute", right: -10, top: -10, fontSize: "7rem", opacity: 0.06, lineHeight: 1, filter: "blur(2px)", userSelect: "none" }}>
-          {CLASS_ICON[user.petClass] ?? "⭐"}
+      {/* Hero banner — the pet IS your identity */}
+      <div style={{ position: "relative", height: 140, overflow: "hidden", marginBottom: -50 }}>
+        <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 80% 100% at 30% 0%, ${classColor}2e 0%, #08080e 65%, #0a0015 100%)`, borderBottom: `1.5px solid ${classColor}33` }} />
+        {/* big ghosted pet as backdrop */}
+        <div style={{ position: "absolute", right: 6, top: -6, fontSize: "8rem", opacity: 0.1, lineHeight: 1, userSelect: "none", filter: `drop-shadow(0 0 20px ${classColor})` }}>
+          {getPetEmoji(pet.evolution, pet.class)}
         </div>
-        <div style={{ position: "absolute", top: 14, left: 16, background: "rgba(0,0,0,0.6)", border: `1.5px solid ${classColor}66`, borderRadius: 10, padding: "4px 12px", backdropFilter: "blur(8px)" }}>
+        <div style={{ position: "absolute", inset: 0, boxShadow: "inset 0 -30px 40px rgba(0,0,0,0.5)" }} />
+        <div style={{ position: "absolute", top: 14, left: 16, background: "rgba(0,0,0,0.55)", border: `1.5px solid ${classColor}66`, borderRadius: 10, padding: "4px 12px", backdropFilter: "blur(8px)" }}>
           <span style={{ fontSize: 10, fontWeight: 800, color: classColor, letterSpacing: "0.08em" }}>LEVEL {level}</span>
         </div>
       </div>
@@ -120,11 +122,18 @@ export default function ProfilePage() {
         >
           <div style={{ position: "absolute", top: -40, left: 18 }}>
             <motion.div
-              animate={{ boxShadow: [`0 0 16px ${classColor}44`, `0 0 36px ${classColor}88`, `0 0 16px ${classColor}44`] }}
+              animate={{ boxShadow: [`0 0 18px ${classColor}55`, `0 0 40px ${classColor}99`, `0 0 18px ${classColor}55`] }}
               transition={{ repeat: Infinity, duration: 2.5 }}
-              style={{ width: 76, height: 76, background: "#111", border: `3px solid ${classColor}`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2.4rem" }}
+              style={{
+                width: 80, height: 80, borderRadius: "50%",
+                background: `radial-gradient(circle at 50% 36%, ${classColor}33 0%, #12121f 58%, #07070f 100%)`,
+                border: `2.5px solid ${classColor}`,
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2.5rem",
+                position: "relative", overflow: "hidden",
+              }}
             >
-              {user.avatarEmoji}
+              <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: `radial-gradient(circle at 50% 40%, ${classColor}33, transparent 60%)` }} />
+              <span style={{ position: "relative", filter: `drop-shadow(0 3px 8px ${classColor})` }}>{getPetEmoji(pet.evolution, pet.class)}</span>
             </motion.div>
           </div>
           <div style={{ paddingLeft: 90 }}>
