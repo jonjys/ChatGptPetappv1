@@ -5,8 +5,7 @@ import { Bell, Zap, Flame, X } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import FeedCard from "@/components/feed/FeedCard";
-import StoriesBar from "@/components/feed/StoriesBar";
-import { FEED_POSTS } from "@/lib/mock-data";
+import { FEED_POSTS, FRIENDS } from "@/lib/mock-data";
 import { useApp } from "@/context/AppContext";
 import { formatXP, calculateLevel } from "@/lib/xp-system";
 import { getDailyQuests } from "@/lib/quests";
@@ -59,6 +58,10 @@ export default function FeedPage() {
   const classColor = getPetClassColor(pet.class);
   const [filter, setFilter]       = useState<Filter>("ALL");
   const [showNotifs, setShowNotifs] = useState(false);
+  const [visitFriend, setVisitFriend] = useState<(typeof FRIENDS)[number] | null>(null);
+  const [visitToast, setVisitToast] = useState<string | null>(null);
+  function petStreak(id: string) { return (id.charCodeAt(id.length - 1) % 12) + 2; } // stable per friend
+  function doVisit(msg: string) { setVisitToast(msg); setVisitFriend(null); setTimeout(() => setVisitToast(null), 1800); }
   const level = calculateLevel(user.xp);
   const [liveEvent, setLiveEvent] = useState(getCurrentEvent);
   const [secsLeft, setSecsLeft]   = useState(getSecondsLeft);
@@ -240,9 +243,53 @@ export default function FeedPage() {
         </div>
       </div>
 
-      {/* Stories — Insta/Snap style, first thing under the header */}
-      <div className="px-4 pt-2">
-        <StoriesBar />
+      {/* VÄNNERS PETS — follow pets, not people (Snapchat closeness) */}
+      <div style={{ paddingTop: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px 6px" }}>
+          <span style={{ fontSize: 10, fontWeight: 800, color: "#556", letterSpacing: "0.1em" }}>🐾 VÄNNERS PETS</span>
+          <Link href="/social" style={{ textDecoration: "none", fontSize: 10, fontWeight: 700, color: "#c8ff00" }}>ALLA VÄNNER →</Link>
+        </div>
+        <div style={{ display: "flex", gap: 12, overflowX: "auto", scrollbarWidth: "none" as const, padding: "0 16px 4px" }}>
+          {/* Your pet first */}
+          <Link href="/pet" style={{ textDecoration: "none", flexShrink: 0 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, width: 62 }}>
+              <div style={{
+                width: 58, height: 58, borderRadius: "50%",
+                background: `${classColor}18`, border: `2.5px solid ${classColor}`,
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.7rem",
+                boxShadow: `0 0 14px ${classColor}55`,
+              }}>{petEmoji}</div>
+              <span style={{ fontSize: 9, fontWeight: 700, color: "#c8ff00", maxWidth: 62, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Din pet</span>
+            </div>
+          </Link>
+          {/* Friends' pets */}
+          {FRIENDS.map(f => {
+            const streak = petStreak(f.id);
+            return (
+              <motion.div key={f.id} whileTap={{ scale: 0.9 }} onClick={() => setVisitFriend(f)}
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, width: 62, cursor: "pointer", flexShrink: 0 }}>
+                <div style={{ position: "relative" }}>
+                  <div style={{
+                    width: 58, height: 58, borderRadius: "50%",
+                    background: "#0f0f16", border: `2.5px solid ${f.online ? "#00ff88" : "#2a2a36"}`,
+                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.7rem",
+                  }}>{f.petEmoji}</div>
+                  {/* streak flame */}
+                  <div style={{
+                    position: "absolute", bottom: -3, right: -3,
+                    background: "#ff6b35", border: "2px solid #0a0a0a", borderRadius: 8,
+                    padding: "0 5px", fontSize: 9, fontWeight: 800, color: "#fff",
+                    display: "flex", alignItems: "center", gap: 1,
+                  }}>🔥{streak}</div>
+                  {f.online && (
+                    <div style={{ position: "absolute", top: 0, right: 2, width: 12, height: 12, borderRadius: "50%", background: "#00ff88", border: "2px solid #0a0a0a" }} />
+                  )}
+                </div>
+                <span style={{ fontSize: 9, fontWeight: 600, color: "#889", maxWidth: 62, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.petName}</span>
+              </motion.div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Pet + quests — one tight hub row */}
@@ -561,6 +608,73 @@ export default function FeedPage() {
           </div>
         )}
       </div>
+
+      {/* ── Visit-a-pet modal (Snapchat closeness) ── */}
+      <AnimatePresence>
+        {visitFriend && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setVisitFriend(null)}
+              style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.75)" }} />
+            <motion.div
+              initial={{ opacity: 0, y: 40, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 30, scale: 0.95 }}
+              transition={{ type: "spring", damping: 24, stiffness: 320 }}
+              style={{
+                position: "fixed", bottom: 90, left: "50%", transform: "translateX(-50%)",
+                width: "calc(100% - 32px)", maxWidth: 340, zIndex: 301,
+                background: "#0f0f16", border: "1.5px solid #1e1e2a", borderRadius: 22,
+                padding: "20px 18px", boxShadow: "0 12px 48px rgba(0,0,0,0.7)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                <div style={{
+                  width: 60, height: 60, borderRadius: "50%", flexShrink: 0,
+                  background: "#14141f", border: `2.5px solid ${visitFriend.online ? "#00ff88" : "#2a2a36"}`,
+                  display: "flex", alignItems: "center", justifyContent: "center", fontSize: "2rem",
+                }}>{visitFriend.petEmoji}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 17, fontWeight: 900, color: "#fff" }}>{visitFriend.petName}</div>
+                  <div style={{ fontSize: 11, color: "#667" }}>@{visitFriend.username} · LV{visitFriend.level}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#ff6b35", marginTop: 2 }}>🔥 {petStreak(visitFriend.id)}-dagars pet-streak</div>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {[
+                  { emoji: "👋", label: "Vinka", color: "#c8ff00", msg: `Du vinkade till ${visitFriend.petName}! 👋` },
+                  { emoji: "🎁", label: "Gåva", color: "#ff2d8d", msg: `Du gav ${visitFriend.petName} en gåva! 🎁` },
+                  { emoji: "🤝", label: "Hjälp uppdrag", color: "#00e5ff", msg: `Ni hjälps åt med ett uppdrag! 🤝` },
+                  { emoji: "🔥", label: "Håll streak", color: "#ff6b35", msg: `Pet-streak med ${visitFriend.petName} förlängd! 🔥` },
+                ].map(a => (
+                  <motion.button key={a.label} whileTap={{ scale: 0.94 }} onClick={() => doVisit(a.msg)}
+                    style={{
+                      display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                      padding: "12px 4px", background: `${a.color}12`, border: `1.5px solid ${a.color}44`,
+                      borderRadius: 14, cursor: "pointer", fontFamily: "inherit",
+                    }}>
+                    <span style={{ fontSize: "1.4rem" }}>{a.emoji}</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: a.color }}>{a.label}</span>
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Visit toast */}
+      <AnimatePresence>
+        {visitToast && (
+          <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+            style={{
+              position: "fixed", top: 80, left: 16, right: 16, zIndex: 320,
+              background: "linear-gradient(135deg, #0a1400, #111)", border: "2px solid #c8ff00",
+              borderRadius: 14, padding: "12px 16px", textAlign: "center",
+              fontWeight: 700, fontSize: 14, color: "#c8ff00", boxShadow: "0 0 24px #c8ff0033",
+            }}>
+            {visitToast}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
