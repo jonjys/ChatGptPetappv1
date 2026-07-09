@@ -151,6 +151,31 @@ export default function PetPage() {
   const [particles, setParticles] = useState<Particle[]>([]);
   const [loveBubble, setLoveBubble] = useState(false);
   const particleId = useRef(0);
+
+  // ── ARRIVAL: your pet erupts with joy the moment you come home ──────────────
+  const [arriving, setArriving] = useState(true);
+  const [joyBurst, setJoyBurst] = useState<{ id: number; dx: number; dy: number; emoji: string; delay: number; size: number }[]>([]);
+  const arrivalDone = useRef(false);
+  useEffect(() => {
+    if (arrivalDone.current) return;
+    arrivalDone.current = true;
+    const emojis = ["💛", "💗", "✨", "⭐", "🌟", "💫", "🥰"];
+    const burst = Array.from({ length: 22 }, (_, i) => ({
+      id: i,
+      dx: (Math.random() - 0.5) * 260,
+      dy: -70 - Math.random() * 190,
+      emoji: emojis[i % emojis.length],
+      delay: Math.random() * 0.45,
+      size: 0.9 + Math.random() * 1.1,
+    }));
+    setJoyBurst(burst);
+    setPetAction("arrive");
+    const t1 = setTimeout(() => setPetAction(null), 1500);
+    const t2 = setTimeout(() => setArriving(false), 2700);
+    const t3 = setTimeout(() => setJoyBurst([]), 3000);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [equippedHat, setEquippedHat] = useState<string>(() =>
     typeof window !== "undefined" ? localStorage.getItem("karma_pet_hat_v1") ?? "" : ""
   );
@@ -302,10 +327,10 @@ export default function PetPage() {
     const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
     const cx = e.clientX - rect.left;
     const cy = e.clientY - rect.top;
-    const newParticles: Particle[] = Array.from({ length: 4 }, () => ({
+    const newParticles: Particle[] = Array.from({ length: 8 }, () => ({
       id: ++particleId.current,
-      x: cx + (Math.random() - 0.5) * 40,
-      y: cy + (Math.random() - 0.5) * 20,
+      x: cx + (Math.random() - 0.5) * 60,
+      y: cy + (Math.random() - 0.5) * 30,
     }));
     setParticles(prev => [...prev, ...newParticles]);
     setTimeout(() => {
@@ -520,7 +545,7 @@ export default function PetPage() {
 
       {/* ── Welcome-back — the pet remembers you ── */}
       <AnimatePresence>
-        {welcomeBack && (
+        {welcomeBack && !arriving && (
           <motion.div
             initial={{ opacity: 0, y: -12, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -12 }}
             onClick={() => setWelcomeBack(null)}
@@ -610,6 +635,55 @@ export default function PetPage() {
                   background: `radial-gradient(ellipse 70% 45% at 50% 8%, ${world.glowColor}18, transparent 70%)` }} />
                 <div style={{ position: "absolute", inset: 0, zIndex: 5, pointerEvents: "none",
                   boxShadow: "inset 0 0 90px rgba(0,0,0,0.55), inset 0 -30px 50px rgba(0,0,0,0.4)" }} />
+
+                {/* ── ARRIVAL: welcome-home bloom + joy burst + greeting ── */}
+                {arriving && (
+                  <motion.div
+                    initial={{ opacity: 0 }} animate={{ opacity: [0, 1, 1, 0] }}
+                    transition={{ duration: 2.6, times: [0, 0.12, 0.7, 1] }}
+                    style={{ position: "absolute", inset: 0, zIndex: 18, pointerEvents: "none",
+                      background: `radial-gradient(circle at 50% 62%, ${world.glowColor}44, transparent 60%)` }}
+                  />
+                )}
+                {/* Joy particles erupt from the pet */}
+                {joyBurst.map(j => (
+                  <motion.div key={j.id}
+                    initial={{ opacity: 0, x: 0, y: 0, scale: 0.4 }}
+                    animate={{ opacity: [0, 1, 1, 0], x: j.dx, y: j.dy, scale: [0.4, j.size, j.size, j.size * 0.9] }}
+                    transition={{ duration: 1.9, delay: j.delay, ease: "easeOut" }}
+                    style={{ position: "absolute", bottom: 150, left: "50%", zIndex: 19, pointerEvents: "none",
+                      fontSize: "1.5rem", filter: `drop-shadow(0 0 6px ${world.glowColor})` }}
+                  >{j.emoji}</motion.div>
+                ))}
+                {/* Warm greeting */}
+                <AnimatePresence>
+                  {arriving && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 14, scale: 0.9 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ type: "spring", damping: 16, stiffness: 260 }}
+                      style={{ position: "absolute", top: 24, left: "50%", transform: "translateX(-50%)",
+                        zIndex: 20, pointerEvents: "none", textAlign: "center", width: "90%" }}
+                    >
+                      <motion.div
+                        animate={{ scale: [1, 1.12, 1] }} transition={{ duration: 1.1, repeat: Infinity }}
+                        style={{ fontSize: "2.4rem", lineHeight: 1, marginBottom: 4,
+                          filter: `drop-shadow(0 0 16px ${world.glowColor})` }}
+                      >💛</motion.div>
+                      <div style={{ fontSize: 20, fontWeight: 900, color: "#fff", letterSpacing: "-0.02em",
+                        textShadow: `0 2px 12px rgba(0,0,0,0.7), 0 0 24px ${world.glowColor}` }}>
+                        {pet.name} är SÅ glad att se dig!
+                      </div>
+                      {streak >= 2 && (
+                        <div style={{ fontSize: 12, fontWeight: 800, color: "#ff9d3c", marginTop: 3,
+                          textShadow: "0 1px 8px rgba(0,0,0,0.8)" }}>
+                          🔥 {streak} dagar tillsammans
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 {/* ── Ville cityscape silhouette in background ── */}
                 <div style={{ position: "absolute", bottom: 88, left: 0, right: 0, height: 140, zIndex: 2, pointerEvents: "none", overflow: "hidden" }}>
@@ -828,6 +902,7 @@ export default function PetPage() {
                     </div>
                   <motion.div
                     animate={
+                      petAction === "arrive"   ? { y: [0, -50, 4, -28, 0], scale: [1, 1.2, 0.94, 1.12, 1], rotate: [0, -14, 14, -7, 0] } :
                       petAction === "petting"  ? { scale: [1, 1.3, 0.93, 1.12, 1], rotate: [0, -10, 10, 0] } :
                       petAction === "eating"   ? { scale: [1, 1.22, 0.9, 1.12, 1], y: [0, -10, 0] } :
                       petAction === "playing"  ? { y: [0, -32, 0, -18, 0], rotate: [0, 14, -14, 0] } :
@@ -837,7 +912,9 @@ export default function PetPage() {
                         : { y: [0, -10, 0], scale: [1, 1.02, 1] }
                     }
                     transition={
-                      petAction
+                      petAction === "arrive"
+                        ? { duration: 1.4, ease: "easeInOut" }
+                        : petAction
                         ? { duration: 0.85, ease: "easeInOut" }
                         : { duration: petMoodComputed === "excited" ? 1.6 : 3.2, repeat: Infinity, ease: "easeInOut" }
                     }
