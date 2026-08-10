@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
 const STEPS = [
@@ -44,18 +45,21 @@ const STEPS = [
 const LS_KEY = "pet_onboarded_v2";
 
 export default function OnboardingOverlay() {
+  const pathname = usePathname();
   const [step, setStep] = useState(0);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    // Pet coach-marks belong on the pet page only — never over other tabs
+    if (pathname !== "/pet") return;
     if (typeof window !== "undefined"
       && !localStorage.getItem(LS_KEY)
       && localStorage.getItem("pet_created_v1")) {
-      // Small delay so the page renders first
-      const t = setTimeout(() => setVisible(true), 800);
+      // let the arrival celebration play first, then coach
+      const t = setTimeout(() => setVisible(true), 3000);
       return () => clearTimeout(t);
     }
-  }, []);
+  }, [pathname]);
 
   if (!visible) return null;
 
@@ -79,7 +83,8 @@ export default function OnboardingOverlay() {
           exit={{ opacity: 0 }}
           style={{
             position: "fixed", inset: 0, zIndex: 9999,
-            background: "rgba(0,0,0,0.90)", backdropFilter: "blur(8px)",
+            // Spotlight the pet, don't black it out — darken only toward the bottom card
+            background: "linear-gradient(180deg, rgba(4,4,10,0.15) 0%, rgba(4,4,10,0.35) 45%, rgba(4,4,10,0.86) 78%)",
             display: "flex", flexDirection: "column",
             alignItems: "center", justifyContent: "flex-end",
             padding: "0 20px 52px",

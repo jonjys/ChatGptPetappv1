@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useApp } from "@/context/AppContext";
 
@@ -19,12 +20,15 @@ const STORE_DAY   = "karma_daily_day_v1";
 
 export default function DailyReward() {
   const { addKarma, addXP, showToast } = useApp();
+  const pathname = usePathname();
   const [show,       setShow]       = useState(false);
   const [dayIdx,     setDayIdx]     = useState(0);
   const [claimed,    setClaimed]    = useState(false);
   const [burst,      setBurst]      = useState(false);
 
   useEffect(() => {
+    // Only greet on the Social home — never hijack the pet, games, ville, etc.
+    if (pathname !== "/feed") return;
     const today   = new Date().toDateString();
     const last    = localStorage.getItem(STORE_LAST) ?? "";
     const savedDay = parseInt(localStorage.getItem(STORE_DAY) ?? "0", 10);
@@ -37,8 +41,9 @@ export default function DailyReward() {
     const nextDay = isConsecutive ? ((savedDay % 7) + 1) : 1;
 
     setDayIdx(nextDay - 1);
-    setTimeout(() => setShow(true), 1500);
-  }, []);
+    const t = setTimeout(() => setShow(true), 1200);
+    return () => clearTimeout(t);
+  }, [pathname]);
 
   function handleClaim() {
     if (claimed) return;
